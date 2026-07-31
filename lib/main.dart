@@ -4723,9 +4723,7 @@ class SongTile extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         child: ListTile(
-          horizontalTitleGap: 8,
-          minLeadingWidth: 45,
-          contentPadding: const EdgeInsets.only(left: 12, right: 0),
+          contentPadding: const EdgeInsets.only(left: 16, right: 8),
           leading: SizedBox(
             width: 45,
             height: 45,
@@ -4889,7 +4887,7 @@ class SongTile extends StatelessWidget {
                       child: Container(
                         color: Colors.transparent,
                         padding: const EdgeInsets.only(
-                          left: 4.0,
+                          left: 8.0,
                           right: 4.0,
                           top: 12.0,
                           bottom: 12.0,
