@@ -333,56 +333,35 @@ class LyricLine {
   LyricLine({required this.time, required this.text});
 }
 
-final List<MediaItem> _playlist = [
-  MediaItem(
-    id: '${ApiConfig.baseUrl}/amnesie.flac',
-    album: 'Batterie Faible',
-    title: 'Amnésie',
-    artist: 'Damso',
-    artUri: Uri.parse('${ApiConfig.baseUrl}/amnesie.jpg'),
-    duration: const Duration(minutes: 3, seconds: 33),
-  ),
-  MediaItem(
-    id: '${ApiConfig.baseUrl}/feu_de_bois.flac',
-    album: 'Lithopédion',
-    title: 'Feu de bois',
-    artist: 'Damso',
-    artUri: Uri.parse('${ApiConfig.baseUrl}/feu_de_bois.jpg'),
-    duration: const Duration(minutes: 3, seconds: 3),
-  ),
-  MediaItem(
-    id: '${ApiConfig.baseUrl}/e_signaler.flac',
-    album: 'Ipséité',
-    title: 'E. Signaler',
-    artist: 'Damso',
-    artUri: Uri.parse('${ApiConfig.baseUrl}/e_signaler.jpg'),
-    duration: const Duration(minutes: 3, seconds: 21),
-  ),
-  MediaItem(
-    id: '${ApiConfig.baseUrl}/macarena.flac',
-    album: 'Ipséité',
-    title: 'Macarena',
-    artist: 'Damso',
-    artUri: Uri.parse('${ApiConfig.baseUrl}/e_signaler.jpg'),
-    duration: const Duration(minutes: 3, seconds: 27),
-  ),
-  MediaItem(
-    id: '${ApiConfig.baseUrl}/egerie.flac',
-    album: 'Feu',
-    title: 'Égérie',
-    artist: 'Nekfeu',
-    artUri: Uri.parse('${ApiConfig.baseUrl}/egerie.jpg'),
-    duration: const Duration(minutes: 3, seconds: 30),
-  ),
-  MediaItem(
-    id: '${ApiConfig.baseUrl}/galatee.flac',
-    album: 'Cyborg',
-    title: 'Galatée',
-    artist: 'Nekfeu',
-    artUri: Uri.parse('${ApiConfig.baseUrl}/galatee.jpg'),
-    duration: const Duration(minutes: 3, seconds: 16),
-  ),
-];
+List<MediaItem> _playlist = [];
+
+Future<void> fetchMusiques() async {
+  try {
+    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/musiques.json')).timeout(const Duration(seconds: 10));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      _playlist.clear();
+      for (var jsonItem in data) {
+        final id = jsonItem['id'] as String;
+        _playlist.add(
+          MediaItem(
+            id: '${ApiConfig.baseUrl}/$id.flac',
+            album: jsonItem['album'] ?? 'Inconnu',
+            title: jsonItem['title'] ?? id,
+            artist: jsonItem['artist'] ?? 'Inconnu',
+            artUri: Uri.parse('${ApiConfig.baseUrl}/$id.jpg'),
+            duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
+          ),
+        );
+      }
+      debugPrint('Musiques chargées avec succès : ${_playlist.length}');
+    } else {
+      debugPrint('Erreur réseau lors du chargement des musiques : ${response.statusCode}');
+    }
+  } catch (e) {
+    debugPrint('Erreur lors de la récupération des musiques : $e');
+  }
+}
 
 List<Color> _getTrackGradientColors(String title) {
   final t = title.toLowerCase();
@@ -926,6 +905,7 @@ void initAutoSyncListeners() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await fetchMusiques();
 
   // INITIALISATION DE FIREBASE
   await Firebase.initializeApp(
