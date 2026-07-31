@@ -7782,7 +7782,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             right:
                                                                 _isPlayerExpanded
                                                                 ? 20
-                                                                : 145, // Limite la taille du texte pour laisser place aux boutons
+                                                                : 45, // Limite le titre pour éviter le bouton Répéter
                                                             child: Column(
                                                               crossAxisAlignment:
                                                                   CrossAxisAlignment
@@ -7896,9 +7896,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                   height: 5,
                                                                 ),
 
-                                                                // 3. L'ARTISTE
-                                                                MarqueeWidget(
-                                                                  resetKey:
+                                                                // 3. L'ARTISTE (Padding supplémentaire pour éviter le bouton Précédent)
+                                                                AnimatedPadding(
+                                                                  duration: transitionDuration,
+                                                                  curve: transitionCurve,
+                                                                  padding: EdgeInsets.only(
+                                                                    right: _isPlayerExpanded ? 0 : 100, // 45 + 100 = 145
+                                                                  ),
+                                                                  child: MarqueeWidget(
+                                                                    resetKey:
                                                                       'artist_${safeItem.id}',
                                                                   child: TweenAnimationBuilder<double>(
                                                                     duration:
@@ -7934,6 +7940,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                           );
                                                                         },
                                                                   ),
+                                                                ),
                                                                 ),
                                                               ],
                                                             ),
