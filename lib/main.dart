@@ -410,6 +410,12 @@ Future<void> fetchMusiques() async {
       for (var jsonItem in data) {
         final id = jsonItem['id'] as String;
         final albumName = jsonItem['album'] ?? 'Inconnu';
+        
+        String safeImageName = _getSafeFileName(albumName);
+        if (id.toLowerCase() == 'zoo' || id.toLowerCase() == 'charge') {
+          safeImageName = 'or_noir';
+        }
+
         _playlist.add(
           MediaItem(
             id: '${ApiConfig.baseUrl}/$id.flac',
@@ -417,7 +423,7 @@ Future<void> fetchMusiques() async {
             title: _cleanTitle(jsonItem['title'] ?? id),
             artist: jsonItem['artist'] ?? 'Inconnu',
             artUri: Uri.parse(
-              '${ApiConfig.baseUrl}/${_getSafeFileName(albumName)}.jpg',
+              '${ApiConfig.baseUrl}/$safeImageName.jpg',
             ),
             duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
             extras: {'hasFlac': jsonItem['hasFlac'] ?? true},
@@ -599,7 +605,7 @@ Future<void> clearTemporaryFiles() async {
 class _HorizontalClipper extends CustomClipper<Rect> {
   @override
   Rect getClip(Size size) {
-    return Rect.fromLTWH(0, -100, size.width, size.height + 200);
+    return Rect.fromLTWH(0, -100, size.width + 5, size.height + 200);
   }
 
   @override
@@ -674,7 +680,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
 
       await _scrollController.animateTo(
         maxScroll,
-        duration: Duration(milliseconds: (maxScroll * 40).toInt() + 1000),
+        duration: Duration(milliseconds: (maxScroll * 35).toInt()),
         curve: Curves.linear,
       );
 
@@ -4770,7 +4776,7 @@ class SongTile extends StatelessWidget {
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                     ).createShader(
-                      Rect.fromLTWH(0, 0, bounds.width + 10, bounds.height),
+                      Rect.fromLTWH(0, 0, bounds.width + 5, bounds.height),
                     );
                   },
                   child: MarqueeWidget(
@@ -7875,7 +7881,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                                 Rect.fromLTWH(
                                                                                   0,
                                                                                   0,
-                                                                                  bounds.width + 10,
+                                                                                  bounds.width + 5,
                                                                                   bounds.height,
                                                                                 ),
                                                                               ); // Le Rect.fromLTWH évite le bug d'affichage lors du scroll !
