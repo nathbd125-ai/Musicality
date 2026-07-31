@@ -493,7 +493,8 @@ String _getSafeFileName(String title) {
       .replaceAll('è', 'e')
       .replaceAll('ê', 'e')
       .replaceAll('à', 'a')
-      .replaceAll('.', '');
+      .replaceAll('.', '')
+      .replaceAll(RegExp(r'[\u2010-\u2015\u2212]'), '-');
 }
 
 final RegExp _regexE = RegExp(r'[éèêë]');
@@ -1058,32 +1059,39 @@ Future<void> performCloudRestore() async {
     if (doc.exists && doc.data() != null) {
       final data = doc.data()!;
 
-      if (data['likedSongs'] != null)
+      if (data['likedSongs'] != null) {
         likedSongsNotifier.value = List<String>.from(
           data['likedSongs'],
         ).toSet();
-      if (data['customPlaylists'] != null)
+      }
+      if (data['customPlaylists'] != null) {
         customPlaylistsNotifier.value = List<String>.from(
           data['customPlaylists'],
         );
-      if (data['searchHistory'] != null)
+      }
+      if (data['searchHistory'] != null) {
         searchHistoryNotifier.value = List<String>.from(data['searchHistory']);
-      if (data['artistScores'] != null)
+      }
+      if (data['artistScores'] != null) {
         artistScoresNotifier.value = Map<String, int>.from(
           data['artistScores'],
         );
-      if (data['artistListeningTime'] != null)
+      }
+      if (data['artistListeningTime'] != null) {
         artistListeningTimeNotifier.value = Map<String, int>.from(
           data['artistListeningTime'],
         );
-      if (data['songPlayCount'] != null)
+      }
+      if (data['songPlayCount'] != null) {
         songPlayCountNotifier.value = Map<String, int>.from(
           data['songPlayCount'],
         );
-      if (data['playlistImages'] != null)
+      }
+      if (data['playlistImages'] != null) {
         playlistImagesNotifier.value = Map<String, String>.from(
           data['playlistImages'],
         );
+      }
 
       if (data['playlistContents'] != null) {
         final Map<String, dynamic> rawContents = data['playlistContents'];
@@ -5085,8 +5093,9 @@ class _SearchPageViewState extends State<SearchPageView> {
                         );
                         currentHistory.remove(item.id);
                         currentHistory.insert(0, item.id);
-                        if (currentHistory.length > 50)
+                        if (currentHistory.length > 50) {
                           currentHistory.removeLast();
+                        }
                         searchHistoryNotifier.value = currentHistory;
 
                         (_audioHandler as MyAudioHandler).playFromList(
@@ -6550,8 +6559,9 @@ class LibraryPageViewState extends State<LibraryPageView> {
                                           )) {
                                             final img = currentImages[oldName];
                                             currentImages.remove(oldName);
-                                            if (img != null)
+                                            if (img != null) {
                                               currentImages[newName] = img;
+                                            }
                                           }
 
                                           SharedPreferences.getInstance().then((
@@ -7245,8 +7255,9 @@ class _HomeScreenState extends State<HomeScreen> {
         int ms = int.parse(mil);
         if (mil.length == 2) ms *= 10;
         final duration = Duration(minutes: min, seconds: sec, milliseconds: ms);
-        if (text.isNotEmpty)
+        if (text.isNotEmpty) {
           parsedLines.add(LyricLine(time: duration, text: text));
+        }
       }
     }
     parsedLines.sort((a, b) => a.time.compareTo(b.time));
