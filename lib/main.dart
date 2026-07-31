@@ -7783,11 +7783,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                   CrossAxisAlignment
                                                                       .start,
                                                               children: [
-                                                                MarqueeWidget(
-                                                                  resetKey:
-                                                                      'title_${safeItem.id}',
-                                                                  child: Row(
-                                                                    mainAxisSize:
+                                                                Row(
+                                                                  mainAxisSize:
                                                                         MainAxisSize
                                                                             .min,
                                                                     crossAxisAlignment:
@@ -7795,8 +7792,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                             .center,
                                                                     children: [
                                                                       // 1. LE TITRE DE LA MUSIQUE (De retour avec son magnifique gradient !)
-                                                                      ShaderMask(
-                                                                        blendMode:
+                                                                      Flexible(
+                                                                        child: ShaderMask(
+                                                                          blendMode:
                                                                             BlendMode.srcIn,
                                                                         shaderCallback:
                                                                             (
@@ -7835,8 +7833,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                           ),
                                                                           child: Text(
                                                                             safeItem.title,
+                                                                            overflow: TextOverflow.ellipsis,
                                                                           ),
                                                                         ),
+                                                                      ),
                                                                       ),
 
                                                                       // 2. LE BADGE LOSSLESS ALIGNÉ AVEC LE TITRE
@@ -7887,7 +7887,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                       ],
                                                                     ],
                                                                   ),
-                                                                ),
                                                                 const SizedBox(
                                                                   height: 5,
                                                                 ),
