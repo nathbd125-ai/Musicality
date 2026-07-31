@@ -414,7 +414,7 @@ Future<void> fetchMusiques() async {
           MediaItem(
             id: '${ApiConfig.baseUrl}/$id.flac',
             album: albumName,
-            title: jsonItem['title'] ?? id,
+            title: _cleanTitle(jsonItem['title'] ?? id),
             artist: jsonItem['artist'] ?? 'Inconnu',
             artUri: Uri.parse(
               '${ApiConfig.baseUrl}/${_getSafeFileName(albumName)}.jpg',
@@ -515,6 +515,14 @@ String _getSafeFileName(String title) {
       .replaceAll('à', 'a')
       .replaceAll('.', '')
       .replaceAll(RegExp(r'[\u2010-\u2015\u2212]'), '-');
+}
+
+String _cleanTitle(String title) {
+  // Enlève "(feat. Artiste)" ou "[ft. Artiste]"
+  String cleaned = title.replaceAll(RegExp(r'\s*[\(\[]f(?:ea)?t\.?\s+[^)\]]+[\)\]]', caseSensitive: false), '');
+  // Enlève " feat. Artiste" (sans parenthèses) à la fin
+  cleaned = cleaned.replaceAll(RegExp(r'\s+f(?:ea)?t\.?\s+.*', caseSensitive: false), '');
+  return cleaned.trim();
 }
 
 String _formatArtist(String? artist) {
