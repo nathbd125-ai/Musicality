@@ -4773,7 +4773,6 @@ class SongTile extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
           subtitle: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
