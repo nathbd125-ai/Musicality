@@ -7975,7 +7975,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 : screenHeight,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 160
+                                                                ? 160 + bottomPadding
                                                                 : 0,
                                                             left: 0,
                                                             right: 0,
@@ -8017,7 +8017,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 : -50,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 95
+                                                                ? 95 + bottomPadding
                                                                 : 48,
                                                             width:
                                                                 _isPlayerExpanded
@@ -8085,7 +8085,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             right: 0,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 85
+                                                                ? 85 + bottomPadding
                                                                 : 33,
                                                             height: 60,
                                                             child: AnimatedPadding(
@@ -8208,7 +8208,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 : 12,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 95
+                                                                ? 95 + bottomPadding
                                                                 : 48,
                                                             width:
                                                                 _isPlayerExpanded
@@ -8263,7 +8263,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             right: 20,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 25
+                                                                ? 25 + bottomPadding
                                                                 : 6,
                                                             child: StreamBuilder<PositionData>(
                                                               stream:
