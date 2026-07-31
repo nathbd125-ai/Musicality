@@ -468,12 +468,13 @@ List<Color> _getAlbumGradientColors(String album) {
       Color(0xFFFFD700),
     ];
   } else if (a == 'nonante-cinq') {
-    // Bleu dominant, puis jaune et rouge
+    // Bleu très dominant, transition vers rouge (crée un beau violet) puis jaune
+    // On évite le passage Bleu -> Jaune qui crée une couleur "boue/vert" dégueu
     return const [
-      Color(0xFF0D47A1),
-      Color(0xFF0D47A1),
-      Color(0xFFFFB300),
-      Color(0xFFD32F2F),
+      Color(0xFF0D47A1), // Bleu foncé
+      Color(0xFF0D47A1), // Bleu foncé
+      Color(0xFFD32F2F), // Rouge
+      Color(0xFFFFC107), // Jaune
     ];
   } else {
     return const [
