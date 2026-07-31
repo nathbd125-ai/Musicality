@@ -442,6 +442,7 @@ List<Color> _getAlbumGradientColors(String album) {
       Color(0xFFFFF8E7), // Blanc légèrement doré (Cosmic Latte)
       Color(0xFFFFF8E7),
       Color(0xFFD4AF37), // Or classique (Metallic Gold)
+      Color(0xFFD4AF37),
     ];
   } else if (a.contains('or_noir')) {
     return const [
@@ -594,7 +595,7 @@ Future<void> clearTemporaryFiles() async {
 class _HorizontalClipper extends CustomClipper<Rect> {
   @override
   Rect getClip(Size size) {
-    return Rect.fromLTWH(0, -100, size.width, size.height + 200);
+    return Rect.fromLTWH(0, -100, size.width + 15, size.height + 200);
   }
 
   @override
