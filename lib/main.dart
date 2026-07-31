@@ -4769,27 +4769,27 @@ class SongTile extends StatelessWidget {
                       Rect.fromLTWH(0, 0, bounds.width, bounds.height),
                     );
                   },
-                  child: MarqueeWidget(
-                    resetKey: 'sel_${item.id}',
-                    child: Text(
-                      item.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                  child: Text(
+                    item.title,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.clip,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 )
-              : MarqueeWidget(
-                  resetKey: 'unsel_${item.id}',
-                  child: Text(
-                    item.title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
+              : Text(
+                  item.title,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.clip,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
                   ),
+                ),
           subtitle: Text(
             _formatArtist(item.artist),
             style: TextStyle(
