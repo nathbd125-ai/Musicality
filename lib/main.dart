@@ -637,7 +637,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
     if (!mounted || !_scrollController.hasClients || widget.resetKey != currentKey) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
-    if (maxScroll > 0) {
+    if (maxScroll > 10) {
       setState(() {
         _needsScroll = true;
       });
@@ -4723,8 +4723,9 @@ class SongTile extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         child: ListTile(
-          horizontalTitleGap: 10,
-          contentPadding: const EdgeInsets.only(left: 16, right: 4),
+          horizontalTitleGap: 8,
+          minLeadingWidth: 45,
+          contentPadding: const EdgeInsets.only(left: 12, right: 0),
           leading: SizedBox(
             width: 45,
             height: 45,
