@@ -65,8 +65,10 @@ final ValueNotifier<Map<String, int>> artistListeningTimeNotifier =
 void updateArtistScore(String artist, int points) {
   if (artist.isEmpty) return;
   final current = Map<String, int>.from(artistScoresNotifier.value);
-  current[artist] = (current[artist] ?? 0) + points;
-  if (current[artist]! < 0) current[artist] = 0;
+  for (var a in _extractArtists(artist)) {
+    current[a] = (current[a] ?? 0) + points;
+    if (current[a]! < 0) current[a] = 0;
+  }
   artistScoresNotifier.value = current;
 }
 
@@ -496,6 +498,15 @@ String _getSafeFileName(String title) {
       .replaceAll('à', 'a')
       .replaceAll('.', '')
       .replaceAll(RegExp(r'[\u2010-\u2015\u2212]'), '-');
+}
+
+List<String> _extractArtists(String? rawArtist) {
+  if (rawArtist == null || rawArtist.isEmpty) return ['Inconnu'];
+  return rawArtist
+      .split(RegExp(r'\s+&\s+|\s+feat\.?\s+|,', caseSensitive: false))
+      .map((a) => a.trim())
+      .where((a) => a.isNotEmpty)
+      .toList();
 }
 
 final RegExp _regexE = RegExp(r'[éèêë]');
@@ -1219,7 +1230,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         final currentTimes = Map<String, int>.from(
           artistListeningTimeNotifier.value,
         );
-        currentTimes[artist] = (currentTimes[artist] ?? 0) + 1;
+        for (var a in _extractArtists(artist)) {
+          currentTimes[a] = (currentTimes[a] ?? 0) + 1;
+        }
         artistListeningTimeNotifier.value = currentTimes;
 
         final durationSecs = currentItem.duration?.inSeconds ?? 0;
@@ -1779,10 +1792,7 @@ class _HyperOSShuffleButtonState extends State<HyperOSShuffleButton>
                         blendMode: BlendMode.srcIn,
                         shaderCallback: (bounds) {
                           return LinearGradient(
-                            colors: [
-                              widget.gradientColors[0],
-                              widget.gradientColors[1],
-                            ],
+                            colors: widget.gradientColors,
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ).createShader(bounds);
@@ -1883,10 +1893,7 @@ class _HyperOSRepeatButtonState extends State<HyperOSRepeatButton>
                         blendMode: BlendMode.srcIn,
                         shaderCallback: (bounds) {
                           return LinearGradient(
-                            colors: [
-                              widget.gradientColors[0],
-                              widget.gradientColors[1],
-                            ],
+                            colors: widget.gradientColors,
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ).createShader(bounds);
@@ -2053,10 +2060,7 @@ class _HyperOSSliderState extends State<HyperOSSlider> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(2),
                           gradient: LinearGradient(
-                            colors: [
-                              widget.gradientColors[0],
-                              widget.gradientColors[1],
-                            ],
+                            colors: widget.gradientColors,
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ),
@@ -5625,7 +5629,7 @@ class ArtistPageViewState extends State<ArtistPageView> {
 
     if (isSearching) {
       final query = _normalizeString(_searchQuery);
-      final allArtists = _playlist.map((e) => e.artist ?? 'Inconnu').toSet();
+      final allArtists = _playlist.expand((e) => _extractArtists(e.artist)).toSet();
       matchingArtists = allArtists
           .where((a) => _normalizeString(a).contains(query))
           .toList();
@@ -5668,7 +5672,8 @@ class ArtistPageViewState extends State<ArtistPageView> {
                         itemBuilder: (context, index) {
                           final artistName = matchingArtists[index];
                           final sampleItem = _playlist.firstWhere(
-                            (e) => e.artist == artistName,
+                            (e) => _extractArtists(e.artist).contains(artistName),
+                            orElse: () => _playlist.first,
                           );
 
                           return ListTile(
@@ -5843,7 +5848,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final artistSongs = _playlist
-        .where((e) => e.artist == widget.artistName)
+        .where((e) => _extractArtists(e.artist).contains(widget.artistName))
         .toList();
 
     final Map<String, List<MediaItem>> albums = {};
