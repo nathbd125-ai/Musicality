@@ -4757,34 +4757,27 @@ class SongTile extends StatelessWidget {
             ),
           ),
           title: isSelected
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: ShaderMask(
-                        blendMode: BlendMode.srcIn,
-                        shaderCallback: (bounds) {
-                          return LinearGradient(
-                            colors: [trackColors[0], trackColors[1]],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ).createShader(
-                            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                          );
-                        },
-                        child: MarqueeWidget(
-                          resetKey: 'sel_${item.id}',
-                          child: Text(
-                            item.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
+              ? ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (bounds) {
+                    return LinearGradient(
+                      colors: [trackColors[0], trackColors[1]],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ).createShader(
+                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                    );
+                  },
+                  child: MarqueeWidget(
+                    resetKey: 'sel_${item.id}',
+                    child: Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
-                  ],
+                  ),
                 )
               : MarqueeWidget(
                   resetKey: 'unsel_${item.id}',
@@ -4796,31 +4789,23 @@ class SongTile extends StatelessWidget {
                       ),
                     ),
                   ),
-          subtitle: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  _formatArtist(item.artist),
-                  style: TextStyle(
-                    color: isSelected
-                        ? Color.lerp(
-                            const Color(0xFFCCCCCC),
-                            trackColors[0],
-                            0.35,
-                          )
-                        : const Color(0xFF9E9E9E),
-                    fontSize: 14,
-                    height: 1.0,
-                    fontWeight: isSelected
-                        ? FontWeight.w500
-                        : FontWeight.normal,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          subtitle: Text(
+            _formatArtist(item.artist),
+            style: TextStyle(
+              color: isSelected
+                  ? Color.lerp(
+                      const Color(0xFFCCCCCC),
+                      trackColors[0],
+                      0.35,
+                    )
+                  : const Color(0xFF9E9E9E),
+              fontSize: 14,
+              height: 1.0,
+              fontWeight: isSelected
+                  ? FontWeight.w500
+                  : FontWeight.normal,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
