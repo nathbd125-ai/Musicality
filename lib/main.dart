@@ -442,7 +442,13 @@ List<Color> _getAlbumGradientColors(String album) {
       Color(0xFFFFF8E7), // Blanc légèrement doré (Cosmic Latte)
       Color(0xFFFFF8E7),
       Color(0xFFD4AF37), // Or classique (Metallic Gold)
-      Color(0xFFD4AF37),
+    ];
+  } else if (a.contains('or_noir')) {
+    return const [
+      Color(0xFFFBE18D), // Or clair scintillant (pailleté)
+      Color(0xFFFBE18D),
+      Color(0xFFC5A059), // Or profond
+      Color(0xFFC5A059),
     ];
   } else if (a == 'batterie_faible') {
     return const [
