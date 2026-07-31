@@ -7434,6 +7434,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final double topPadding = MediaQuery.of(context).viewPadding.top;
     final double bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final double extraBottom = bottomPadding > 35 ? bottomPadding : 0;
     final double screenHeight = MediaQuery.of(context).size.height;
 
     final double navBarHeight = 66.0 + bottomPadding;
@@ -7975,7 +7976,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 : screenHeight,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 160 + bottomPadding
+                                                                ? 160 + extraBottom
                                                                 : 0,
                                                             left: 0,
                                                             right: 0,
@@ -8017,7 +8018,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 : -50,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 95 + bottomPadding
+                                                                ? 95 + extraBottom
                                                                 : 48,
                                                             width:
                                                                 _isPlayerExpanded
@@ -8085,7 +8086,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             right: 0,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 85 + bottomPadding
+                                                                ? 85 + extraBottom
                                                                 : 33,
                                                             height: 60,
                                                             child: AnimatedPadding(
@@ -8208,7 +8209,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 : 12,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 95 + bottomPadding
+                                                                ? 95 + extraBottom
                                                                 : 48,
                                                             width:
                                                                 _isPlayerExpanded
@@ -8263,7 +8264,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             right: 20,
                                                             bottom:
                                                                 _isPlayerExpanded
-                                                                ? 25 + bottomPadding
+                                                                ? 25 + extraBottom
                                                                 : 6,
                                                             child: StreamBuilder<PositionData>(
                                                               stream:
