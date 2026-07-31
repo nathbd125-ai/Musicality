@@ -833,8 +833,8 @@ Future<void> performCloudBackup() async {
 void triggerAutoSync() {
   if (FirebaseAuth.instance.currentUser == null) return;
   _autoSyncTimer?.cancel();
-  // On attend 5 secondes après la dernière modification pour envoyer au serveur (évite le spam)
-  _autoSyncTimer = Timer(const Duration(seconds: 5), () {
+  // On attend 1 seconde avant d'envoyer au serveur pour sauvegarder plus vite avant fermeture
+  _autoSyncTimer = Timer(const Duration(seconds: 1), () {
     performCloudBackup();
   });
 }
