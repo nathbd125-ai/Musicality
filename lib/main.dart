@@ -375,7 +375,7 @@ List<Color> _getAlbumGradientColors(String album) {
   } else if (a == 'ipseite') {
     return const [Color(0xFFF39C12), Color(0xFFFFD700)];
   } else {
-    return const [Color(0xFF00B4DB), Color(0xFF0083B0)]; // Default fallback
+    return const [Color(0xFF9C27B0), Color(0xFF311B92)]; // Default fallback (Purple/AMOLED Black)
   }
 }
 
