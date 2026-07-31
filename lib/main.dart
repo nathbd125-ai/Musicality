@@ -584,6 +584,16 @@ Future<void> clearTemporaryFiles() async {
   }
 }
 
+class _HorizontalClipper extends CustomClipper<Rect> {
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTWH(0, -100, size.width, size.height + 200);
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Rect> oldClipper) => false;
+}
+
 class MarqueeWidget extends StatefulWidget {
   final Widget child;
   final String resetKey;
@@ -678,12 +688,15 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final child = SingleChildScrollView(
-      controller: _scrollController,
-      scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(),
-      clipBehavior: Clip.none,
-      child: widget.child,
+    final child = ClipRect(
+      clipper: _HorizontalClipper(),
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        clipBehavior: Clip.none,
+        child: widget.child,
+      ),
     );
 
     if (!_needsScroll) {
