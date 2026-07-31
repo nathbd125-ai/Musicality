@@ -824,6 +824,8 @@ Future<void> performCloudBackup() async {
       'lastSync': FieldValue.serverTimestamp(),
     };
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set(data);
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('pendingCloudSync', false);
     debugPrint("☁️ Sauvegarde auto réussie");
   } catch (e) {
     debugPrint("❌ Erreur de sauvegarde auto : $e");
@@ -832,9 +834,13 @@ Future<void> performCloudBackup() async {
 
 void triggerAutoSync() {
   if (FirebaseAuth.instance.currentUser == null) return;
+
+  SharedPreferences.getInstance().then((prefs) {
+    prefs.setBool('pendingCloudSync', true);
+  });
+
   _autoSyncTimer?.cancel();
-  // On attend 1 seconde avant d'envoyer au serveur pour sauvegarder plus vite avant fermeture
-  _autoSyncTimer = Timer(const Duration(seconds: 1), () {
+  _autoSyncTimer = Timer(const Duration(seconds: 5), () {
     performCloudBackup();
   });
 }
@@ -843,6 +849,15 @@ Future<void> performCloudRestore() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
   try {
+    final prefs = await SharedPreferences.getInstance();
+    final hasPendingSync = prefs.getBool('pendingCloudSync') ?? false;
+    
+    if (hasPendingSync) {
+      debugPrint("Sync pending, pushing local to cloud instead of restoring");
+      await performCloudBackup();
+      return;
+    }
+
     final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
     if (doc.exists && doc.data() != null) {
       final data = doc.data()!;
