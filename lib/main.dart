@@ -502,11 +502,12 @@ String _getSafeFileName(String title) {
 
 List<String> _extractArtists(String? rawArtist) {
   if (rawArtist == null || rawArtist.isEmpty) return ['Inconnu'];
-  return rawArtist
+  // On ne garde que l'artiste principal (le premier)
+  final primaryArtist = rawArtist
       .split(RegExp(r'\s+&\s+|\s+feat\.?\s+|,', caseSensitive: false))
-      .map((a) => a.trim())
-      .where((a) => a.isNotEmpty)
-      .toList();
+      .first
+      .trim();
+  return [primaryArtist.isNotEmpty ? primaryArtist : 'Inconnu'];
 }
 
 final RegExp _regexE = RegExp(r'[éèêë]');
