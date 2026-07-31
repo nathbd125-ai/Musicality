@@ -620,9 +620,10 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
   }
 
   void _checkAndScroll() async {
+    final currentKey = widget.resetKey;
     if (!mounted || !_scrollController.hasClients) return;
     await Future.delayed(const Duration(milliseconds: 100));
-    if (!mounted || !_scrollController.hasClients) return;
+    if (!mounted || !_scrollController.hasClients || widget.resetKey != currentKey) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (maxScroll > 0) {
@@ -643,7 +644,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
 
     while (_isScrolling && mounted) {
       await Future.delayed(const Duration(seconds: 2));
-      if (!mounted || !_scrollController.hasClients) break;
+      if (!mounted || !_scrollController.hasClients || !_isScrolling) break;
 
       final maxScroll = _scrollController.position.maxScrollExtent;
       if (maxScroll <= 0) break;
@@ -654,10 +655,10 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
         curve: Curves.linear,
       );
 
-      if (!mounted) break;
+      if (!mounted || !_isScrolling) break;
       await Future.delayed(const Duration(seconds: 2));
 
-      if (!mounted || !_scrollController.hasClients) break;
+      if (!mounted || !_scrollController.hasClients || !_isScrolling) break;
 
       await _scrollController.animateTo(
         0.0,
@@ -4747,25 +4748,32 @@ class SongTile extends StatelessWidget {
                             Rect.fromLTWH(0, 0, bounds.width, bounds.height),
                           );
                         },
-                        child: Text(
-                          item.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        child: MarqueeWidget(
+                          resetKey: 'sel_${item.id}',
+                          child: Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
                   ],
                 )
-              : Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
+              : SizedBox(
+                  height: 20,
+                  child: MarqueeWidget(
+                    resetKey: 'unsel_${item.id}',
+                    child: Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
           subtitle: Row(
             mainAxisSize: MainAxisSize.min,
