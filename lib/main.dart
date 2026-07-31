@@ -7774,7 +7774,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 _isPlayerExpanded
                                                                 ? 95
                                                                 : 88,
-                                                            right: 20,
+                                                            right:
+                                                                _isPlayerExpanded
+                                                                ? 20
+                                                                : 125, // Limite la taille du texte pour laisser place aux boutons
                                                             child: Column(
                                                               crossAxisAlignment:
                                                                   CrossAxisAlignment
