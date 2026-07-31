@@ -375,6 +375,7 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
       coverFile,
       width: width,
       height: height,
+      cacheWidth: 300,
       fit: BoxFit.cover,
     );
   } else {
@@ -382,6 +383,7 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
       item.artUri.toString(),
       width: width,
       height: height,
+      cacheWidth: 300,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) =>
           Container(color: Colors.black26, width: width, height: height),
@@ -5059,23 +5061,25 @@ class _SearchPageViewState extends State<SearchPageView> {
                       : Colors.white,
                 ),
                 builder: (context, topColor, child) {
-                  return ShaderMask(
-                    shaderCallback: (Rect bounds) {
-                      return LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          topColor ?? Colors.black,
-                          Colors.black,
-                          Colors.black,
-                        ],
-                        stops: const [0.0, 0.05, 1.0],
-                      ).createShader(
-                        Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                      );
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: child,
+                  return RepaintBoundary(
+                    child: ShaderMask(
+                      shaderCallback: (Rect bounds) {
+                        return LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            topColor ?? Colors.black,
+                            Colors.black,
+                            Colors.black,
+                          ],
+                          stops: const [0.0, 0.05, 1.0],
+                        ).createShader(
+                          Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                        );
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: child,
+                    ),
                   );
                 },
                 child: ListView.builder(
@@ -5507,6 +5511,7 @@ class ArtistPageViewState extends State<ArtistPageView> {
                             artUri,
                             width: 55,
                             height: 55,
+                            cacheWidth: 200,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 Container(
@@ -6113,23 +6118,25 @@ class _AllMusicsViewState extends State<AllMusicsView> {
                         : Colors.white,
                   ),
                   builder: (context, topColor, child) {
-                    return ShaderMask(
-                      shaderCallback: (Rect bounds) {
-                        return LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            topColor ?? Colors.black,
-                            Colors.black,
-                            Colors.black,
-                          ],
-                          stops: const [0.0, 0.05, 1.0],
-                        ).createShader(
-                          Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                        );
-                      },
-                      blendMode: BlendMode.dstIn,
-                      child: child,
+                    return RepaintBoundary(
+                      child: ShaderMask(
+                        shaderCallback: (Rect bounds) {
+                          return LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              topColor ?? Colors.black,
+                              Colors.black,
+                              Colors.black,
+                            ],
+                            stops: const [0.0, 0.05, 1.0],
+                          ).createShader(
+                            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                          );
+                        },
+                        blendMode: BlendMode.dstIn,
+                        child: child,
+                      ),
                     );
                   },
                   child: ListView.builder(
@@ -7759,6 +7766,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               child: Image.network(
                                                                 safeItem.artUri
                                                                     .toString(),
+                                                                cacheWidth: 500,
                                                                 fit: BoxFit
                                                                     .cover,
                                                               ),
