@@ -7,6 +7,8 @@ jobs:
   build:
     name: 🛠️ Fabrication APK & IPA
     runs-on: macos-latest # On utilise un Mac virtuel gratuit
+    permissions:
+      contents: write
 
     steps:
       - name: 📥 Récupération du code
@@ -47,3 +49,16 @@ jobs:
         with:
           name: Musicality-iOS-IPA
           path: Musicality_iOS.ipa
+
+      - name: 🌟 Création de la Release GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Musicality v1.0.${{ github.run_number }}
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            Musicality_iOS.ipa
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
