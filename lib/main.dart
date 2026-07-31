@@ -514,6 +514,10 @@ List<Color> _getAlbumGradientColors(String album) {
 }
 
 String _getSafeFileName(String title) {
+  final clean = title.toLowerCase().trim();
+  if (clean == 'zoo' || clean == 'chargé' || clean == 'charge') {
+    return 'or_noir';
+  }
   return title
       .toLowerCase()
       .replaceAll(' ', '_')
@@ -670,7 +674,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
 
       await _scrollController.animateTo(
         maxScroll,
-        duration: Duration(milliseconds: (maxScroll * 30).toInt()),
+        duration: Duration(milliseconds: (maxScroll * 40).toInt() + 1000),
         curve: Curves.linear,
       );
 
@@ -4766,7 +4770,7 @@ class SongTile extends StatelessWidget {
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                     ).createShader(
-                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                      Rect.fromLTWH(0, 0, bounds.width + 10, bounds.height),
                     );
                   },
                   child: MarqueeWidget(
@@ -7871,7 +7875,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                                 Rect.fromLTWH(
                                                                                   0,
                                                                                   0,
-                                                                                  bounds.width,
+                                                                                  bounds.width + 10,
                                                                                   bounds.height,
                                                                                 ),
                                                                               ); // Le Rect.fromLTWH évite le bug d'affichage lors du scroll !
