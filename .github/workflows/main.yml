@@ -50,11 +50,17 @@ jobs:
           name: Musicality-iOS-IPA
           path: Musicality_iOS.ipa
 
+      - name: 🏷️ Extraction de la version de l'app
+        id: extract_version
+        run: |
+          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2)
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: 🌟 Création de la Release GitHub
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Musicality v1.0.${{ github.run_number }}
+          tag_name: v${{ env.APP_VERSION }}
+          name: Musicality v${{ env.APP_VERSION }}
           files: |
             build/app/outputs/flutter-apk/app-release.apk
             Musicality_iOS.ipa
