@@ -1989,45 +1989,54 @@ class _HyperOSSliderState extends State<HyperOSSlider> {
         : widget.position.inMilliseconds.toDouble();
     final double pct = (currentMs / maxMs).clamp(0.0, 1.0);
 
-    return Column(
-      children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onHorizontalDragStart: (details) {
-            _baseMsForDrag = widget.position.inMilliseconds.toDouble();
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (details) {
+        final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+        if (renderBox == null) return;
+        final width = renderBox.size.width;
+        if (width <= 0) return;
+        final double tapX = details.localPosition.dx;
+        final double newMs = (tapX / width) * maxMs;
+        widget.onSeek(Duration(milliseconds: newMs.toInt()));
+      },
+      onHorizontalDragStart: (details) {
+        _baseMsForDrag = widget.position.inMilliseconds.toDouble();
+        setState(() {
+          _dragValue = _baseMsForDrag;
+        });
+      },
+      onHorizontalDragUpdate: (details) {
+        final RenderBox? renderBox =
+            context.findRenderObject() as RenderBox?;
+        if (renderBox == null) return;
+
+        final width = renderBox.size.width;
+        if (width <= 0) return;
+
+        final double deltaX = details.delta.dx;
+        final double deltaMs = (deltaX / width) * maxMs;
+
+        setState(() {
+          if (_dragValue != null) {
+            _dragValue = (_dragValue! + deltaMs).clamp(0.0, maxMs);
+          }
+        });
+      },
+      onHorizontalDragEnd: (details) async {
+        if (_dragValue != null) {
+          widget.onSeek(Duration(milliseconds: _dragValue!.toInt()));
+          await Future.delayed(const Duration(milliseconds: 60));
+          if (mounted) {
             setState(() {
-              _dragValue = _baseMsForDrag;
+              _dragValue = null;
             });
-          },
-          onHorizontalDragUpdate: (details) {
-            final RenderBox? renderBox =
-                context.findRenderObject() as RenderBox?;
-            if (renderBox == null) return;
-
-            final width = renderBox.size.width;
-            if (width <= 0) return;
-
-            final double deltaX = details.delta.dx;
-            final double deltaMs = (deltaX / width) * maxMs;
-
-            setState(() {
-              if (_dragValue != null) {
-                _dragValue = (_dragValue! + deltaMs).clamp(0.0, maxMs);
-              }
-            });
-          },
-          onHorizontalDragEnd: (details) async {
-            if (_dragValue != null) {
-              widget.onSeek(Duration(milliseconds: _dragValue!.toInt()));
-              await Future.delayed(const Duration(milliseconds: 60));
-              if (mounted) {
-                setState(() {
-                  _dragValue = null;
-                });
-              }
-            }
-          },
-          child: Padding(
+          }
+        }
+      },
+      child: Column(
+        children: [
+          Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -2105,21 +2114,21 @@ class _HyperOSSliderState extends State<HyperOSSlider> {
               },
             ),
           ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              _formatDuration(Duration(milliseconds: currentMs.toInt())),
-              style: const TextStyle(color: Colors.grey, fontSize: 11),
-            ),
-            Text(
-              _formatDuration(widget.duration),
-              style: const TextStyle(color: Colors.grey, fontSize: 11),
-            ),
-          ],
-        ),
-      ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDuration(Duration(milliseconds: currentMs.toInt())),
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+              Text(
+                _formatDuration(widget.duration),
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
