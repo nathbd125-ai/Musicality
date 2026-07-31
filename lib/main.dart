@@ -343,13 +343,14 @@ Future<void> fetchMusiques() async {
       _playlist.clear();
       for (var jsonItem in data) {
         final id = jsonItem['id'] as String;
+        final albumName = jsonItem['album'] ?? 'Inconnu';
         _playlist.add(
           MediaItem(
             id: '${ApiConfig.baseUrl}/$id.flac',
-            album: jsonItem['album'] ?? 'Inconnu',
+            album: albumName,
             title: jsonItem['title'] ?? id,
             artist: jsonItem['artist'] ?? 'Inconnu',
-            artUri: Uri.parse('${ApiConfig.baseUrl}/$id.jpg'),
+            artUri: Uri.parse('${ApiConfig.baseUrl}/${_getSafeFileName(albumName)}.jpg'),
             duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
           ),
         );
