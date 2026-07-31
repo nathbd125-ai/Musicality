@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "154016653293",
+    "project_id": "musicality-b563d",
+    "storage_bucket": "musicality-b563d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:154016653293:android:3276b531663b5b630cd1e4",
+        "android_client_info": {
+          "package_name": "com.example.musicality"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "154016653293-fdlda87dc93k310c5od1flh5580cqdl0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.musicality",
+            "certificate_hash": "8ed16bc3f550678ff77454059335b63d6330aa68"
+          }
+        },
+        {
+          "client_id": "154016653293-0f6vgsqeacs4kneqr0bsfplropbb2gvs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATamVQrvrc6ZzwihMLAx2VcnG-Zm_RDqI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "154016653293-0f6vgsqeacs4kneqr0bsfplropbb2gvs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "154016653293-pflk08mmpvoglsm04ennrvj9u4itut49.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.musicality"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:154016653293:android:cc2b59c62dcf10db0cd1e4",
+        "android_client_info": {
+          "package_name": "com.musicality"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "154016653293-tqiito80nm91qmv04430kveac9fmcatn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.musicality",
+            "certificate_hash": "8ed16bc3f550678ff77454059335b63d6330aa68"
+          }
+        },
+        {
+          "client_id": "154016653293-0f6vgsqeacs4kneqr0bsfplropbb2gvs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATamVQrvrc6ZzwihMLAx2VcnG-Zm_RDqI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "154016653293-0f6vgsqeacs4kneqr0bsfplropbb2gvs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "154016653293-pflk08mmpvoglsm04ennrvj9u4itut49.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.musicality"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
