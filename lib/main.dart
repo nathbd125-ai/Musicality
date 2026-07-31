@@ -364,20 +364,18 @@ Future<void> fetchMusiques() async {
   }
 }
 
-List<Color> _getTrackGradientColors(String title) {
-  final t = title.toLowerCase();
-  if (t.contains('amnésie') || t.contains('amnesie')) {
+List<Color> _getAlbumGradientColors(String album) {
+  final a = _getSafeFileName(album);
+  if (a == 'batterie_faible') {
     return const [Color(0xFFFF7597), Color(0xFFC2185B)];
-  } else if (t.contains('feu de bois')) {
+  } else if (a == 'lithopedion') {
     return const [Color(0xFFB0BEC5), Color(0xFF2C3E50)];
-  } else if (t.contains('égérie') || t.contains('egerie')) {
-    return const [Color(0xFFFF5722), Color(0xFFFFD700)];
-  } else if (t.contains('macarena') || t.contains('signaler')) {
-    return const [Color(0xFFF39C12), Color(0xFFFFD700)];
-  } else if (t.contains('galatée') || t.contains('galatee')) {
+  } else if (a == 'cyborg') {
     return const [Color(0xFFE53935), Color(0xFF4A148C)];
+  } else if (a == 'ipseite') {
+    return const [Color(0xFFF39C12), Color(0xFFFFD700)];
   } else {
-    return const [Color(0xFF00B4DB), Color(0xFF0083B0)];
+    return const [Color(0xFF00B4DB), Color(0xFF0083B0)]; // Default fallback
   }
 }
 
@@ -3634,7 +3632,7 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trackColors = _getTrackGradientColors(item.title);
+    final trackColors = _getAlbumGradientColors(item.album ?? '');
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -5532,7 +5530,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _fetchLyrics(item);
         if (mounted) {
           setState(() {
-            _dynamicGradientColors = _getTrackGradientColors(item.title);
+            _dynamicGradientColors = _getAlbumGradientColors(item.album ?? '');
           });
         }
       }
