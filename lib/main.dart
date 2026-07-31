@@ -367,17 +367,20 @@ Future<void> fetchMusiques() async {
 List<Color> _getAlbumGradientColors(String album) {
   final a = _getSafeFileName(album);
   if (a == 'batterie_faible') {
-    return const [Color(0xFFFF7597), Color(0xFFC2185B)];
+    return const [Color(0xFFFF7597), Color(0xFFFF7597), Color(0xFFC2185B), Color(0xFFC2185B)];
   } else if (a == 'lithopedion') {
-    return const [Color(0xFFB0BEC5), Color(0xFF2C3E50)];
+    return const [Color(0xFFB0BEC5), Color(0xFFB0BEC5), Color(0xFF2C3E50), Color(0xFF2C3E50)];
   } else if (a == 'feu') {
-    return const [Color(0xFFFF5722), Color(0xFFFFD700)];
+    return const [Color(0xFFFF5722), Color(0xFFFF5722), Color(0xFFFFD700), Color(0xFFFFD700)];
   } else if (a == 'cyborg') {
-    return const [Color(0xFFE53935), Color(0xFF4A148C)];
+    return const [Color(0xFFE53935), Color(0xFFE53935), Color(0xFF4A148C), Color(0xFF4A148C)];
   } else if (a == 'ipseite') {
-    return const [Color(0xFFF39C12), Color(0xFFFFD700)];
+    return const [Color(0xFFF39C12), Color(0xFFF39C12), Color(0xFFFFD700), Color(0xFFFFD700)];
+  } else if (a == 'nonante-cinq') {
+    // Bleu dominant, puis jaune et rouge
+    return const [Color(0xFF0D47A1), Color(0xFF0D47A1), Color(0xFFFFB300), Color(0xFFD32F2F)];
   } else {
-    return const [Color(0xFF9C27B0), Color(0xFF311B92)]; // Default fallback (Purple/AMOLED Black)
+    return const [Color(0xFF9C27B0), Color(0xFF9C27B0), Color(0xFF311B92), Color(0xFF311B92)];
   }
 }
 
@@ -5775,11 +5778,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       curve: Curves.easeOut,
                       tween: ColorTween(end: _dynamicGradientColors[1]),
                       builder: (context, color2, _) {
-
-                        final List<Color> smoothThemeColors = [
-                          color1 ?? _dynamicGradientColors[0],
-                          color2 ?? _dynamicGradientColors[1],
-                        ];
+                        return TweenAnimationBuilder<Color?>(
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeOut,
+                            tween: ColorTween(end: _dynamicGradientColors[2]),
+                            builder: (context, color3, _) {
+                              return TweenAnimationBuilder<Color?>(
+                                  duration: const Duration(milliseconds: 400),
+                                  curve: Curves.easeOut,
+                                  tween: ColorTween(end: _dynamicGradientColors[3]),
+                                  builder: (context, color4, _) {
+                                    
+                                    final List<Color> smoothThemeColors = [
+                                      color1 ?? _dynamicGradientColors[0],
+                                      color2 ?? _dynamicGradientColors[1],
+                                      color3 ?? _dynamicGradientColors[2],
+                                      color4 ?? _dynamicGradientColors[3],
+                                    ];
 
                         return Stack(
                           children: [
@@ -6270,6 +6285,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
             );
+                                  }
+                              );
+                            }
+                        );
           },
         ),
       ),
