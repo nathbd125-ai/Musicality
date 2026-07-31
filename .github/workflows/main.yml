@@ -1,0 +1,49 @@
+name: Build Musicality (APK & IPA)
+
+on:
+  workflow_dispatch: # Permet d'avoir le bouton "Run" manuel
+
+jobs:
+  build:
+    name: 🛠️ Fabrication APK & IPA
+    runs-on: macos-latest # On utilise un Mac virtuel gratuit
+
+    steps:
+      - name: 📥 Récupération du code
+        uses: actions/checkout@v4
+
+      - name: ☕ Configuration de Java (Pour Android)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 🐦 Configuration de Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: 📦 Téléchargement des dépendances
+        run: flutter pub get
+
+      - name: 🤖 Build Android (APK)
+        run: flutter build apk --release
+
+      - name: 🍏 Build iOS (IPA sans sécurité Apple)
+        run: |
+          flutter build ios --release --no-codesign
+          mkdir Payload
+          mv build/ios/iphoneos/Runner.app Payload/
+          zip -r Musicality_iOS.ipa Payload
+
+      - name: 🚀 Upload de l'APK (Android)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Musicality-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: 🚀 Upload de l'IPA (iOS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Musicality-iOS-IPA
+          path: Musicality_iOS.ipa
