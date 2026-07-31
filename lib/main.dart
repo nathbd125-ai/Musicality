@@ -436,7 +436,14 @@ Future<void> fetchMusiques() async {
 
 List<Color> _getAlbumGradientColors(String album) {
   final a = _getSafeFileName(album);
-  if (a == 'batterie_faible') {
+  if (a.contains('mils')) {
+    return const [
+      Color(0xFFFFF8E7), // Blanc légèrement doré (Cosmic Latte)
+      Color(0xFFFFF8E7),
+      Color(0xFFD4AF37), // Or classique (Metallic Gold)
+      Color(0xFFD4AF37),
+    ];
+  } else if (a == 'batterie_faible') {
     return const [
       Color(0xFFFF7597),
       Color(0xFFFF7597),
