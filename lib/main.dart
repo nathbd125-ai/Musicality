@@ -7782,7 +7782,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             right:
                                                                 _isPlayerExpanded
                                                                 ? 20
-                                                                : 45, // Limite le titre pour éviter le bouton Répéter
+                                                                : 12, // Aligné avec le bord droit du bouton Répéter
                                                             child: Column(
                                                               crossAxisAlignment:
                                                                   CrossAxisAlignment
@@ -7901,7 +7901,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                   duration: transitionDuration,
                                                                   curve: transitionCurve,
                                                                   padding: EdgeInsets.only(
-                                                                    right: _isPlayerExpanded ? 0 : 100, // 45 + 100 = 145
+                                                                    right: _isPlayerExpanded ? 0 : 130, // 12 + 130 = 142
                                                                   ),
                                                                   child: MarqueeWidget(
                                                                     resetKey:
