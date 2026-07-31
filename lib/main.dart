@@ -420,6 +420,7 @@ Future<void> fetchMusiques() async {
               '${ApiConfig.baseUrl}/${_getSafeFileName(albumName)}.jpg',
             ),
             duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
+            extras: {'hasFlac': jsonItem['hasFlac'] ?? true},
           ),
         );
       }
@@ -1356,6 +1357,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     File cacheMp3 = File('$_documentPath/cache/$safeName.mp3');
 
     bool wantFlac = isLosslessNotifier.value;
+    bool hasFlac = item.extras?['hasFlac'] as bool? ?? true;
+    if (wantFlac && !hasFlac) wantFlac = false;
+
     bool isFlac = false;
     String fileOrUrl = "";
     File? targetCacheFile;
@@ -1389,7 +1393,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       fileOrUrl = isFlac ? item.id : item.id.replaceAll('.flac', '.mp3');
     }
 
-    final newItem = item.copyWith(extras: {'isFlac': isFlac});
+    final newItem = item.copyWith(extras: {'isFlac': isFlac, 'hasFlac': hasFlac});
     _updatePlaylist(newItem);
 
     if (fileOrUrl.startsWith('/')) {
@@ -7378,10 +7382,13 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       bool isStreamFlac = isLosslessNotifier.value;
+      bool hasFlac = item.extras?['hasFlac'] as bool? ?? true;
+      if (isStreamFlac && !hasFlac) isStreamFlac = false;
+      
       String streamUrl = isStreamFlac
           ? item.id
           : item.id.replaceAll('.flac', '.mp3');
-      final newItem = item.copyWith(extras: {'isFlac': isStreamFlac});
+      final newItem = item.copyWith(extras: {'isFlac': isStreamFlac, 'hasFlac': hasFlac});
 
       final source =
           isCacheEnabledNotifier.value ||
@@ -7402,6 +7409,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       try {
         bool downloadFlac = isDownloadLosslessNotifier.value;
+        bool hasFlac = item.extras?['hasFlac'] as bool? ?? true;
+        if (downloadFlac && !hasFlac) downloadFlac = false;
+        
         String downloadUrl = downloadFlac
             ? item.id
             : item.id.replaceAll('.flac', '.mp3');
@@ -7435,7 +7445,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _downloadedSongs.add(item.id);
         });
 
-        final newItem = item.copyWith(extras: {'isFlac': downloadFlac});
+        final newItem = item.copyWith(extras: {'isFlac': downloadFlac, 'hasFlac': hasFlac});
         _notifyAudioHandler(
           item,
           AudioSource.file(fileToSave.path, tag: newItem),
