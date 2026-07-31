@@ -370,6 +370,8 @@ List<Color> _getAlbumGradientColors(String album) {
     return const [Color(0xFFFF7597), Color(0xFFC2185B)];
   } else if (a == 'lithopedion') {
     return const [Color(0xFFB0BEC5), Color(0xFF2C3E50)];
+  } else if (a == 'feu') {
+    return const [Color(0xFFFF5722), Color(0xFFFFD700)];
   } else if (a == 'cyborg') {
     return const [Color(0xFFE53935), Color(0xFF4A148C)];
   } else if (a == 'ipseite') {
