@@ -5528,6 +5528,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Color> _dynamicGradientColors = [
     const Color(0xFF9C27B0),
+    const Color(0xFF9C27B0),
+    const Color(0xFF311B92),
     const Color(0xFF311B92),
   ];
 
