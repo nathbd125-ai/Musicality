@@ -602,16 +602,6 @@ Future<void> clearTemporaryFiles() async {
   }
 }
 
-class _HorizontalClipper extends CustomClipper<Rect> {
-  @override
-  Rect getClip(Size size) {
-    return Rect.fromLTWH(0, -100, size.width + 5, size.height + 200);
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Rect> oldClipper) => false;
-}
-
 class MarqueeWidget extends StatefulWidget {
   final Widget child;
   final String resetKey;
@@ -654,7 +644,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
     if (!mounted || !_scrollController.hasClients || widget.resetKey != currentKey) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
-    if (maxScroll > 10) {
+    if (maxScroll > 5) {
       setState(() {
         _needsScroll = true;
       });
@@ -676,7 +666,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
       if (!mounted || !_scrollController.hasClients || widget.resetKey != currentKey || !_isScrolling) break;
 
       final maxScroll = _scrollController.position.maxScrollExtent;
-      if (maxScroll <= 0) break;
+      if (maxScroll <= 5) break;
 
       await _scrollController.animateTo(
         maxScroll,
@@ -706,29 +696,32 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final child = ClipRect(
-      clipper: _HorizontalClipper(),
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        physics: const NeverScrollableScrollPhysics(),
-        clipBehavior: Clip.none,
+    Widget marquee = SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      clipBehavior: Clip.hardEdge,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 6.0),
         child: widget.child,
       ),
     );
 
     if (!_needsScroll) {
-      return child;
+      return marquee;
     }
 
     return AnimatedBuilder(
       animation: _scrollController,
       builder: (context, childWidget) {
-        double offset = _scrollController.hasClients
-            ? _scrollController.offset
-            : 0.0;
+        double offset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+        double maxScroll = _scrollController.hasClients ? _scrollController.position.maxScrollExtent : 1.0;
+        
         double leftFadeIntensity = (offset / 15.0).clamp(0.0, 1.0);
         double leftStop = 0.05 * leftFadeIntensity;
+        
+        double rightFadeIntensity = ((maxScroll - offset) / 15.0).clamp(0.0, 1.0);
+        double rightStop = 1.0 - (0.05 * rightFadeIntensity);
 
         return ShaderMask(
           blendMode: BlendMode.dstIn,
@@ -742,16 +735,13 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
                 Colors.white,
                 Colors.transparent,
               ],
-              stops: [0.0, leftStop, 0.95, 1.0],
+              stops: [0.0, leftStop, rightStop, 1.0],
             ).createShader(bounds);
           },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3.0),
-            child: childWidget,
-          ),
+          child: childWidget,
         );
       },
-      child: child,
+      child: marquee,
     );
   }
 }
@@ -4776,7 +4766,7 @@ class SongTile extends StatelessWidget {
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                     ).createShader(
-                      Rect.fromLTWH(0, 0, bounds.width + 5, bounds.height),
+                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
                     );
                   },
                   child: MarqueeWidget(
@@ -7881,7 +7871,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                                 Rect.fromLTWH(
                                                                                   0,
                                                                                   0,
-                                                                                  bounds.width + 5,
+                                                                                  bounds.width,
                                                                                   bounds.height,
                                                                                 ),
                                                                               ); // Le Rect.fromLTWH évite le bug d'affichage lors du scroll !
