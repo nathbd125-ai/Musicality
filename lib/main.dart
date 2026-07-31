@@ -639,12 +639,13 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
   }
 
   void _startScrolling() async {
+    final currentKey = widget.resetKey;
     if (_isScrolling) return;
     _isScrolling = true;
 
-    while (_isScrolling && mounted) {
+    while (_isScrolling && mounted && widget.resetKey == currentKey) {
       await Future.delayed(const Duration(seconds: 2));
-      if (!mounted || !_scrollController.hasClients || !_isScrolling) break;
+      if (!mounted || !_scrollController.hasClients || widget.resetKey != currentKey || !_isScrolling) break;
 
       final maxScroll = _scrollController.position.maxScrollExtent;
       if (maxScroll <= 0) break;
@@ -655,10 +656,10 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
         curve: Curves.linear,
       );
 
-      if (!mounted || !_isScrolling) break;
+      if (!mounted || widget.resetKey != currentKey || !_isScrolling) break;
       await Future.delayed(const Duration(seconds: 2));
 
-      if (!mounted || !_scrollController.hasClients || !_isScrolling) break;
+      if (!mounted || !_scrollController.hasClients || widget.resetKey != currentKey || !_isScrolling) break;
 
       await _scrollController.animateTo(
         0.0,
@@ -681,7 +682,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
       controller: _scrollController,
       scrollDirection: Axis.horizontal,
       physics: const NeverScrollableScrollPhysics(),
-      clipBehavior: Clip.hardEdge,
+      clipBehavior: Clip.none,
       child: widget.child,
     );
 
@@ -4762,13 +4763,11 @@ class SongTile extends StatelessWidget {
                     ),
                   ],
                 )
-              : SizedBox(
-                  height: 20,
-                  child: MarqueeWidget(
-                    resetKey: 'unsel_${item.id}',
-                    child: Text(
-                      item.title,
-                      style: const TextStyle(
+              : MarqueeWidget(
+                  resetKey: 'unsel_${item.id}',
+                  child: Text(
+                    item.title,
+                    style: const TextStyle(
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
                       ),
