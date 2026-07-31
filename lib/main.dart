@@ -478,6 +478,14 @@ List<Color> _getAlbumGradientColors(String album) {
       Color(0xFFD32F2F), // Rouge
       Color(0xFFFFC107), // Jaune
     ];
+  } else if (a == 'poison_ou_antidote') {
+    // Bon gros vert dominant, puis jaune et violet très légers
+    return const [
+      Color(0xFF1B5E20), // Vert très sombre
+      Color(0xFF2E7D32), // Vert
+      Color(0xFFFFB300), // Jaune
+      Color(0xFFE040FB), // Violet (tirant vers le magenta pour bien se mélanger au jaune)
+    ];
   } else {
     return const [
       Color(0xFF9C27B0),
