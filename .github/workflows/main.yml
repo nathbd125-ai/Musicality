@@ -53,7 +53,7 @@ jobs:
       - name: 🏷️ Extraction de la version de l'app
         id: extract_version
         run: |
-          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2)
+          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: 🌟 Création de la Release GitHub
