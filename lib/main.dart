@@ -508,6 +508,11 @@ String _getSafeFileName(String title) {
       .replaceAll(RegExp(r'[\u2010-\u2015\u2212]'), '-');
 }
 
+String _formatArtist(String? artist) {
+  if (artist == null || artist.isEmpty) return 'Inconnu';
+  return artist.replaceAll(RegExp(r'\s+feat\.?\s+', caseSensitive: false), ' & ');
+}
+
 List<String> _extractArtists(String? rawArtist) {
   if (rawArtist == null || rawArtist.isEmpty) return ['Inconnu'];
   // On ne garde que l'artiste principal (le premier)
@@ -2669,7 +2674,7 @@ class _AddSongsSheetState extends State<AddSongsSheet> {
                                     : Colors.white54,
                                 fontSize: 14,
                               ),
-                              child: Text(item.artist ?? ''),
+                              child: Text(_formatArtist(item.artist)),
                             ),
                             trailing: IconButton(
                               icon: TweenAnimationBuilder<double>(
@@ -3133,7 +3138,7 @@ class _SongOptionsOverlayState extends State<SongOptionsOverlay> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.item.artist ?? '',
+                  _formatArtist(widget.item.artist),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white.withValues(alpha: 0.7),
@@ -4742,7 +4747,7 @@ class SongTile extends StatelessWidget {
             children: [
               Flexible(
                 child: Text(
-                  item.artist ?? '',
+                  _formatArtist(item.artist),
                   style: TextStyle(
                     color: isSelected
                         ? Color.lerp(
@@ -7777,14 +7782,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             right:
                                                                 _isPlayerExpanded
                                                                 ? 20
-                                                                : 125, // Limite la taille du texte pour laisser place aux boutons
+                                                                : 145, // Limite la taille du texte pour laisser place aux boutons
                                                             child: Column(
                                                               crossAxisAlignment:
                                                                   CrossAxisAlignment
                                                                       .start,
                                                               children: [
-                                                                Row(
-                                                                  mainAxisSize:
+                                                                MarqueeWidget(
+                                                                  resetKey: 'title_${safeItem.id}',
+                                                                  child: Row(
+                                                                    mainAxisSize:
                                                                         MainAxisSize
                                                                             .min,
                                                                     crossAxisAlignment:
@@ -7792,9 +7799,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                             .center,
                                                                     children: [
                                                                       // 1. LE TITRE DE LA MUSIQUE (De retour avec son magnifique gradient !)
-                                                                      Flexible(
-                                                                        child: ShaderMask(
-                                                                          blendMode:
+                                                                      ShaderMask(
+                                                                        blendMode:
                                                                             BlendMode.srcIn,
                                                                         shaderCallback:
                                                                             (
@@ -7833,10 +7839,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                           ),
                                                                           child: Text(
                                                                             safeItem.title,
-                                                                            overflow: TextOverflow.ellipsis,
                                                                           ),
                                                                         ),
-                                                                      ),
                                                                       ),
 
                                                                       // 2. LE BADGE LOSSLESS ALIGNÉ AVEC LE TITRE
@@ -7887,6 +7891,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                       ],
                                                                     ],
                                                                   ),
+                                                                ),
                                                                 const SizedBox(
                                                                   height: 5,
                                                                 ),
@@ -7913,8 +7918,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                           child,
                                                                         ) {
                                                                           return Text(
-                                                                            safeItem.artist ??
-                                                                                '',
+                                                                            _formatArtist(safeItem.artist),
                                                                             style: TextStyle(
                                                                               color: Color.lerp(
                                                                                 const Color(
