@@ -595,7 +595,7 @@ Future<void> clearTemporaryFiles() async {
 class _HorizontalClipper extends CustomClipper<Rect> {
   @override
   Rect getClip(Size size) {
-    return Rect.fromLTWH(0, -100, size.width + 15, size.height + 200);
+    return Rect.fromLTWH(0, -100, size.width, size.height + 200);
   }
 
   @override
@@ -4879,7 +4879,7 @@ class SongTile extends StatelessWidget {
                       child: Container(
                         color: Colors.transparent,
                         padding: const EdgeInsets.only(
-                          left: 8.0,
+                          left: 0.0,
                           right: 4.0,
                           top: 12.0,
                           bottom: 12.0,
