@@ -1289,7 +1289,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     final currentMediaItem = mediaItem.value;
     String currentSafeName = currentMediaItem != null
-        ? _getSafeFileName(currentMediaItem.title)
+        ? currentMediaItem.id.split('/').last.replaceAll('.flac', '')
         : "";
 
     while (totalSize > limitBytes && cachedFiles.isNotEmpty) {
@@ -1318,7 +1318,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   AudioSource _createSource(MediaItem item) {
-    String safeName = _getSafeFileName(item.title);
+    String safeName = item.id.split('/').last.replaceAll('.flac', '');
     File manualFlac = File('$_documentPath/$safeName.flac');
     File manualMp3 = File('$_documentPath/$safeName.mp3');
 
@@ -7202,7 +7202,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchLyrics(MediaItem item) async {
     final songId = item.id;
-    final fileName = '${_getSafeFileName(item.title)}.lrc';
+    final fileName = '${item.id.split('/').last.replaceAll('.flac', '')}.lrc';
 
     if (_lyricsCache.containsKey(songId)) {
       setState(() {
@@ -7311,10 +7311,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final Set<String> localIds = {};
     for (var item in _playlist) {
       final flacFile = File(
-        '${docDir.path}/${_getSafeFileName(item.title)}.flac',
+        '${docDir.path}/${item.id.split('/').last.replaceAll('.flac', '')}.flac',
       );
       final mp3File = File(
-        '${docDir.path}/${_getSafeFileName(item.title)}.mp3',
+        '${docDir.path}/${item.id.split('/').last.replaceAll('.flac', '')}.mp3',
       );
       if (flacFile.existsSync() || mp3File.existsSync()) {
         localIds.add(item.id);
@@ -7327,7 +7327,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _toggleDownload(MediaItem item) async {
     final docDir = await getApplicationDocumentsDirectory();
-    final safeName = _getSafeFileName(item.title);
+    final safeName = item.id.split('/').last.replaceAll('.flac', '');
 
     final localFlac = File('${docDir.path}/$safeName.flac');
     final localMp3 = File('${docDir.path}/$safeName.mp3');
