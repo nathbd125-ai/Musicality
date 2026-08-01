@@ -4737,250 +4737,238 @@ class SongTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Stack(
-              alignment: Alignment.centerRight,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    SizedBox(
-                      width: 45,
-                      height: 45,
-                      child: Hero(
-                        tag: heroTag,
-                        child: Material(
-                          type: MaterialType.transparency,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: activeThemeColors[0].withValues(alpha: 0.0),
-                                  blurRadius: 0,
-                                  spreadRadius: 0,
-                                ),
-                              ],
+                const SizedBox(width: 16),
+                SizedBox(
+                  width: 45,
+                  height: 45,
+                  child: Hero(
+                    tag: heroTag,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: activeThemeColors[0].withValues(alpha: 0.0),
+                              blurRadius: 0,
+                              spreadRadius: 0,
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: getLocalOrNetworkImage(item),
-                            ),
-                          ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: getLocalOrNetworkImage(item),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          isSelected
-                              ? ShaderMask(
-                                  blendMode: BlendMode.srcIn,
-                                  shaderCallback: (bounds) {
-                                    return LinearGradient(
-                                      colors: [trackColors[0], trackColors[1]],
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                    ).createShader(
-                                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                                    );
-                                  },
-                                  child: Text(
-                                    item.title,
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    overflow: TextOverflow.clip,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : Text(
-                                  item.title,
-                                  maxLines: 1,
-                                  softWrap: false,
-                                  overflow: TextOverflow.clip,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatArtist(item.artist),
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Color.lerp(
-                                      const Color(0xFFCCCCCC),
-                                      trackColors[0],
-                                      0.35,
-                                    )
-                                  : const Color(0xFF9E9E9E),
-                              fontSize: 14,
-                              height: 1.0,
-                              fontWeight: isSelected
-                                  ? FontWeight.w500
-                                  : FontWeight.normal,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
+                  ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Row(
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (showPlayCount)
-                        ValueListenableBuilder<Map<String, int>>(
-                          valueListenable: songPlayCountNotifier,
-                          builder: (context, playCounts, child) {
-                            final count = playCounts[item.id] ?? 0;
-                            final textStr = " écoute";
-
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: isSelected
-                                  ? ShaderMask(
-                                      blendMode: BlendMode.srcIn,
-                                      shaderCallback: (bounds) {
-                                        return LinearGradient(
-                                          colors: activeThemeColors,
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ).createShader(
-                                          Rect.fromLTWH(
-                                            0,
-                                            0,
-                                            bounds.width,
-                                            bounds.height,
-                                          ),
-                                        );
-                                      },
-                                      child: Text(
-                                        textStr,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    )
-                                  : Text(
-                                      textStr,
-                                      style: const TextStyle(
-                                        color: Colors.white54,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            );
-                          },
-                        )
-                      else
-                        ValueListenableBuilder<Set<String>>(
-                          valueListenable: likedSongsNotifier,
-                          builder: (context, likedSongs, child) {
-                            final isLiked = likedSongs.contains(item.id);
-                            return GestureDetector(
-                              onTap: () {
-                                final currentLikes = Set<String>.from(
-                                  likedSongsNotifier.value,
-                                );
-                                if (isLiked) {
-                                  currentLikes.remove(item.id);
-                                  updateArtistScore(item.artist ?? '', -10);
-                                } else {
-                                  currentLikes.add(item.id);
-                                  updateArtistScore(item.artist ?? '', 10);
-                                }
-                                likedSongsNotifier.value = currentLikes;
-                              },
-                              child: Container(
-                                color: Colors.transparent,
-                                padding: const EdgeInsets.only(
-                                  left: 0.0,
-                                  right: 4.0,
-                                  top: 12.0,
-                                  bottom: 12.0,
-                                ),
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 300),
-                                  child: isLiked
-                                      ? ShaderMask(
-                                          key: const ValueKey('liked'),
-                                          blendMode: BlendMode.srcIn,
-                                          shaderCallback: (bounds) {
-                                            return LinearGradient(
-                                              colors: activeThemeColors,
-                                              begin: Alignment.centerLeft,
-                                              end: Alignment.centerRight,
-                                            ).createShader(
-                                              Rect.fromLTWH(
-                                                0,
-                                                0,
-                                                bounds.width,
-                                                bounds.height,
-                                              ),
-                                            );
-                                          },
-                                          child: const Icon(
-                                            CupertinoIcons.heart_fill,
-                                            size: 24,
-                                          ),
-                                        )
-                                      : const Icon(
-                                          CupertinoIcons.heart,
-                                          key: ValueKey('unliked'),
-                                          color: Colors.white54,
-                                          size: 24,
-                                        ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      if (onRemoveFromHistory != null)
-                        GestureDetector(
-                          onTap: onRemoveFromHistory,
-                          child: Container(
-                            color: Colors.transparent,
-                            padding: const EdgeInsets.only(
-                              left: 4.0,
-                              right: 8.0,
-                              top: 12.0,
-                              bottom: 12.0,
-                            ),
-                            child: ShaderMask(
+                      isSelected
+                          ? ShaderMask(
                               blendMode: BlendMode.srcIn,
                               shaderCallback: (bounds) {
                                 return LinearGradient(
-                                  colors: activeThemeColors,
+                                  colors: [trackColors[0], trackColors[1]],
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
                                 ).createShader(
                                   Rect.fromLTWH(0, 0, bounds.width, bounds.height),
                                 );
                               },
-                              child: const Icon(
-                                CupertinoIcons.clear,
-                                color: Colors.white,
-                                size: 24,
+                              child: MarqueeWidget(
+                                resetKey: 'sel_${item.id}',
+                                child: Text(
+                                  item.title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : MarqueeWidget(
+                              resetKey: 'unsel_${item.id}',
+                              child: Text(
+                                item.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatArtist(item.artist),
+                        style: TextStyle(
+                          color: isSelected
+                              ? Color.lerp(
+                                  const Color(0xFFCCCCCC),
+                                  trackColors[0],
+                                  0.35,
+                                )
+                              : const Color(0xFF9E9E9E),
+                          fontSize: 14,
+                          height: 1.0,
+                          fontWeight: isSelected
+                              ? FontWeight.w500
+                              : FontWeight.normal,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                if (showPlayCount)
+                  ValueListenableBuilder<Map<String, int>>(
+                    valueListenable: songPlayCountNotifier,
+                    builder: (context, playCounts, child) {
+                      final count = playCounts[item.id] ?? 0;
+                      final textStr = "$count écoute${count > 1 ? 's' : ''}";
+
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: isSelected
+                            ? ShaderMask(
+                                blendMode: BlendMode.srcIn,
+                                shaderCallback: (bounds) {
+                                  return LinearGradient(
+                                    colors: activeThemeColors,
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ).createShader(
+                                    Rect.fromLTWH(
+                                      0,
+                                      0,
+                                      bounds.width,
+                                      bounds.height,
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  textStr,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                textStr,
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      );
+                    },
+                  )
+                else
+                  ValueListenableBuilder<Set<String>>(
+                    valueListenable: likedSongsNotifier,
+                    builder: (context, likedSongs, child) {
+                      final isLiked = likedSongs.contains(item.id);
+                      return GestureDetector(
+                        onTap: () {
+                          final currentLikes = Set<String>.from(
+                            likedSongsNotifier.value,
+                          );
+                          if (isLiked) {
+                            currentLikes.remove(item.id);
+                            updateArtistScore(item.artist ?? '', -10);
+                          } else {
+                            currentLikes.add(item.id);
+                            updateArtistScore(item.artist ?? '', 10);
+                          }
+                          likedSongsNotifier.value = currentLikes;
+                        },
+                        child: Container(
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.only(
+                            left: 0.0,
+                            right: 4.0,
+                            top: 12.0,
+                            bottom: 12.0,
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: isLiked
+                                ? ShaderMask(
+                                    key: const ValueKey('liked'),
+                                    blendMode: BlendMode.srcIn,
+                                    shaderCallback: (bounds) {
+                                      return LinearGradient(
+                                        colors: activeThemeColors,
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ).createShader(
+                                        Rect.fromLTWH(
+                                          0,
+                                          0,
+                                          bounds.width,
+                                          bounds.height,
+                                        ),
+                                      );
+                                    },
+                                    child: const Icon(
+                                      CupertinoIcons.heart_fill,
+                                      size: 24,
+                                    ),
+                                  )
+                                : const Icon(
+                                    CupertinoIcons.heart,
+                                    key: ValueKey('unliked'),
+                                    color: Colors.white54,
+                                    size: 24,
+                                  ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                if (onRemoveFromHistory != null)
+                  GestureDetector(
+                    onTap: onRemoveFromHistory,
+                    child: Container(
+                      color: Colors.transparent,
+                      padding: const EdgeInsets.only(
+                        left: 4.0,
+                        right: 8.0,
+                        top: 12.0,
+                        bottom: 12.0,
+                      ),
+                      child: ShaderMask(
+                        blendMode: BlendMode.srcIn,
+                        shaderCallback: (bounds) {
+                          return LinearGradient(
+                            colors: activeThemeColors,
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ).createShader(
+                            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                          );
+                        },
+                        child: const Icon(
+                          CupertinoIcons.clear,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
               ],
             ),
           ),
