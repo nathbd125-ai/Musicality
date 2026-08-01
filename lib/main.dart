@@ -550,12 +550,14 @@ String _formatArtist(String? artist) {
 
 List<String> _extractArtists(String? rawArtist) {
   if (rawArtist == null || rawArtist.isEmpty) return ['Inconnu'];
-  // On ne garde que l'artiste principal (le premier)
-  final primaryArtist = rawArtist
+  // On extrait tous les artistes (duos, featurings, collaborations)
+  final artists = rawArtist
       .split(RegExp(r'\s+&\s+|\s+feat\.?\s+|,', caseSensitive: false))
-      .first
-      .trim();
-  return [primaryArtist.isNotEmpty ? primaryArtist : 'Inconnu'];
+      .map((a) => a.trim())
+      .where((a) => a.isNotEmpty)
+      .toSet()
+      .toList();
+  return artists.isNotEmpty ? artists : ['Inconnu'];
 }
 
 final RegExp _regexE = RegExp(r'[éèêë]');
