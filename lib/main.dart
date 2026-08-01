@@ -560,6 +560,15 @@ List<String> _extractArtists(String? rawArtist) {
   return artists.isNotEmpty ? artists : ['Inconnu'];
 }
 
+String _extractPrimaryArtist(String? rawArtist) {
+  if (rawArtist == null || rawArtist.isEmpty) return 'Inconnu';
+  final primaryArtist = rawArtist
+      .split(RegExp(r'\s+&\s+|\s+feat\.?\s+|,', caseSensitive: false))
+      .first
+      .trim();
+  return primaryArtist.isNotEmpty ? primaryArtist : 'Inconnu';
+}
+
 final RegExp _regexE = RegExp(r'[éèêë]');
 final RegExp _regexA = RegExp(r'[àáâãäå]');
 final RegExp _regexO = RegExp(r'[òóôõöø]');
@@ -5705,7 +5714,7 @@ class ArtistPageViewState extends State<ArtistPageView> {
 
     if (isSearching) {
       final query = _normalizeString(_searchQuery);
-      final allArtists = _playlist.expand((e) => _extractArtists(e.artist)).toSet();
+      final allArtists = _playlist.map((e) => _extractPrimaryArtist(e.artist)).toSet();
       matchingArtists = allArtists
           .where((a) => _normalizeString(a).contains(query))
           .toList();
@@ -5748,7 +5757,7 @@ class ArtistPageViewState extends State<ArtistPageView> {
                         itemBuilder: (context, index) {
                           final artistName = matchingArtists[index];
                           final sampleItem = _playlist.firstWhere(
-                            (e) => _extractArtists(e.artist).contains(artistName),
+                            (e) => _extractPrimaryArtist(e.artist) == artistName,
                             orElse: () => _playlist.first,
                           );
 
@@ -5924,7 +5933,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final artistSongs = _playlist
-        .where((e) => _extractArtists(e.artist).contains(widget.artistName))
+        .where((e) => _extractPrimaryArtist(e.artist) == widget.artistName)
         .toList();
 
     final Map<String, List<MediaItem>> albums = {};
