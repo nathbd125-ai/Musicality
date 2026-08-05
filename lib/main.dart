@@ -537,7 +537,7 @@ String _getSafeFileName(String title) {
 
 String _cleanTitle(String title) {
   // Enlève "(feat. Artiste)" ou "[ft. Artiste]"
-  String cleaned = title.replaceAll(RegExp(r'\s*[\(\[]f(?:ea)?t\.?\s+[^)\]]+[\)\]]', caseSensitive: false), '');
+  String cleaned = title.replaceAll(RegExp(r'\s*[(\[]f(?:ea)?t\.?\s+[^)\]]+[)\]]', caseSensitive: false), '');
   // Enlève " feat. Artiste" (sans parenthèses) à la fin
   cleaned = cleaned.replaceAll(RegExp(r'\s+f(?:ea)?t\.?\s+.*', caseSensitive: false), '');
   return cleaned.trim();
@@ -1270,6 +1270,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   int _currentSongListeningSeconds = 0;
   bool _hasScoredCurrentSong = false;
   String? _lastSongId;
+  int _lastKnownPositionSecs = 0;
 
   MyAudioHandler() {
     _initPlayer();
@@ -1280,6 +1281,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         _lastSongId = item.id;
         _currentSongListeningSeconds = 0;
         _hasScoredCurrentSong = false;
+        _lastKnownPositionSecs = 0;
       }
     });
 
@@ -1288,6 +1290,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       final currentItem = mediaItem.value;
 
       if (playing && currentItem != null) {
+        // Détecter un retour au début (boucle ou replay)
+        final currentPositionSecs = _player.position.inSeconds;
+        if (_lastKnownPositionSecs > 10 && currentPositionSecs < 5) {
+          // La position a sauté vers le début : c'est une nouvelle écoute
+          _currentSongListeningSeconds = 0;
+          _hasScoredCurrentSong = false;
+        }
+        _lastKnownPositionSecs = currentPositionSecs;
+
         _currentSongListeningSeconds++;
 
         final artist = currentItem.artist ?? 'Inconnu';
@@ -4262,26 +4273,13 @@ class _AccountPageViewState extends State<AccountPageView> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  "Qualité sonore",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  "La qualité s'appliquera au changement de musique.",
-                                  style: TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                            child: const Text(
+                              "Qualité sonore",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                         ],
@@ -4360,26 +4358,13 @@ class _AccountPageViewState extends State<AccountPageView> {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  "Préférence de téléchargement",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  "Format utilisé lors de l'enregistrement hors-ligne.",
-                                  style: TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                            child: const Text(
+                              "Préférence de téléchargement",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                         ],
