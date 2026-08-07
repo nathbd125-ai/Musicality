@@ -382,6 +382,26 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
   }
 }
 
+Widget getLocalOrNetworkImageSuperBlurred(MediaItem item) {
+  final coverFile = File('$_documentPath/${_getSafeFileName(_getBaseId(item.id))}.jpg');
+  if (coverFile.existsSync()) {
+    return Image.file(
+      coverFile,
+      cacheWidth: 32, // Downsample for DLSS-style hardware blur
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.high,
+    );
+  } else {
+    return Image.network(
+      item.artUri.toString(),
+      cacheWidth: 32,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) => Container(color: Colors.black),
+    );
+  }
+}
+
 class LyricLine {
   final Duration time;
   final String text;
@@ -2298,15 +2318,15 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           },
           child: RepaintBoundary(
             child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
+              imageFilter: ImageFilter.blur(sigmaX: 25, sigmaY: 25, tileMode: TileMode.mirror), // "DLSS" blur: small math blur on a tiny base image
               child: Transform.scale(
                 scale: 1.8,
-                child: SizedBox.expand(child: getLocalOrNetworkImage(widget.item)),
+                child: SizedBox.expand(child: getLocalOrNetworkImageSuperBlurred(widget.item)),
               ),
             ),
           ),
         ),
-        Container(color: Colors.black.withValues(alpha: 0.4)),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
       ],
     );
   }
