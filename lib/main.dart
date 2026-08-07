@@ -8631,13 +8631,18 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: const Color(0xFF1E1E1E),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        "Mise à jour ${widget.serverVersion} 🚀",
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-      ),
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+      child: AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E).withValues(alpha: 0.8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        ),
+        title: Text(
+          "Mise à jour ${widget.serverVersion}",
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -8672,6 +8677,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             child: const Text("Mettre à jour", style: TextStyle(color: Colors.white)),
           ),
       ],
+    ),
     );
   }
 }
