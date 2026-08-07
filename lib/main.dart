@@ -2264,7 +2264,7 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 25),
+      duration: const Duration(seconds: 15),
     )..repeat(reverse: true);
   }
 
@@ -2282,9 +2282,9 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
         AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
-            final scale = 1.25 + (_controller.value * 0.15);
-            final dx = -20.0 + (_controller.value * 40.0);
-            final dy = -15.0 + (_controller.value * 30.0);
+            final scale = 1.2 + (_controller.value * 0.4); // 1.2 to 1.6
+            final dx = -40.0 + (_controller.value * 80.0);
+            final dy = -30.0 + (_controller.value * 60.0);
             return Transform(
               transform: Matrix4.identity()
                 ..translate(dx, dy)
