@@ -2426,7 +2426,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView> {
             Colors.black,
             Colors.transparent,
           ],
-          stops: [0.0, 0.15, 0.85, 1.0],
+          stops: [0.0, 0.15, 0.75, 1.0], // Fades out more smoothly over the bottom 25%
         ).createShader(bounds);
       },
       blendMode: BlendMode.dstIn,
