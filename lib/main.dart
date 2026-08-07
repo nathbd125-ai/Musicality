@@ -2264,8 +2264,8 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 15),
-    )..repeat(reverse: true);
+      duration: const Duration(seconds: 40),
+    )..repeat();
   }
 
   @override
@@ -2282,9 +2282,10 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
         AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
-            final scale = 1.2 + (_controller.value * 0.4); // 1.2 to 1.6
-            final dx = -40.0 + (_controller.value * 80.0);
-            final dy = -30.0 + (_controller.value * 60.0);
+            final t = _controller.value * 2 * math.pi;
+            final scale = 1.35 + math.sin(t) * 0.15; // Scale goes from 1.2 to 1.5
+            final dx = math.sin(t * 2) * 60.0;
+            final dy = math.cos(t * 3) * 60.0;
             return Transform(
               transform: Matrix4.identity()
                 ..translate(dx, dy)
@@ -2293,9 +2294,11 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
               child: child,
             );
           },
-          child: ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45),
-            child: SizedBox.expand(child: getLocalOrNetworkImage(widget.item)),
+          child: RepaintBoundary(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45),
+              child: SizedBox.expand(child: getLocalOrNetworkImage(widget.item)),
+            ),
           ),
         ),
         Container(color: Colors.black.withValues(alpha: 0.15)),
