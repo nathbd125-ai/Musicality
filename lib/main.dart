@@ -447,6 +447,14 @@ Future<void> fetchMusiques() async {
   }
 }
 
+List<double>? _getGradientStops(int count) {
+  if (count == 2) return const [0.0, 1.0];
+  if (count == 3) return const [0.2, 0.5, 0.8];
+  if (count == 4) return const [0.15, 0.38, 0.61, 0.85];
+  if (count == 5) return const [0.1, 0.3, 0.5, 0.7, 0.9];
+  return null;
+}
+
 List<Color> _getAlbumGradientColors(MediaItem item) {
   final artUriStr = item.artUri?.toString() ?? '';
   final a = _getSafeFileName(item.album ?? '');
@@ -4836,6 +4844,7 @@ class SongTile extends StatelessWidget {
                                   colors: trackColors,
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
+                                  stops: _getGradientStops(trackColors.length),
                                 ).createShader(
                                   Rect.fromLTWH(0, 0, bounds.width, bounds.height),
                                 );
@@ -4966,9 +4975,10 @@ class SongTile extends StatelessWidget {
                                     blendMode: BlendMode.srcIn,
                                     shaderCallback: (bounds) {
                                       return LinearGradient(
-                                        colors: activeThemeColors,
+                                        colors: trackColors,
                                         begin: Alignment.centerLeft,
                                         end: Alignment.centerRight,
+                                        stops: _getGradientStops(trackColors.length),
                                       ).createShader(
                                         Rect.fromLTWH(
                                           0,
@@ -5735,6 +5745,7 @@ class ArtistPageViewState extends State<ArtistPageView> {
                             colors: widget.dynamicThemeColors,
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
+                            stops: _getGradientStops(widget.dynamicThemeColors.length),
                           ).createShader(
                             Rect.fromLTWH(0, 0, bounds.width, bounds.height),
                           ),
