@@ -4664,8 +4664,23 @@ class _AccountPageViewState extends State<AccountPageView> {
                                               );
                                             }
                                           }
-                                          _calculateCacheSize();
                                         }
+                                        // Vider aussi les pochettes dans le dossier parent
+                                        final docDir = Directory(_documentPath);
+                                        if (docDir.existsSync()) {
+                                          final files = docDir.listSync().whereType<File>();
+                                          for (var file in files) {
+                                            if (file.path.endsWith('.jpg')) {
+                                              try {
+                                                file.deleteSync();
+                                              } catch (e) {
+                                                debugPrint("Erreur suppression image : $e");
+                                              }
+                                            }
+                                          }
+                                        }
+                                        
+                                        _calculateCacheSize();
                                       },
                                       child: Text(
                                         "Vider le cache (${(_cacheSizeBytes / (1024 * 1024)).toStringAsFixed(1)} Mo)",
