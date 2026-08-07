@@ -7352,7 +7352,13 @@ class _HomeScreenState extends State<HomeScreen> {
         Uri.parse('${ApiConfig.baseUrl}/version.json?t=${DateTime.now().millisecondsSinceEpoch}')
       ).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes, allowMalformed: true));
+        String decodedBody;
+        try {
+          decodedBody = utf8.decode(response.bodyBytes);
+        } catch (e) {
+          decodedBody = latin1.decode(response.bodyBytes);
+        }
+        final data = jsonDecode(decodedBody);
         final serverVersion = data['version'] as String;
         final serverBuild = data['buildNumber'] as int;
         
