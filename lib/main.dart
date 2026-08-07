@@ -447,8 +447,38 @@ Future<void> fetchMusiques() async {
   }
 }
 
-List<Color> _getAlbumGradientColors(String album) {
-  final a = _getSafeFileName(album);
+List<Color> _getAlbumGradientColors(MediaItem item) {
+  final artUriStr = item.artUri?.toString() ?? '';
+  final a = _getSafeFileName(item.album ?? '');
+
+  if (artUriStr.contains('levitating_dababy')) {
+    return const [
+      Color(0xFFFFFFFF), // Blanc
+      Color(0xFF64B5F6), // Bleu clair
+      Color(0xFF1976D2), // Bleu foncé
+      Color(0xFFFF9800), // Orangé
+    ];
+  }
+
+  if (artUriStr.contains('fever')) {
+    return const [
+      Color(0xFFFF9800), // Orange
+      Color(0xFFD32F2F), // Rouge
+      Color(0xFFB71C1C), // Rouge foncé
+      Color(0xFF212121), // Noir
+    ];
+  }
+
+  if (a.contains('future_nostalgia')) {
+    return const [
+      Color(0xFF2196F3), // Bleu
+      Color(0xFFE91E63), // Rose
+      Color(0xFF795548), // Marron
+      Color(0xFFFFFFFF), // Blanc
+      Color(0xFFFFEB3B), // Jaune
+    ];
+  }
+
   if (a.contains('mils')) {
     return const [
       Color(0xFFFFF8E7), // Blanc légèrement doré (Cosmic Latte)
@@ -4720,7 +4750,7 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trackColors = _getAlbumGradientColors(item.album ?? '');
+    final trackColors = _getAlbumGradientColors(item);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -7232,7 +7262,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _fetchLyrics(item);
         if (mounted) {
           setState(() {
-            _dynamicGradientColors = _getAlbumGradientColors(item.album ?? '');
+            _dynamicGradientColors = _getAlbumGradientColors(item);
           });
         }
       }
