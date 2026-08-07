@@ -2264,8 +2264,8 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 80), // Plus lent
-      value: math.Random().nextDouble(), // Démarre à un point aléatoire
+      duration: const Duration(seconds: 80),
+      value: math.Random().nextDouble(),
     )..repeat();
   }
 
@@ -2284,21 +2284,24 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           animation: _controller,
           builder: (context, child) {
             final t = _controller.value * 2 * math.pi;
-            final scale = 1.35 + math.sin(t) * 0.15; // Scale goes from 1.2 to 1.5
+            final animScale = 1.05 + math.sin(t) * 0.05; // Léger zoom dynamique (1.0 à 1.1)
             final dx = math.sin(t * 2) * 60.0;
             final dy = math.cos(t * 3) * 60.0;
             return Transform(
               transform: Matrix4.identity()
                 ..translate(dx, dy)
-                ..scale(scale),
+                ..scale(animScale),
               alignment: Alignment.center,
               child: child,
             );
           },
           child: RepaintBoundary(
             child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80), // Plus flouté
-              child: SizedBox.expand(child: getLocalOrNetworkImage(widget.item)),
+              imageFilter: ImageFilter.blur(sigmaX: 55, sigmaY: 55), // Réduit pour éviter le banding
+              child: Transform.scale(
+                scale: 1.8, // Zoom énorme avant le flou pour un effet très abstrait
+                child: SizedBox.expand(child: getLocalOrNetworkImage(widget.item)),
+              ),
             ),
           ),
         ),
