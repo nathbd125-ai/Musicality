@@ -463,7 +463,7 @@ List<Color> _getAlbumGradientColors(MediaItem item) {
     return const [
       Color(0xFFFFFFFF), // Blanc
       Color(0xFF2196F3), // Bleu
-      Color(0xFFFFEB3B), // Jaune
+      Color(0xFFC89B3C), // Jaune/Marron (Chaise)
     ];
   }
 
@@ -2248,18 +2248,55 @@ class _HyperOSSliderState extends State<HyperOSSlider> {
   }
 }
 
-class RealAlbumBlurredBackground extends StatelessWidget {
+class RealAlbumBlurredBackground extends StatefulWidget {
   final MediaItem item;
   const RealAlbumBlurredBackground({super.key, required this.item});
+
+  @override
+  State<RealAlbumBlurredBackground> createState() => _RealAlbumBlurredBackgroundState();
+}
+
+class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 25),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        ImageFiltered(
-          imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-          child: SizedBox.expand(child: getLocalOrNetworkImage(item)),
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final scale = 1.25 + (_controller.value * 0.15);
+            final dx = -20.0 + (_controller.value * 40.0);
+            final dy = -15.0 + (_controller.value * 30.0);
+            return Transform(
+              transform: Matrix4.identity()
+                ..translate(dx, dy)
+                ..scale(scale),
+              alignment: Alignment.center,
+              child: child,
+            );
+          },
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45),
+            child: SizedBox.expand(child: getLocalOrNetworkImage(widget.item)),
+          ),
         ),
         Container(color: Colors.black.withValues(alpha: 0.15)),
       ],
