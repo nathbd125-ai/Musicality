@@ -13,6 +13,7 @@ import 'package:open_filex/open_filex.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
+import 'dart:ui' as ui;
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:math' as math;
