@@ -2259,7 +2259,6 @@ class RealAlbumBlurredBackground extends StatefulWidget {
 
 class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  ui.Image? _noiseImage;
 
   @override
   void initState() {
@@ -2269,34 +2268,6 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
       duration: const Duration(seconds: 80),
       value: math.Random().nextDouble(),
     )..repeat();
-    _generateNoiseImage();
-  }
-
-  void _generateNoiseImage() {
-    final int size = 128;
-    final pixels = Uint8List(size * size * 4);
-    final rand = math.Random();
-    final int alpha = 8; // ~3% opacity
-    for (int i = 0; i < pixels.length; i += 4) {
-      final int v = rand.nextInt(alpha + 1); // R, G, B must be <= Alpha for premultiplied alpha
-      pixels[i] = v;     // R
-      pixels[i + 1] = v; // G
-      pixels[i + 2] = v; // B
-      pixels[i + 3] = alpha; // A
-    }
-    ui.decodeImageFromPixels(
-      pixels,
-      size,
-      size,
-      ui.PixelFormat.rgba8888,
-      (image) {
-        if (mounted) {
-          setState(() {
-            _noiseImage = image;
-          });
-        }
-      },
-    );
   }
 
   @override
@@ -2335,15 +2306,7 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
             ),
           ),
         ),
-        Container(color: Colors.black.withValues(alpha: 0.15)),
-        if (_noiseImage != null)
-          Positioned.fill(
-            child: RawImage(
-              image: _noiseImage,
-              repeat: ImageRepeat.repeat,
-              fit: BoxFit.none,
-            ),
-          ),
+        Container(color: Colors.black.withValues(alpha: 0.4)),
       ],
     );
   }
