@@ -2264,7 +2264,8 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 40),
+      duration: const Duration(seconds: 80), // Plus lent
+      value: math.Random().nextDouble(), // Démarre à un point aléatoire
     )..repeat();
   }
 
@@ -2296,7 +2297,7 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           },
           child: RepaintBoundary(
             child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 45, sigmaY: 45),
+              imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80), // Plus flouté
               child: SizedBox.expand(child: getLocalOrNetworkImage(widget.item)),
             ),
           ),
