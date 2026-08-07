@@ -15,7 +15,6 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'dart:ui' as ui;
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
@@ -2277,12 +2276,13 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     final int size = 128;
     final pixels = Uint8List(size * size * 4);
     final rand = math.Random();
+    final int alpha = 8; // ~3% opacity
     for (int i = 0; i < pixels.length; i += 4) {
-      final v = rand.nextInt(256);
+      final int v = rand.nextInt(alpha + 1); // R, G, B must be <= Alpha for premultiplied alpha
       pixels[i] = v;     // R
       pixels[i + 1] = v; // G
       pixels[i + 2] = v; // B
-      pixels[i + 3] = 12; // A (Très faible opacité pour un dither subtil)
+      pixels[i + 3] = alpha; // A
     }
     ui.decodeImageFromPixels(
       pixels,
