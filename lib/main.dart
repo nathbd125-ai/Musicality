@@ -7865,12 +7865,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                           : 8.0,
                                                                     ),
                                                               ),
-                                                              child: Image.network(
-                                                                safeItem.artUri
-                                                                    .toString(),
-                                                                cacheWidth: 500,
-                                                                fit: BoxFit
-                                                                    .cover,
+                                                              child: SizedBox.expand(
+                                                                child: getLocalOrNetworkImage(safeItem),
                                                               ),
                                                             ),
                                                           ),
