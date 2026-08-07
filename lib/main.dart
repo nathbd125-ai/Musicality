@@ -14,6 +14,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
@@ -8579,15 +8580,34 @@ class _UpdateDialog extends StatefulWidget {
   State<_UpdateDialog> createState() => _UpdateDialogState();
 }
 
-class _UpdateDialogState extends State<_UpdateDialog> {
+class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderStateMixin {
   bool _isDownloading = false;
   double _progress = 0.0;
   String _status = "Prêt à télécharger";
+  bool _showChangelog = false;
+
+  late AnimationController _bgAnimController;
+
+  @override
+  void initState() {
+    super.initState();
+    _bgAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 15),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _bgAnimController.dispose();
+    super.dispose();
+  }
 
   Future<void> _downloadAndInstall() async {
     setState(() {
       _isDownloading = true;
       _status = "Téléchargement en cours...";
+      _showChangelog = false;
     });
 
     try {
@@ -8631,53 +8651,213 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-      child: AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E).withValues(alpha: 0.8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      elevation: 0,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: SizedBox(
+          width: double.infinity,
+          child: Stack(
+            children: [
+              // 1. Arrière-plan animé HyperOS 3
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: _bgAnimController,
+                  builder: (context, child) {
+                    final double t = _bgAnimController.value * 2 * math.pi;
+                    return Stack(
+                      children: [
+                        // Fond sombre de base
+                        Container(color: const Color(0xFF0F0F1A)),
+                        // Sphère Bleu foncé
+                        Positioned(
+                          left: 100 * math.cos(t) - 50,
+                          top: 100 * math.sin(t) - 50,
+                          child: Container(
+                            width: 250,
+                            height: 250,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF1E3A8A),
+                            ),
+                          ),
+                        ),
+                        // Sphère Turquoise
+                        Positioned(
+                          right: 120 * math.cos(t + math.pi / 2) - 50,
+                          bottom: 120 * math.sin(t + math.pi / 2) - 50,
+                          child: Container(
+                            width: 200,
+                            height: 200,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF0D9488),
+                            ),
+                          ),
+                        ),
+                        // Sphère Violet clair
+                        Positioned(
+                          left: 80 * math.cos(t + math.pi) - 20,
+                          bottom: 80 * math.sin(t + math.pi) - 20,
+                          child: Container(
+                            width: 180,
+                            height: 180,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF9333EA),
+                            ),
+                          ),
+                        ),
+                        // Sphère Violet foncé
+                        Positioned(
+                          right: 90 * math.cos(t + 3 * math.pi / 2),
+                          top: 90 * math.sin(t + 3 * math.pi / 2),
+                          child: Container(
+                            width: 220,
+                            height: 220,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF4C1D95),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              
+              // 2. Surcouche de flou massif (Verre)
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.3),
+                  ),
+                ),
+              ),
+
+              // 3. Contenu de la popup
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Mise à jour ${widget.serverVersion}",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    if (!_isDownloading) ...[
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showChangelog = !_showChangelog;
+                          });
+                        },
+                        child: Row(
+                          children: [
+                            Text(
+                              _showChangelog ? "Masquer les nouveautés" : "Voir les nouveautés",
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: 14,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                            Icon(
+                              _showChangelog ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                              color: Colors.white.withValues(alpha: 0.8),
+                              size: 18,
+                            ),
+                          ],
+                        ),
+                      ),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: _showChangelog
+                            ? Container(
+                                margin: const EdgeInsets.only(top: 12),
+                                constraints: const BoxConstraints(maxHeight: 180),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Text(
+                                    widget.releaseNotes,
+                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+
+                    if (_isDownloading) ...[
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: _progress > 0 ? _progress : null,
+                          backgroundColor: Colors.white.withValues(alpha: 0.1),
+                          color: Colors.white,
+                          minHeight: 6,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _status,
+                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (!_isDownloading)
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              "Plus tard",
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        if (!_isDownloading)
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white.withValues(alpha: 0.15),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                              ),
+                            ),
+                            onPressed: _downloadAndInstall,
+                            child: const Text("Mettre à jour"),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        title: Text(
-          "Mise à jour ${widget.serverVersion}",
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!_isDownloading)
-            Text(widget.releaseNotes, style: const TextStyle(color: Colors.white70)),
-          if (_isDownloading) ...[
-            const SizedBox(height: 16),
-            LinearProgressIndicator(
-              value: _progress > 0 ? _progress : null,
-              backgroundColor: Colors.white24,
-              color: const Color(0xFF9C27B0),
-            ),
-            const SizedBox(height: 16),
-            Text(_status, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-          ],
-        ],
       ),
-      actions: [
-        if (!_isDownloading)
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-          ),
-        if (!_isDownloading)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9C27B0),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: _downloadAndInstall,
-            child: const Text("Mettre à jour", style: TextStyle(color: Colors.white)),
-          ),
-      ],
-    ),
     );
   }
 }
