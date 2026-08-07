@@ -2284,9 +2284,14 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 80),
+      duration: const Duration(seconds: 150), // Ralenti
       value: math.Random().nextDouble(),
-    )..repeat();
+    );
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        _controller.repeat(); // Démarre après 1 seconde
+      }
+    });
   }
 
   @override
@@ -2310,9 +2315,9 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
             final t = _controller.value * 2 * math.pi;
             final animScale = 1.05 + math.sin(t) * 0.05;
             
-            // Mouvement chaotique et ample sur toute la surface
-            final dx = (math.sin(t) + math.sin(t * 2.31)) * 0.5 * maxDx;
-            final dy = (math.cos(t * 1.13) + math.cos(t * 1.79)) * 0.5 * maxDy;
+            // Fait obligatoirement des nombres entiers (2, 3, 5) pour que la boucle soit mathématiquement parfaite et sans saccade/téléportation !
+            final dx = (math.sin(t) + math.sin(t * 2)) * 0.5 * maxDx;
+            final dy = (math.cos(t * 3) + math.cos(t * 5)) * 0.5 * maxDy;
             return Transform(
               transform: Matrix4.identity()
                 ..translate(dx, dy)
