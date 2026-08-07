@@ -7,7 +7,6 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mmkv/mmkv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
@@ -187,11 +186,11 @@ Future<void> initPersistence() async {
     userProfileImageNotifier.value = savedProfile;
   }
 
-  isLosslessNotifier.value = mmkv.decodeBool('isLossless') ?? false;
+  isLosslessNotifier.value = mmkv.decodeBool('isLossless');
   isDownloadLosslessNotifier.value =
-      mmkv.decodeBool('isDownloadLossless') ?? true;
-  isCacheEnabledNotifier.value = mmkv.decodeBool('isCacheEnabled') ?? false;
-  cacheLimitNotifier.value = mmkv.decodeInt('cacheLimit') ?? 100;
+      mmkv.decodeBool('isDownloadLossless', defaultValue: true);
+  isCacheEnabledNotifier.value = mmkv.decodeBool('isCacheEnabled');
+  cacheLimitNotifier.value = mmkv.decodeInt('cacheLimit', defaultValue: 100);
 
   isLosslessNotifier.addListener(() {
     mmkv.encodeBool('isLossless', isLosslessNotifier.value);
@@ -268,7 +267,7 @@ Future<void> initPersistence() async {
   final savedLikesStr = mmkv.decodeString('likedSongs') ?? '[]';
   final savedLikes = json.decode(savedLikesStr).cast<String>();
 
-  bool hasMigrated = mmkv.decodeBool('hasMigratedOldLikes') ?? false;
+  bool hasMigrated = mmkv.decodeBool('hasMigratedOldLikes');
   if (!hasMigrated && savedLikes.isNotEmpty) {
     for (String songId in savedLikes) {
       try {
@@ -1120,7 +1119,7 @@ Future<void> performCloudRestore() async {
   if (user == null) return;
   try {
     final mmkv = MMKV.defaultMMKV();
-    final hasPendingSync = mmkv.decodeBool('pendingCloudSync') ?? false;
+    final hasPendingSync = mmkv.decodeBool('pendingCloudSync');
 
     if (hasPendingSync) {
       debugPrint("Sync pending, pushing local to cloud instead of restoring");
@@ -1230,7 +1229,7 @@ Future<void> main() async {
 
   // Initialisation de MMKV
   final dir = await getApplicationDocumentsDirectory();
-  await MMKV.initialize(dir.path);
+  await MMKV.initialize(rootDir: dir.path);
 
   await fetchMusiques();
 
