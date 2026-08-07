@@ -4678,7 +4678,7 @@ class _AccountPageViewState extends State<AccountPageView> {
                                         if (docDir.existsSync()) {
                                           final files = docDir.listSync().whereType<File>();
                                           for (var file in files) {
-                                            if (file.path.endsWith('.jpg')) {
+                                            if (file.path.endsWith('.jpg') || file.path.endsWith('.lrc')) {
                                               try {
                                                 file.deleteSync();
                                               } catch (e) {
@@ -4975,10 +4975,10 @@ class SongTile extends StatelessWidget {
                                     blendMode: BlendMode.srcIn,
                                     shaderCallback: (bounds) {
                                       return LinearGradient(
-                                        colors: trackColors,
+                                        colors: activeThemeColors,
                                         begin: Alignment.centerLeft,
                                         end: Alignment.centerRight,
-                                        stops: _getGradientStops(trackColors.length),
+                                        stops: _getGradientStops(activeThemeColors.length),
                                       ).createShader(
                                         Rect.fromLTWH(
                                           0,
