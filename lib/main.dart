@@ -8677,53 +8677,61 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                   final double t = _bgAnimController.value * 2 * math.pi;
                   return Stack(
                     children: [
-                      Container(color: const Color(0xFF0F0F1A)),
-                      // Sphère Bleu foncé (Haut Gauche)
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF0F0F1A), Color(0xFF1E3A8A)],
+                          ),
+                        ),
+                      ),
+                      // Sphère Bleu foncé (Haut Gauche quadrant)
                       Positioned(
-                        left: -300 + 150 * math.cos(t),
-                        top: -300 + 150 * math.sin(t),
+                        left: size.width * 0.2 - 200 + 150 * math.cos(t),
+                        top: size.height * 0.2 - 200 + 150 * math.sin(t),
                         child: Container(
-                          width: 800,
-                          height: 800,
+                          width: 400,
+                          height: 400,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF1E3A8A),
                           ),
                         ),
                       ),
-                      // Sphère Turquoise (Bas Droite)
+                      // Sphère Turquoise (Bas Droite quadrant)
                       Positioned(
-                        right: -200 + 180 * math.cos(t + math.pi / 2),
-                        bottom: -200 + 180 * math.sin(t + math.pi / 2),
+                        right: size.width * 0.2 - 200 + 180 * math.cos(t + math.pi / 2),
+                        bottom: size.height * 0.2 - 200 + 180 * math.sin(t + math.pi / 2),
                         child: Container(
-                          width: 900,
-                          height: 900,
+                          width: 400,
+                          height: 400,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF0D9488),
                           ),
                         ),
                       ),
-                      // Sphère Violet clair (Bas Gauche)
+                      // Sphère Violet clair (Bas Gauche quadrant)
                       Positioned(
-                        left: -250 + 120 * math.cos(t + math.pi),
-                        bottom: -250 + 120 * math.sin(t + math.pi),
+                        left: size.width * 0.2 - 200 + 120 * math.cos(t + math.pi),
+                        bottom: size.height * 0.2 - 200 + 120 * math.sin(t + math.pi),
                         child: Container(
-                          width: 850,
-                          height: 850,
+                          width: 400,
+                          height: 400,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF9333EA),
                           ),
                         ),
                       ),
-                      // Sphère Violet foncé (Haut Droite)
+                      // Sphère Violet foncé (Haut Droite quadrant)
                       Positioned(
-                        right: -300 + 140 * math.cos(t + 3 * math.pi / 2),
-                        top: -300 + 140 * math.sin(t + 3 * math.pi / 2),
+                        right: size.width * 0.2 - 200 + 140 * math.cos(t + 3 * math.pi / 2),
+                        top: size.height * 0.2 - 200 + 140 * math.sin(t + 3 * math.pi / 2),
                         child: Container(
-                          width: 1000,
-                          height: 1000,
+                          width: 400,
+                          height: 400,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF4C1D95),
@@ -8806,8 +8814,8 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                               ),
                             ),
                             AnimatedSize(
-                              duration: const Duration(milliseconds: 400),
-                              curve: Curves.easeInOutQuart,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
                               child: _showChangelog
                                   ? Container(
                                       margin: const EdgeInsets.only(top: 12),
@@ -8831,17 +8839,12 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                                           ).createShader(bounds);
                                         },
                                         blendMode: BlendMode.dstIn,
-                                        child: AnimatedOpacity(
-                                          opacity: _showChangelog ? 1.0 : 0.0,
-                                          duration: const Duration(milliseconds: 300),
-                                          curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
-                                          child: SingleChildScrollView(
-                                            padding: const EdgeInsets.all(16.0),
-                                            physics: const BouncingScrollPhysics(),
-                                            child: Text(
-                                              widget.releaseNotes,
-                                              style: const TextStyle(color: Colors.white70, fontSize: 13),
-                                            ),
+                                        child: SingleChildScrollView(
+                                          padding: const EdgeInsets.all(16.0),
+                                          physics: const BouncingScrollPhysics(),
+                                          child: Text(
+                                            widget.releaseNotes,
+                                            style: const TextStyle(color: Colors.white70, fontSize: 13),
                                           ),
                                         ),
                                       ),
