@@ -8,6 +8,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mmkv/mmkv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'dart:io';
@@ -171,7 +172,7 @@ Future<List<Map<String, dynamic>>> fetchArtistRecommendations(
 }
 
 Future<void> initPersistence() async {
-  final prefs = await SharedPreferences.getInstance();
+  final mmkv = MMKV.defaultMMKV();
   _documentPath = (await getApplicationDocumentsDirectory()).path;
 
   // Création du dossier cache s'il n'existe pas
@@ -181,42 +182,42 @@ Future<void> initPersistence() async {
   }
 
   // Chargement paramètres Compte
-  final savedProfile = prefs.getString('userProfileImage');
+  final savedProfile = mmkv.decodeString('userProfileImage');
   if (savedProfile != null && savedProfile.isNotEmpty) {
     userProfileImageNotifier.value = savedProfile;
   }
 
-  isLosslessNotifier.value = prefs.getBool('isLossless') ?? false;
+  isLosslessNotifier.value = mmkv.decodeBool('isLossless') ?? false;
   isDownloadLosslessNotifier.value =
-      prefs.getBool('isDownloadLossless') ?? true;
-  isCacheEnabledNotifier.value = prefs.getBool('isCacheEnabled') ?? false;
-  cacheLimitNotifier.value = prefs.getInt('cacheLimit') ?? 100;
+      mmkv.decodeBool('isDownloadLossless') ?? true;
+  isCacheEnabledNotifier.value = mmkv.decodeBool('isCacheEnabled') ?? false;
+  cacheLimitNotifier.value = mmkv.decodeInt('cacheLimit') ?? 100;
 
   isLosslessNotifier.addListener(() {
-    prefs.setBool('isLossless', isLosslessNotifier.value);
+    mmkv.encodeBool('isLossless', isLosslessNotifier.value);
     if (_audioHandler is MyAudioHandler) {
       (_audioHandler as MyAudioHandler).reloadAudioSourcesForQuality();
     }
   });
 
   isDownloadLosslessNotifier.addListener(() {
-    prefs.setBool('isDownloadLossless', isDownloadLosslessNotifier.value);
+    mmkv.encodeBool('isDownloadLossless', isDownloadLosslessNotifier.value);
   });
 
   isCacheEnabledNotifier.addListener(() {
-    prefs.setBool('isCacheEnabled', isCacheEnabledNotifier.value);
+    mmkv.encodeBool('isCacheEnabled', isCacheEnabledNotifier.value);
     if (_audioHandler is MyAudioHandler) {
       (_audioHandler as MyAudioHandler).reloadAudioSourcesForQuality();
     }
   });
 
   cacheLimitNotifier.addListener(() {
-    prefs.setInt('cacheLimit', cacheLimitNotifier.value);
+    mmkv.encodeInt('cacheLimit', cacheLimitNotifier.value);
   });
 
   userProfileImageNotifier.addListener(() {
     if (userProfileImageNotifier.value != null) {
-      prefs.setString('userProfileImage', userProfileImageNotifier.value!);
+      mmkv.encodeString('userProfileImage', userProfileImageNotifier.value!);
     }
   });
 
@@ -238,49 +239,36 @@ Future<void> initPersistence() async {
     }
   }
 
-  final savedScoresStr = prefs.getString('artistScores') ?? '{}';
+  final savedScoresStr = mmkv.decodeString('artistScores') ?? '{}';
   final Map<String, dynamic> decodedScores = json.decode(savedScoresStr);
   Map<String, int> loadedScores = decodedScores.map(
     (key, value) => MapEntry(key, value as int),
   );
 
-  final savedTimesStr = prefs.getString('artistTimes') ?? '{}';
+  final savedTimesStr = mmkv.decodeString('artistTimes') ?? '{}';
   final Map<String, dynamic> decodedTimes = json.decode(savedTimesStr);
   artistListeningTimeNotifier.value = decodedTimes.map(
     (key, value) => MapEntry(key, value as int),
   );
 
-  Timer? timesDebounce;
   artistListeningTimeNotifier.addListener(() {
-    timesDebounce?.cancel();
-    timesDebounce = Timer(const Duration(seconds: 5), () {
-      prefs.setString(
-        'artistTimes',
-        json.encode(artistListeningTimeNotifier.value),
-      );
-    });
+    mmkv.encodeString('artistTimes', json.encode(artistListeningTimeNotifier.value));
   });
 
-  final savedPlayCountsStr = prefs.getString('songPlayCounts') ?? '{}';
+  final savedPlayCountsStr = mmkv.decodeString('songPlayCounts') ?? '{}';
   final Map<String, dynamic> decodedCounts = json.decode(savedPlayCountsStr);
   songPlayCountNotifier.value = decodedCounts.map(
     (key, value) => MapEntry(key, value as int),
   );
 
-  Timer? playCountDebounce;
   songPlayCountNotifier.addListener(() {
-    playCountDebounce?.cancel();
-    playCountDebounce = Timer(const Duration(seconds: 5), () {
-      prefs.setString(
-        'songPlayCounts',
-        json.encode(songPlayCountNotifier.value),
-      );
-    });
+    mmkv.encodeString('songPlayCounts', json.encode(songPlayCountNotifier.value));
   });
 
-  final savedLikes = prefs.getStringList('likedSongs') ?? [];
+  final savedLikesStr = mmkv.decodeString('likedSongs') ?? '[]';
+  final savedLikes = json.decode(savedLikesStr).cast<String>();
 
-  bool hasMigrated = prefs.getBool('hasMigratedOldLikes') ?? false;
+  bool hasMigrated = mmkv.decodeBool('hasMigratedOldLikes') ?? false;
   if (!hasMigrated && savedLikes.isNotEmpty) {
     for (String songId in savedLikes) {
       try {
@@ -292,65 +280,64 @@ Future<void> initPersistence() async {
         debugPrint("Erreur migration favoris : $e");
       }
     }
-    prefs.setBool('hasMigratedOldLikes', true);
+    mmkv.encodeBool('hasMigratedOldLikes', true);
   }
 
   artistScoresNotifier.value = loadedScores;
 
-  Timer? scoresDebounce;
   artistScoresNotifier.addListener(() {
-    scoresDebounce?.cancel();
-    scoresDebounce = Timer(const Duration(seconds: 5), () {
-      prefs.setString('artistScores', json.encode(artistScoresNotifier.value));
-    });
+    mmkv.encodeString('artistScores', json.encode(artistScoresNotifier.value));
   });
 
   likedSongsNotifier.value = savedLikes.toSet();
   likedSongsNotifier.addListener(() {
-    prefs.setStringList('likedSongs', likedSongsNotifier.value.toList());
+    mmkv.encodeString('likedSongs', json.encode(likedSongsNotifier.value.toList()));
   });
 
-  final savedSearchHistory = prefs.getStringList('searchHistory') ?? [];
+  final savedSearchHistoryStr = mmkv.decodeString('searchHistory') ?? '[]';
+  final savedSearchHistory = json.decode(savedSearchHistoryStr).cast<String>();
   searchHistoryNotifier.value = savedSearchHistory;
   searchHistoryNotifier.addListener(() {
-    prefs.setStringList('searchHistory', searchHistoryNotifier.value);
+    mmkv.encodeString('searchHistory', json.encode(searchHistoryNotifier.value));
   });
 
-  final savedPlaylists = prefs.getStringList('customPlaylists') ?? [];
+  final savedPlaylistsStr = mmkv.decodeString('customPlaylists') ?? '[]';
+  final savedPlaylists = json.decode(savedPlaylistsStr).cast<String>();
   Map<String, Set<String>> initialContents = {};
   Map<String, String> initialImages = {};
   List<String> validPlaylists = [];
 
   for (String pName in savedPlaylists) {
-    final content = prefs.getStringList('playlist_content_$pName') ?? [];
+    final contentStr = mmkv.decodeString('playlist_content_$pName') ?? '[]';
+    final content = json.decode(contentStr).cast<String>();
     if (content.isNotEmpty) {
       initialContents[pName] = content.toSet();
       validPlaylists.add(pName);
 
-      final img = prefs.getString('playlist_image_$pName');
+      final img = mmkv.decodeString('playlist_image_$pName');
       if (img != null && img.isNotEmpty) {
         initialImages[pName] = img;
       }
     } else {
-      prefs.remove('playlist_content_$pName');
-      prefs.remove('playlist_image_$pName');
+      mmkv.removeValue('playlist_content_$pName');
+      mmkv.removeValue('playlist_image_$pName');
     }
   }
 
   customPlaylistsNotifier.value = validPlaylists;
-  prefs.setStringList('customPlaylists', validPlaylists);
+  mmkv.encodeString('customPlaylists', json.encode(validPlaylists));
 
   customPlaylistsNotifier.addListener(() {
-    prefs.setStringList('customPlaylists', customPlaylistsNotifier.value);
+    mmkv.encodeString('customPlaylists', json.encode(customPlaylistsNotifier.value));
   });
 
   playlistContentsNotifier.value = initialContents;
   playlistContentsNotifier.addListener(() {
     final contents = playlistContentsNotifier.value;
     for (String pName in customPlaylistsNotifier.value) {
-      prefs.setStringList(
+      mmkv.encodeString(
         'playlist_content_$pName',
-        (contents[pName] ?? {}).toList(),
+        json.encode((contents[pName] ?? {}).toList()),
       );
     }
   });
@@ -360,9 +347,9 @@ Future<void> initPersistence() async {
     final images = playlistImagesNotifier.value;
     for (String pName in customPlaylistsNotifier.value) {
       if (images.containsKey(pName)) {
-        prefs.setString('playlist_image_$pName', images[pName]!);
+        mmkv.encodeString('playlist_image_$pName', images[pName]!);
       } else {
-        prefs.remove('playlist_image_$pName');
+        mmkv.removeValue('playlist_image_$pName');
       }
     }
   });
@@ -427,14 +414,14 @@ void _parseMusiquesFromJson(List<dynamic> data) {
 }
 
 Future<void> fetchMusiques() async {
-  final prefs = await SharedPreferences.getInstance();
+  final mmkv = MMKV.defaultMMKV();
   try {
     final response = await http
         .get(Uri.parse('${ApiConfig.baseUrl}/musiques.json'))
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
       final String responseBody = utf8.decode(response.bodyBytes);
-      prefs.setString('cached_musiques', responseBody); // Save cache
+      mmkv.encodeString('cached_musiques', responseBody); // Save cache
       final List<dynamic> data = jsonDecode(responseBody);
       _parseMusiquesFromJson(data);
       debugPrint('Musiques chargées avec succès : ${_playlist.length}');
@@ -443,7 +430,7 @@ Future<void> fetchMusiques() async {
     }
   } catch (e) {
     debugPrint('Erreur HTTP, tentative de lecture depuis le cache : $e');
-    final cachedData = prefs.getString('cached_musiques');
+    final cachedData = mmkv.decodeString('cached_musiques');
     if (cachedData != null) {
       final List<dynamic> data = jsonDecode(cachedData);
       _parseMusiquesFromJson(data);
@@ -1108,8 +1095,8 @@ Future<void> performCloudBackup() async {
         .collection('users')
         .doc(user.uid)
         .set(data);
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setBool('pendingCloudSync', false);
+    final mmkv = MMKV.defaultMMKV();
+    mmkv.encodeBool('pendingCloudSync', false);
     debugPrint("☁️ Sauvegarde auto réussie");
   } catch (e) {
     debugPrint("❌ Erreur de sauvegarde auto : $e");
@@ -1119,9 +1106,8 @@ Future<void> performCloudBackup() async {
 void triggerAutoSync() {
   if (FirebaseAuth.instance.currentUser == null) return;
 
-  SharedPreferences.getInstance().then((prefs) {
-    prefs.setBool('pendingCloudSync', true);
-  });
+  final mmkv = MMKV.defaultMMKV();
+  mmkv.encodeBool('pendingCloudSync', true);
 
   _autoSyncTimer?.cancel();
   _autoSyncTimer = Timer(const Duration(seconds: 5), () {
@@ -1133,8 +1119,8 @@ Future<void> performCloudRestore() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
   try {
-    final prefs = await SharedPreferences.getInstance();
-    final hasPendingSync = prefs.getBool('pendingCloudSync') ?? false;
+    final mmkv = MMKV.defaultMMKV();
+    final hasPendingSync = mmkv.decodeBool('pendingCloudSync') ?? false;
 
     if (hasPendingSync) {
       debugPrint("Sync pending, pushing local to cloud instead of restoring");
@@ -1202,16 +1188,16 @@ Future<void> performCloudRestore() async {
       }
 
       // Force la sauvegarde locale immédiate pour que le téléphone soit à jour
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setStringList('likedSongs', likedSongsNotifier.value.toList());
-      prefs.setStringList('customPlaylists', customPlaylistsNotifier.value);
-      prefs.setStringList('searchHistory', searchHistoryNotifier.value);
-      prefs.setString('artistScores', json.encode(artistScoresNotifier.value));
-      prefs.setString(
+      final mmkv = MMKV.defaultMMKV();
+      mmkv.encodeString('likedSongs', json.encode(likedSongsNotifier.value.toList()));
+      mmkv.encodeString('customPlaylists', json.encode(customPlaylistsNotifier.value));
+      mmkv.encodeString('searchHistory', json.encode(searchHistoryNotifier.value));
+      mmkv.encodeString('artistScores', json.encode(artistScoresNotifier.value));
+      mmkv.encodeString(
         'artistTimes',
         json.encode(artistListeningTimeNotifier.value),
       );
-      prefs.setString(
+      mmkv.encodeString(
         'songPlayCounts',
         json.encode(songPlayCountNotifier.value),
       );
@@ -1241,6 +1227,11 @@ void initAutoSyncListeners() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialisation de MMKV
+  final dir = await getApplicationDocumentsDirectory();
+  await MMKV.initialize(dir.path);
+
   await fetchMusiques();
 
   // INITIALISATION DE FIREBASE
@@ -6567,14 +6558,9 @@ class LibraryPageViewState extends State<LibraryPageView> {
                                       currentList.remove(oldName);
                                       currentImages.remove(oldName);
 
-                                      SharedPreferences.getInstance().then((
-                                        prefs,
-                                      ) {
-                                        prefs.remove(
-                                          'playlist_content_$oldName',
-                                        );
-                                        prefs.remove('playlist_image_$oldName');
-                                      });
+                                      final mmkv = MMKV.defaultMMKV();
+                                      mmkv.removeValue('playlist_content_$oldName');
+                                      mmkv.removeValue('playlist_image_$oldName');
 
                                       playlistContentsNotifier.value =
                                           currentContents;
@@ -6657,16 +6643,9 @@ class LibraryPageViewState extends State<LibraryPageView> {
                                             }
                                           }
 
-                                          SharedPreferences.getInstance().then((
-                                            prefs,
-                                          ) {
-                                            prefs.remove(
-                                              'playlist_content_$oldName',
-                                            );
-                                            prefs.remove(
-                                              'playlist_image_$oldName',
-                                            );
-                                          });
+                                          final mmkv = MMKV.defaultMMKV();
+                                          mmkv.removeValue('playlist_content_$oldName');
+                                          mmkv.removeValue('playlist_image_$oldName');
                                         }
 
                                         if (newImage.isNotEmpty) {
