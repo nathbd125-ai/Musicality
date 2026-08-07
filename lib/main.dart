@@ -5743,7 +5743,9 @@ class ArtistPageViewState extends State<ArtistPageView> {
                           final artistName = matchingArtists[index];
                           final sampleItem = _playlist.firstWhere(
                             (e) => _extractPrimaryArtist(e.artist) == artistName,
-                            orElse: () => _playlist.first,
+                            orElse: () => _playlist.isNotEmpty
+                                ? _playlist.first
+                                : MediaItem(id: 'dummy', title: 'Aucune', artist: ''),
                           );
 
                           return ListTile(
@@ -7528,7 +7530,14 @@ class _HomeScreenState extends State<HomeScreen> {
             final currentItem = mainSnapshot.data;
             final hasMusic = currentItem != null;
 
-            final safeItem = currentItem ?? _playlist.first;
+            final safeItem = currentItem ??
+                (_playlist.isNotEmpty
+                    ? _playlist.first
+                    : MediaItem(
+                        id: 'dummy',
+                        title: 'Aucune musique',
+                        artist: 'Inconnu',
+                      ));
 
             return TweenAnimationBuilder<Color?>(
               duration: const Duration(milliseconds: 400),
