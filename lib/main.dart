@@ -1245,7 +1245,9 @@ Future<void> main() async {
 
   // --- NOUVEAUTÉ : ON LANCE LA SYNCHRONISATION AUTOMATIQUE ---
   initAutoSyncListeners();
-  await performCloudRestore(); // Télécharge les données si on est déjà connecté
+  performCloudRestore().catchError((e) {
+    debugPrint("Erreur cloud restore au démarrage : $e");
+  }); // Télécharge les données si on est déjà connecté en tâche de fond
   // -----------------------------------------------------------
 
   final session = await AudioSession.instance;
