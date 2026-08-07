@@ -4833,7 +4833,7 @@ class SongTile extends StatelessWidget {
                               blendMode: BlendMode.srcIn,
                               shaderCallback: (bounds) {
                                 return LinearGradient(
-                                  colors: [trackColors[0], trackColors[1]],
+                                  colors: trackColors,
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
                                 ).createShader(
