@@ -395,7 +395,10 @@ void _parseMusiquesFromJson(List<dynamic> data) {
     final id = jsonItem['id'] as String;
     final albumName = jsonItem['album'] ?? 'Inconnu';
     
-    String safeImageName = _getSafeFileName(albumName);
+    String safeImageName = jsonItem['coverName'] != null
+        ? jsonItem['coverName'] as String
+        : _getSafeFileName(albumName);
+        
     if (id.toLowerCase() == 'zoo' || id.toLowerCase() == 'charge') {
       safeImageName = 'or_noir';
     }
