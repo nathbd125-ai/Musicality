@@ -14,6 +14,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
@@ -2258,6 +2259,7 @@ class RealAlbumBlurredBackground extends StatefulWidget {
 
 class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  ui.Image? _noiseImage;
 
   @override
   void initState() {
@@ -2267,6 +2269,33 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
       duration: const Duration(seconds: 80),
       value: math.Random().nextDouble(),
     )..repeat();
+    _generateNoiseImage();
+  }
+
+  void _generateNoiseImage() {
+    final int size = 128;
+    final pixels = Uint8List(size * size * 4);
+    final rand = math.Random();
+    for (int i = 0; i < pixels.length; i += 4) {
+      final v = rand.nextInt(256);
+      pixels[i] = v;     // R
+      pixels[i + 1] = v; // G
+      pixels[i + 2] = v; // B
+      pixels[i + 3] = 12; // A (Très faible opacité pour un dither subtil)
+    }
+    ui.decodeImageFromPixels(
+      pixels,
+      size,
+      size,
+      ui.PixelFormat.rgba8888,
+      (image) {
+        if (mounted) {
+          setState(() {
+            _noiseImage = image;
+          });
+        }
+      },
+    );
   }
 
   @override
@@ -2284,7 +2313,7 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           animation: _controller,
           builder: (context, child) {
             final t = _controller.value * 2 * math.pi;
-            final animScale = 1.05 + math.sin(t) * 0.05; // Léger zoom dynamique (1.0 à 1.1)
+            final animScale = 1.05 + math.sin(t) * 0.05;
             final dx = math.sin(t * 2) * 60.0;
             final dy = math.cos(t * 3) * 60.0;
             return Transform(
@@ -2297,15 +2326,23 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           },
           child: RepaintBoundary(
             child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 55, sigmaY: 55), // Réduit pour éviter le banding
+              imageFilter: ImageFilter.blur(sigmaX: 55, sigmaY: 55),
               child: Transform.scale(
-                scale: 1.8, // Zoom énorme avant le flou pour un effet très abstrait
+                scale: 1.8,
                 child: SizedBox.expand(child: getLocalOrNetworkImage(widget.item)),
               ),
             ),
           ),
         ),
         Container(color: Colors.black.withValues(alpha: 0.15)),
+        if (_noiseImage != null)
+          Positioned.fill(
+            child: RawImage(
+              image: _noiseImage,
+              repeat: ImageRepeat.repeat,
+              fit: BoxFit.none,
+            ),
+          ),
       ],
     );
   }
