@@ -399,45 +399,58 @@ class LyricLine {
 
 List<MediaItem> _playlist = [];
 
+void _parseMusiquesFromJson(List<dynamic> data) {
+  _playlist.clear();
+  for (var jsonItem in data) {
+    final id = jsonItem['id'] as String;
+    final albumName = jsonItem['album'] ?? 'Inconnu';
+    
+    String safeImageName = _getSafeFileName(albumName);
+    if (id.toLowerCase() == 'zoo' || id.toLowerCase() == 'charge') {
+      safeImageName = 'or_noir';
+    }
+
+    _playlist.add(
+      MediaItem(
+        id: '${ApiConfig.baseUrl}/$id.flac',
+        album: albumName,
+        title: _cleanTitle(jsonItem['title'] ?? id),
+        artist: jsonItem['artist'] ?? 'Inconnu',
+        artUri: Uri.parse(
+          '${ApiConfig.baseUrl}/$safeImageName.jpg',
+        ),
+        duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
+        extras: {'hasFlac': jsonItem['hasFlac'] ?? true},
+      ),
+    );
+  }
+}
+
 Future<void> fetchMusiques() async {
+  final prefs = await SharedPreferences.getInstance();
   try {
     final response = await http
         .get(Uri.parse('${ApiConfig.baseUrl}/musiques.json'))
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-      _playlist.clear();
-      for (var jsonItem in data) {
-        final id = jsonItem['id'] as String;
-        final albumName = jsonItem['album'] ?? 'Inconnu';
-        
-        String safeImageName = _getSafeFileName(albumName);
-        if (id.toLowerCase() == 'zoo' || id.toLowerCase() == 'charge') {
-          safeImageName = 'or_noir';
-        }
-
-        _playlist.add(
-          MediaItem(
-            id: '${ApiConfig.baseUrl}/$id.flac',
-            album: albumName,
-            title: _cleanTitle(jsonItem['title'] ?? id),
-            artist: jsonItem['artist'] ?? 'Inconnu',
-            artUri: Uri.parse(
-              '${ApiConfig.baseUrl}/$safeImageName.jpg',
-            ),
-            duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
-            extras: {'hasFlac': jsonItem['hasFlac'] ?? true},
-          ),
-        );
-      }
+      final String responseBody = utf8.decode(response.bodyBytes);
+      prefs.setString('cached_musiques', responseBody); // Save cache
+      final List<dynamic> data = jsonDecode(responseBody);
+      _parseMusiquesFromJson(data);
       debugPrint('Musiques chargées avec succès : ${_playlist.length}');
     } else {
-      debugPrint(
-        'Erreur réseau lors du chargement des musiques : ${response.statusCode}',
-      );
+      throw Exception('Erreur réseau lors du chargement des musiques : ${response.statusCode}');
     }
   } catch (e) {
-    debugPrint('Erreur lors de la récupération des musiques : $e');
+    debugPrint('Erreur HTTP, tentative de lecture depuis le cache : $e');
+    final cachedData = prefs.getString('cached_musiques');
+    if (cachedData != null) {
+      final List<dynamic> data = jsonDecode(cachedData);
+      _parseMusiquesFromJson(data);
+      debugPrint('Musiques chargées depuis le CACHE LOCAL : ${_playlist.length}');
+    } else {
+      debugPrint('Aucun cache local disponible pour les musiques.');
+    }
   }
 }
 
