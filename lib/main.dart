@@ -226,7 +226,7 @@ Future<void> initPersistence() async {
 
   for (var item in _playlist) {
     final coverFile = File(
-      '$_documentPath/${_getSafeFileName(item.title)}.jpg',
+      '$_documentPath/${_getSafeFileName(_getBaseId(item.id))}.jpg',
     );
     if (!coverFile.existsSync() && item.artUri != null) {
       http
@@ -359,7 +359,7 @@ Future<void> initPersistence() async {
 }
 
 Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
-  final coverFile = File('$_documentPath/${_getSafeFileName(item.title)}.jpg');
+  final coverFile = File('$_documentPath/${_getSafeFileName(_getBaseId(item.id))}.jpg');
   if (coverFile.existsSync()) {
     return Image.file(
       coverFile,
@@ -577,6 +577,10 @@ String _cleanTitle(String title) {
   // Enlève " feat. Artiste" (sans parenthèses) à la fin
   cleaned = cleaned.replaceAll(RegExp(r'\s+f(?:ea)?t\.?\s+.*', caseSensitive: false), '');
   return cleaned.trim();
+}
+
+String _getBaseId(String idStr) {
+  return idStr.split('/').last.replaceAll(RegExp(r'\.flac|\.mp3|\.wav', caseSensitive: false), '');
 }
 
 String _formatArtist(String? artist) {
@@ -5590,11 +5594,11 @@ class ArtistPageViewState extends State<ArtistPageView> {
                     child:
                         isLocal &&
                             File(
-                              '$_documentPath/${_getSafeFileName(title)}.jpg',
+                              '$_documentPath/${_getSafeFileName(_getBaseId(reco['localId'] as String))}.jpg',
                             ).existsSync()
                         ? Image.file(
                             File(
-                              '$_documentPath/${_getSafeFileName(title)}.jpg',
+                              '$_documentPath/${_getSafeFileName(_getBaseId(reco['localId'] as String))}.jpg',
                             ),
                             width: 55,
                             height: 55,
