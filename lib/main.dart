@@ -4170,6 +4170,13 @@ class _AccountPageViewState extends State<AccountPageView> {
                     avatarWidget = Image.network(
                       user.photoURL!,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          CupertinoIcons.person_fill,
+                          color: Colors.white54,
+                          size: 60,
+                        );
+                      },
                     );
                   } else {
                     avatarWidget = const Icon(
