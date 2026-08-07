@@ -7652,75 +7652,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             return Stack(
                               children: [
                                 Positioned.fill(
-                                  child: AnimatedContainer(
-                                    duration: const Duration(seconds: 1),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          smoothThemeColors[0].withValues(alpha: 0.15),
-                                          Colors.black,
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (smoothThemeColors.length >= 4) ...[
-                                  Positioned(
-                                    top: -100,
-                                    left: -100,
-                                    child: Container(
-                                      width: 300,
-                                      height: 300,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: smoothThemeColors[0].withValues(alpha: 0.15),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: -50,
-                                    right: -50,
-                                    child: Container(
-                                      width: 250,
-                                      height: 250,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: smoothThemeColors[1].withValues(alpha: 0.15),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 200,
-                                    right: -100,
-                                    child: Container(
-                                      width: 200,
-                                      height: 200,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: smoothThemeColors[2].withValues(alpha: 0.15),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 150,
-                                    left: -50,
-                                    child: Container(
-                                      width: 180,
-                                      height: 180,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: smoothThemeColors[3].withValues(alpha: 0.15),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                // Filtre de flou par-dessus les orbes pour un effet doux
-                                Positioned.fill(
-                                  child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                                    child: Container(color: Colors.transparent),
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 600),
+                                    child: hasMusic
+                                        ? RealAlbumBlurredBackground(
+                                            key: ValueKey<String>(safeItem.id),
+                                            item: safeItem,
+                                          )
+                                        : Container(color: Colors.black),
                                   ),
                                 ),
 
