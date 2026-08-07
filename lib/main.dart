@@ -454,8 +454,7 @@ List<Color> _getAlbumGradientColors(MediaItem item) {
   if (artUriStr.contains('levitating_dababy')) {
     return const [
       Color(0xFFFFFFFF), // Blanc
-      Color(0xFF64B5F6), // Bleu clair
-      Color(0xFF1976D2), // Bleu foncé
+      Color(0xFF2196F3), // Bleu
       Color(0xFFFF9800), // Orangé
     ];
   }
@@ -7640,13 +7639,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         return TweenAnimationBuilder<Color?>(
                           duration: const Duration(milliseconds: 400),
                           curve: Curves.easeOut,
-                          tween: ColorTween(end: _dynamicGradientColors[3]),
+                          tween: ColorTween(end: _dynamicGradientColors.length > 3 ? _dynamicGradientColors[3] : _dynamicGradientColors.last),
                           builder: (context, color4, _) {
                             final List<Color> smoothThemeColors = [
                               color1 ?? _dynamicGradientColors[0],
                               color2 ?? _dynamicGradientColors[1],
                               color3 ?? _dynamicGradientColors[2],
-                              color4 ?? _dynamicGradientColors[3],
+                              color4 ?? (_dynamicGradientColors.length > 3 ? _dynamicGradientColors[3] : _dynamicGradientColors.last),
                             ];
 
                             return Stack(
