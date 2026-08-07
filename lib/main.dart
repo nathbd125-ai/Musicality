@@ -9,6 +9,8 @@ import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:mmkv/mmkv.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:open_filex/open_filex.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'dart:io';
@@ -627,74 +629,6 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
   late ScrollController _scrollController;
   bool _isScrolling = false;
   bool _needsScroll = false;
-
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   void initState() {
@@ -1821,74 +1755,6 @@ class HyperOSButton extends StatefulWidget {
 class _HyperOSButtonState extends State<HyperOSButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -1953,74 +1819,6 @@ class HyperOSShuffleButton extends StatefulWidget {
 class _HyperOSShuffleButtonState extends State<HyperOSShuffleButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _scaleController;
-
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   void initState() {
@@ -2122,74 +1920,6 @@ class HyperOSRepeatButton extends StatefulWidget {
 class _HyperOSRepeatButtonState extends State<HyperOSRepeatButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _scaleController;
-
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   void initState() {
@@ -2511,74 +2241,6 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView> {
   StreamSubscription<PositionData>? _positionSubscription;
   List<GlobalKey> _lyricKeys = [];
 
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -2822,74 +2484,6 @@ class _AddSongsSheetState extends State<AddSongsSheet> {
       DraggableScrollableController();
   final ValueNotifier<double> _sheetSize = ValueNotifier(0.85);
   List<MediaItem> _filteredPlaylist = [];
-
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   void initState() {
@@ -3277,74 +2871,6 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
       DraggableScrollableController();
   final ValueNotifier<double> _sheetSize = ValueNotifier(0.85);
   final ValueNotifier<double> _scrollOffset = ValueNotifier(0.0);
-
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   void initState() {
@@ -4196,74 +3722,6 @@ class AccountPageView extends StatefulWidget {
 
 class _AccountPageViewState extends State<AccountPageView> {
   int _cacheSizeBytes = 0;
-
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   void initState() {
@@ -5542,74 +5000,6 @@ class _SearchPageViewState extends State<SearchPageView> {
   bool _isScrolled = false;
   List<MediaItem> _filteredPlaylist = [];
 
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -6499,74 +5889,6 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   late ScrollController _scrollController;
   double _overlayOpacity = 0.0;
 
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -6783,74 +6105,6 @@ class _AllMusicsViewState extends State<AllMusicsView> {
   bool _isScrolled = false;
   List<MediaItem> _filteredPlaylist = [];
 
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -7003,74 +6257,6 @@ class LibraryPageViewState extends State<LibraryPageView> {
   bool get isOnMainPage => _pageController.hasClients
       ? (_pageController.page?.round() ?? 0) == 0
       : true;
-
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   void initState() {
@@ -8013,74 +7199,6 @@ class _HomeScreenState extends State<HomeScreen> {
     const Color(0xFF311B92),
   ];
 
-
-  Future<void> _checkForUpdates() async {
-    try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final serverVersion = data['version'] as String;
-        final serverBuild = data['buildNumber'] as int;
-        
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: data['downloadUrl'] ?? 'https://github.com/nathbd125-ai/Musicality/releases/latest',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            "Mise à jour $serverVersion disponible ! 🚀",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            releaseNotes,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9C27B0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () async {
-                final url = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-                if (mounted) Navigator.pop(context);
-              },
-              child: const Text("Télécharger", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -8225,6 +7343,46 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingLyrics = false;
       });
     }
+  }
+
+  Future<void> _checkForUpdates() async {
+    try {
+      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/version.json')).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final serverVersion = data['version'] as String;
+        final serverBuild = data['buildNumber'] as int;
+        
+        final packageInfo = await PackageInfo.fromPlatform();
+        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
+
+        if (serverBuild > localBuild) {
+          if (mounted) {
+            _showUpdateDialog(
+              serverVersion: serverVersion,
+              releaseNotes: data['releaseNotes'] ?? 'Nouvelle version disponible !',
+              downloadUrl: data['downloadUrl'] ?? 'http://164.132.104.67/media/Musicality/app-release.apk',
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Impossible de vérifier les mises à jour : $e");
+    }
+  }
+
+  void _showUpdateDialog({required String serverVersion, required String releaseNotes, required String downloadUrl}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return _UpdateDialog(
+          serverVersion: serverVersion,
+          releaseNotes: releaseNotes,
+          downloadUrl: downloadUrl,
+        );
+      },
+    );
   }
 
   Future<void> _scanLocalFiles() async {
@@ -9405,6 +8563,119 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+
+class _UpdateDialog extends StatefulWidget {
+  final String serverVersion;
+  final String releaseNotes;
+  final String downloadUrl;
+
+  const _UpdateDialog({
+    required this.serverVersion,
+    required this.releaseNotes,
+    required this.downloadUrl,
+  });
+
+  @override
+  State<_UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<_UpdateDialog> {
+  bool _isDownloading = false;
+  double _progress = 0.0;
+  String _status = "Prêt à télécharger";
+
+  Future<void> _downloadAndInstall() async {
+    setState(() {
+      _isDownloading = true;
+      _status = "Téléchargement en cours...";
+    });
+
+    try {
+      final request = http.Request('GET', Uri.parse(widget.downloadUrl));
+      final response = await http.Client().send(request);
+
+      final totalBytes = response.contentLength ?? 0;
+      int receivedBytes = 0;
+
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/app-update.apk';
+      final file = File(filePath);
+      final sink = file.openWrite();
+
+      await for (final chunk in response.stream) {
+        sink.add(chunk);
+        receivedBytes += chunk.length;
+        if (totalBytes > 0) {
+          setState(() {
+            _progress = receivedBytes / totalBytes;
+            _status = "Téléchargement : ${(receivedBytes / 1024 / 1024).toStringAsFixed(1)} Mo / ${(totalBytes / 1024 / 1024).toStringAsFixed(1)} Mo";
+          });
+        }
+      }
+      await sink.close();
+
+      setState(() {
+        _status = "Lancement de l'installation...";
+      });
+
+      await OpenFilex.open(filePath);
+      if (mounted) Navigator.pop(context);
+
+    } catch (e) {
+      setState(() {
+        _isDownloading = false;
+        _status = "Erreur : $e";
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        "Mise à jour ${widget.serverVersion} 🚀",
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!_isDownloading)
+            Text(widget.releaseNotes, style: const TextStyle(color: Colors.white70)),
+          if (_isDownloading) ...[
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: _progress > 0 ? _progress : null,
+              backgroundColor: Colors.white24,
+              color: const Color(0xFF9C27B0),
+            ),
+            const SizedBox(height: 16),
+            Text(_status, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          ],
+        ],
+      ),
+      actions: [
+        if (!_isDownloading)
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Plus tard", style: TextStyle(color: Colors.grey)),
+          ),
+        if (!_isDownloading)
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF9C27B0),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: _downloadAndInstall,
+            child: const Text("Mettre à jour", style: TextStyle(color: Colors.white)),
+          ),
+      ],
     );
   }
 }
