@@ -449,7 +449,7 @@ Future<void> fetchMusiques() async {
 
 List<double>? _getGradientStops(int count) {
   if (count == 2) return const [0.0, 1.0];
-  if (count == 3) return const [0.2, 0.5, 0.8];
+  if (count == 3) return const [0.25, 0.5, 0.75];
   if (count == 4) return const [0.15, 0.38, 0.61, 0.85];
   if (count == 5) return const [0.1, 0.3, 0.5, 0.7, 0.9];
   return null;
@@ -463,7 +463,7 @@ List<Color> _getAlbumGradientColors(MediaItem item) {
     return const [
       Color(0xFFFFFFFF), // Blanc
       Color(0xFF2196F3), // Bleu
-      Color(0xFFFF9800), // Orangé
+      Color(0xFFFFEB3B), // Jaune
     ];
   }
 
@@ -480,7 +480,6 @@ List<Color> _getAlbumGradientColors(MediaItem item) {
     return const [
       Color(0xFF2196F3), // Bleu
       Color(0xFFE91E63), // Rose
-      Color(0xFF795548), // Marron
       Color(0xFFFFFFFF), // Blanc
       Color(0xFFFFEB3B), // Jaune
     ];
