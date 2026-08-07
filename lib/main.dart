@@ -8678,52 +8678,52 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                   return Stack(
                     children: [
                       Container(color: const Color(0xFF0F0F1A)),
-                      // Sphère Bleu foncé
+                      // Sphère Bleu foncé (Haut Gauche)
                       Positioned(
-                        left: size.width * 0.5 + 150 * math.cos(t) - 600,
-                        top: size.height * 0.5 + 150 * math.sin(t) - 600,
+                        left: -300 + 150 * math.cos(t),
+                        top: -300 + 150 * math.sin(t),
                         child: Container(
-                          width: 1200,
-                          height: 1200,
+                          width: 800,
+                          height: 800,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF1E3A8A),
                           ),
                         ),
                       ),
-                      // Sphère Turquoise
+                      // Sphère Turquoise (Bas Droite)
                       Positioned(
-                        right: size.width * 0.5 + 180 * math.cos(t + math.pi / 2) - 500,
-                        bottom: size.height * 0.5 + 180 * math.sin(t + math.pi / 2) - 500,
+                        right: -200 + 180 * math.cos(t + math.pi / 2),
+                        bottom: -200 + 180 * math.sin(t + math.pi / 2),
                         child: Container(
-                          width: 1000,
-                          height: 1000,
+                          width: 900,
+                          height: 900,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF0D9488),
                           ),
                         ),
                       ),
-                      // Sphère Violet clair
+                      // Sphère Violet clair (Bas Gauche)
                       Positioned(
-                        left: size.width * 0.5 + 120 * math.cos(t + math.pi) - 550,
-                        bottom: size.height * 0.5 + 120 * math.sin(t + math.pi) - 550,
+                        left: -250 + 120 * math.cos(t + math.pi),
+                        bottom: -250 + 120 * math.sin(t + math.pi),
                         child: Container(
-                          width: 1100,
-                          height: 1100,
+                          width: 850,
+                          height: 850,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF9333EA),
                           ),
                         ),
                       ),
-                      // Sphère Violet foncé
+                      // Sphère Violet foncé (Haut Droite)
                       Positioned(
-                        right: size.width * 0.5 + 140 * math.cos(t + 3 * math.pi / 2) - 700,
-                        top: size.height * 0.5 + 140 * math.sin(t + 3 * math.pi / 2) - 700,
+                        right: -300 + 140 * math.cos(t + 3 * math.pi / 2),
+                        top: -300 + 140 * math.sin(t + 3 * math.pi / 2),
                         child: Container(
-                          width: 1400,
-                          height: 1400,
+                          width: 1000,
+                          height: 1000,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF4C1D95),
@@ -8811,7 +8811,7 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                               child: _showChangelog
                                   ? Container(
                                       margin: const EdgeInsets.only(top: 12),
-                                      constraints: const BoxConstraints(maxHeight: 180),
+                                      constraints: const BoxConstraints(maxHeight: 350),
                                       decoration: BoxDecoration(
                                         color: Colors.black.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(12),
