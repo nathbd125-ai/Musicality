@@ -360,12 +360,14 @@ Future<void> initPersistence() async {
 
 Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
   final coverFile = File('$_documentPath/${_getSafeFileName(_getBaseId(item.id))}.jpg');
+  final int dynamicCacheWidth = width != null ? (width * 3).toInt() : 300;
+  
   if (coverFile.existsSync()) {
     return Image.file(
       coverFile,
       width: width,
       height: height,
-      cacheWidth: 300,
+      cacheWidth: dynamicCacheWidth,
       fit: BoxFit.cover,
     );
   } else {
@@ -373,7 +375,7 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
       item.artUri.toString(),
       width: width,
       height: height,
-      cacheWidth: 300,
+      cacheWidth: dynamicCacheWidth,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) =>
           Container(color: Colors.black26, width: width, height: height),
@@ -4852,14 +4854,15 @@ class SongTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final trackColors = _getAlbumGradientColors(item);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: isSelected
-            ? Colors.white.withValues(alpha: 0.15)
-            : Colors.black.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+    return RepaintBoundary(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Colors.white.withValues(alpha: 0.15)
+              : Colors.black.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.08),
           width: 0.5,
@@ -4898,7 +4901,7 @@ class SongTile extends StatelessWidget {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: getLocalOrNetworkImage(item),
+                          child: getLocalOrNetworkImage(item, width: 45, height: 45),
                         ),
                       ),
                     ),
@@ -5112,7 +5115,7 @@ class SongTile extends StatelessWidget {
               ],
             ),
           ),
-        )
+        ),
       ),
     );
   }
@@ -6852,6 +6855,7 @@ class LibraryPageViewState extends State<LibraryPageView> {
                   File(customImgPath),
                   width: 45,
                   height: 45,
+                  cacheWidth: 135,
                   fit: BoxFit.cover,
                 ),
               );
