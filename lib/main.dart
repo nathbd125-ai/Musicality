@@ -13,7 +13,6 @@ import 'package:open_filex/open_filex.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
-import 'dart:ui' as ui;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:async';
@@ -2304,10 +2303,16 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
         AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
+            final size = MediaQuery.of(context).size;
+            final maxDx = size.width * 0.35; // The image is scaled by 1.8, so 0.35 is safe
+            final maxDy = size.height * 0.35;
+
             final t = _controller.value * 2 * math.pi;
             final animScale = 1.05 + math.sin(t) * 0.05;
-            final dx = math.sin(t * 2) * 60.0;
-            final dy = math.cos(t * 3) * 60.0;
+            
+            // Mouvement chaotique et ample sur toute la surface
+            final dx = (math.sin(t) + math.sin(t * 2.31)) * 0.5 * maxDx;
+            final dy = (math.cos(t * 1.13) + math.cos(t * 1.79)) * 0.5 * maxDy;
             return Transform(
               transform: Matrix4.identity()
                 ..translate(dx, dy)
