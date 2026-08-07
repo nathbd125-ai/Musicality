@@ -8680,11 +8680,11 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                       Container(color: const Color(0xFF0F0F1A)),
                       // Sphère Bleu foncé
                       Positioned(
-                        left: size.width * 0.5 + 150 * math.cos(t) - 250,
-                        top: size.height * 0.5 + 150 * math.sin(t) - 250,
+                        left: size.width * 0.5 + 150 * math.cos(t) - 600,
+                        top: size.height * 0.5 + 150 * math.sin(t) - 600,
                         child: Container(
-                          width: 500,
-                          height: 500,
+                          width: 1200,
+                          height: 1200,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF1E3A8A),
@@ -8693,11 +8693,11 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                       ),
                       // Sphère Turquoise
                       Positioned(
-                        right: size.width * 0.5 + 180 * math.cos(t + math.pi / 2) - 200,
-                        bottom: size.height * 0.5 + 180 * math.sin(t + math.pi / 2) - 200,
+                        right: size.width * 0.5 + 180 * math.cos(t + math.pi / 2) - 500,
+                        bottom: size.height * 0.5 + 180 * math.sin(t + math.pi / 2) - 500,
                         child: Container(
-                          width: 400,
-                          height: 400,
+                          width: 1000,
+                          height: 1000,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF0D9488),
@@ -8706,11 +8706,11 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                       ),
                       // Sphère Violet clair
                       Positioned(
-                        left: size.width * 0.5 + 120 * math.cos(t + math.pi) - 225,
-                        bottom: size.height * 0.5 + 120 * math.sin(t + math.pi) - 225,
+                        left: size.width * 0.5 + 120 * math.cos(t + math.pi) - 550,
+                        bottom: size.height * 0.5 + 120 * math.sin(t + math.pi) - 550,
                         child: Container(
-                          width: 450,
-                          height: 450,
+                          width: 1100,
+                          height: 1100,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF9333EA),
@@ -8719,11 +8719,11 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                       ),
                       // Sphère Violet foncé
                       Positioned(
-                        right: size.width * 0.5 + 140 * math.cos(t + 3 * math.pi / 2) - 300,
-                        top: size.height * 0.5 + 140 * math.sin(t + 3 * math.pi / 2) - 300,
+                        right: size.width * 0.5 + 140 * math.cos(t + 3 * math.pi / 2) - 700,
+                        top: size.height * 0.5 + 140 * math.sin(t + 3 * math.pi / 2) - 700,
                         child: Container(
-                          width: 600,
-                          height: 600,
+                          width: 1400,
+                          height: 1400,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Color(0xFF4C1D95),
@@ -8806,8 +8806,8 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                               ),
                             ),
                             AnimatedSize(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeInOutQuart,
                               child: _showChangelog
                                   ? Container(
                                       margin: const EdgeInsets.only(top: 12),
@@ -8816,11 +8816,33 @@ class _UpdateDialogState extends State<_UpdateDialog> with SingleTickerProviderS
                                         color: Colors.black.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
-                                      child: SingleChildScrollView(
-                                        padding: const EdgeInsets.all(12.0),
-                                        child: Text(
-                                          widget.releaseNotes,
-                                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      child: ShaderMask(
+                                        shaderCallback: (Rect bounds) {
+                                          return LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.white,
+                                              Colors.white,
+                                              Colors.transparent
+                                            ],
+                                            stops: const [0.0, 0.1, 0.9, 1.0],
+                                          ).createShader(bounds);
+                                        },
+                                        blendMode: BlendMode.dstIn,
+                                        child: AnimatedOpacity(
+                                          opacity: _showChangelog ? 1.0 : 0.0,
+                                          duration: const Duration(milliseconds: 300),
+                                          curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
+                                          child: SingleChildScrollView(
+                                            padding: const EdgeInsets.all(16.0),
+                                            physics: const BouncingScrollPhysics(),
+                                            child: Text(
+                                              widget.releaseNotes,
+                                              style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     )
