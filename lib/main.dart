@@ -3133,7 +3133,7 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                           ValueListenableBuilder<double>(
                             valueListenable: _scrollOffset,
                             builder: (context, offset, child) {
-                              final opacity = (offset / 120.0).clamp(0.0, 1.0);
+                              final opacity = (offset / 60.0).clamp(0.0, 1.0);
                               if (opacity == 0.0) return const SizedBox.shrink();
                               
                               return Opacity(
@@ -7963,22 +7963,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       ),
                                                     ),
                                             ),
-                                            child: TweenAnimationBuilder<double>(
-                                              duration: transitionDuration,
-                                              curve: transitionCurve,
-                                              tween: Tween<double>(
-                                                begin: 15.0,
-                                                end: _isPlayerExpanded ? 0.0 : 15.0,
+                                            child: BackdropFilter(
+                                              filter: ImageFilter.blur(
+                                                sigmaX: 15.0,
+                                                sigmaY: 15.0,
                                               ),
-                                              builder: (context, blurSigma, child) {
-                                                return BackdropFilter(
-                                                  filter: ImageFilter.blur(
-                                                    sigmaX: blurSigma,
-                                                    sigmaY: blurSigma,
-                                                  ),
-                                                  child: child,
-                                                );
-                                              },
                                               child: Stack(
                                                 clipBehavior: Clip.none,
                                                 children: [
