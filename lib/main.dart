@@ -3158,7 +3158,7 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                                     ),
                                     child: Container(
                                       height: headerHeight,
-                                      color: Colors.transparent,
+                                      color: Colors.white.withValues(alpha: 0.01),
                                     ),
                                   ),
                                 ),
