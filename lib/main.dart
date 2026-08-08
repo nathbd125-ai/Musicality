@@ -2305,7 +2305,7 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1200), // Ralenti considérablement
+      duration: const Duration(seconds: 300), // Ralenti considérablement
       value: math.Random().nextDouble(),
     );
     Future.delayed(const Duration(seconds: 1), () {
@@ -3133,7 +3133,9 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                           ValueListenableBuilder<double>(
                             valueListenable: _scrollOffset,
                             builder: (context, offset, child) {
-                              final opacity = (offset / 25.0).clamp(0.0, 1.0);
+                              final opacity = (offset / 120.0).clamp(0.0, 1.0);
+                              if (opacity == 0.0) return const SizedBox.shrink();
+                              
                               return Opacity(
                                 opacity: opacity,
                                 child: child,
@@ -5499,13 +5501,9 @@ class ArtistPageViewState extends State<ArtistPageView> {
                             shaderCallback: (bounds) =>
                                 LinearGradient(
                                   colors: widget.dynamicThemeColors.length >= 2 
-                                      ? (widget.dynamicThemeColors[0].computeLuminance() < 0.05 
-                                          ? [Colors.blue, Colors.purple] 
-                                          : widget.dynamicThemeColors)
+                                      ? widget.dynamicThemeColors 
                                       : (widget.dynamicThemeColors.isNotEmpty 
-                                          ? (widget.dynamicThemeColors[0].computeLuminance() < 0.05 
-                                              ? [Colors.blue, Colors.blue.withValues(alpha: 0.8)]
-                                              : [widget.dynamicThemeColors[0], widget.dynamicThemeColors[0].withValues(alpha: 0.8)])
+                                          ? [widget.dynamicThemeColors[0], widget.dynamicThemeColors[0].withOpacity(0.8)] 
                                           : [Colors.blue, Colors.purple]),
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
@@ -5742,7 +5740,6 @@ class ArtistPageViewState extends State<ArtistPageView> {
         }
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: recs.map((reco) {
             final bool isLocal = reco['isLocal'] as bool;
             final String title = reco['title'] as String;
