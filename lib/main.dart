@@ -7965,7 +7965,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       ),
                                                     ),
                                             ),
-                                            child: SizedBox(
+                                            child: BackdropFilter(
+                                              filter: ImageFilter.blur(
+                                                sigmaX: _isPlayerExpanded ? 0.0 : 15.0,
+                                                sigmaY: _isPlayerExpanded ? 0.0 : 15.0,
+                                              ),
                                               child: Stack(
                                                 clipBehavior: Clip.none,
                                                 children: [
