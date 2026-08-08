@@ -2298,6 +2298,7 @@ class RealAlbumBlurredBackground extends StatefulWidget {
 
 class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  Size? _fixedSize;
 
   @override
   void initState() {
@@ -2315,6 +2316,18 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_fixedSize == null) {
+      final size = MediaQuery.of(context).size;
+      // On fixe la taille de l'image de fond une seule fois. 
+      // 1.8x la taille de l'écran garantit qu'on ne voit jamais les bords lors du déplacement (maxDx 0.35)
+      // Cela évite au ImageFiltered de se recalculer en boucle si la fenêtre se redimensionne (ex: HyperOS, PIP) !
+      _fixedSize = Size(size.width * 1.8, math.max(size.height * 1.8, 1500));
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -2329,7 +2342,7 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           animation: _controller,
           builder: (context, child) {
             final size = MediaQuery.of(context).size;
-            final maxDx = size.width * 0.35; // L'image est scale par 1.8, donc 0.35 est safe
+            final maxDx = size.width * 0.35; 
             final maxDy = size.height * 0.35;
 
             final t = _controller.value * 2 * math.pi;
@@ -2348,10 +2361,13 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
             );
           },
           child: RepaintBoundary(
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 25, sigmaY: 25, tileMode: TileMode.mirror), // "DLSS" blur: small math blur on a tiny base image
-              child: Transform.scale(
-                scale: 1.8,
+            child: OverflowBox(
+              minWidth: _fixedSize!.width,
+              maxWidth: _fixedSize!.width,
+              minHeight: _fixedSize!.height,
+              maxHeight: _fixedSize!.height,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 25, sigmaY: 25, tileMode: TileMode.mirror),
                 child: SizedBox.expand(child: getLocalOrNetworkImageSuperBlurred(widget.item)),
               ),
             ),
@@ -3050,7 +3066,8 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
           valueListenable: _sheetSize,
           builder: (context, size, child) {
             final progress = ((size - 0.90) / 0.10).clamp(0.0, 1.0);
-            final radius = 32.0 * (1.0 - progress);
+            // On s'assure que le radius tombe parfaitement à zéro si on est très proche du bord
+            final radius = progress > 0.99 ? 0.0 : 32.0 * (1.0 - progress);
             final borderAlpha = 0.1 * (1.0 - progress);
 
             return ClipRRect(
@@ -3062,7 +3079,8 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: const Color(0xFF121212).withValues(alpha: 0.35),
-                      border: borderAlpha > 0
+                      // Supprime complètement la bordure si on est collé en haut
+                      border: borderAlpha > 0.005
                           ? Border(
                               top: BorderSide(
                                 color: Colors.white.withValues(
