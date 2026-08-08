@@ -3134,45 +3134,20 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                             valueListenable: _scrollOffset,
                             builder: (context, offset, child) {
                               final opacity = (offset / 25.0).clamp(0.0, 1.0);
-                              return Opacity(
-                                opacity: opacity,
-                                child: child,
-                              );
-                            },
-                            child: ClipRect(
-                              child: ShaderMask(
-                                shaderCallback: (bounds) {
-                                  return const LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black,
-                                      Colors.black,
-                                      Colors.transparent,
-                                    ],
-                                    stops: [0.0, 0.70, 1.0],
-                                  ).createShader(
-                                    Rect.fromLTWH(
-                                      0,
-                                      0,
-                                      bounds.width,
-                                      bounds.height,
-                                    ),
-                                  );
-                                },
-                                blendMode: BlendMode.dstIn,
+                              if (opacity == 0.0) return const SizedBox();
+                              return ClipRect(
                                 child: BackdropFilter(
                                   filter: ImageFilter.blur(
-                                    sigmaX: 35,
-                                    sigmaY: 35,
+                                    sigmaX: 35.0 * opacity,
+                                    sigmaY: 35.0 * opacity,
                                   ),
                                   child: Container(
                                     height: headerHeight,
-                                    color: Colors.black.withValues(alpha: 0.98),
+                                    color: Colors.transparent,
                                   ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                           RepaintBoundary(
                           child: Column(
