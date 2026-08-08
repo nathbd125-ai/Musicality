@@ -3133,7 +3133,7 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                           ValueListenableBuilder<double>(
                             valueListenable: _scrollOffset,
                             builder: (context, offset, child) {
-                              final opacity = (offset / 90.0).clamp(0.0, 1.0);
+                              final opacity = (offset / 25.0).clamp(0.0, 1.0);
                               if (opacity == 0.0) return const SizedBox.shrink();
                               
                               return Opacity(
@@ -3152,7 +3152,7 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                                       Colors.black,
                                       Colors.transparent,
                                     ],
-                                    stops: [0.0, 0.70, 1.0],
+                                    stops: [0.0, 0.20, 1.0],
                                   ).createShader(bounds);
                                 },
                                 blendMode: BlendMode.dstIn,
@@ -7937,9 +7937,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                             curve: transitionCurve,
                                             clipBehavior: Clip.antiAlias,
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withValues(
-                                                alpha: 0.55,
-                                              ),
+                                              color: _isPlayerExpanded
+                                                  ? Colors.black.withValues(
+                                                      alpha: 0.1,
+                                                    )
+                                                  : Colors.black.withValues(
+                                                      alpha: 0.55,
+                                                    ),
                                               borderRadius: _isPlayerExpanded
                                                   ? BorderRadius.zero
                                                   : const BorderRadius.only(
