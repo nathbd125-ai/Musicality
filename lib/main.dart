@@ -3113,25 +3113,14 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
               },
               child: Stack(
                 children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) {
-                      return LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: const [Colors.transparent, Colors.black],
-                        stops: [0.0, (headerHeight / bounds.height).clamp(0.0, 1.0)],
-                      ).createShader(bounds);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: ListView(
-                      controller: scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.only(
-                        top: headerHeight,
-                        bottom: MediaQuery.of(context).viewInsets.bottom + 100,
-                      ),
-                      children: [widget.content],
+                  ListView(
+                    controller: scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.only(
+                      top: headerHeight,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 100,
                     ),
+                    children: [widget.content],
                   ),
                   Positioned(
                     top: 0,
@@ -3145,19 +3134,45 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                             valueListenable: _scrollOffset,
                             builder: (context, offset, child) {
                               final opacity = (offset / 25.0).clamp(0.0, 1.0);
-                              return ClipRect(
+                              return Opacity(
+                                opacity: opacity,
+                                child: child,
+                              );
+                            },
+                            child: ClipRect(
+                              child: ShaderMask(
+                                shaderCallback: (bounds) {
+                                  return const LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black,
+                                      Colors.black,
+                                      Colors.transparent,
+                                    ],
+                                    stops: [0.0, 0.70, 1.0],
+                                  ).createShader(
+                                    Rect.fromLTWH(
+                                      0,
+                                      0,
+                                      bounds.width,
+                                      bounds.height,
+                                    ),
+                                  );
+                                },
+                                blendMode: BlendMode.dstIn,
                                 child: BackdropFilter(
                                   filter: ImageFilter.blur(
-                                    sigmaX: 35.0 * opacity,
-                                    sigmaY: 35.0 * opacity,
+                                    sigmaX: 35,
+                                    sigmaY: 35,
                                   ),
                                   child: Container(
                                     height: headerHeight,
-                                    color: Colors.transparent,
+                                    color: Colors.black.withValues(alpha: 0.98),
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
                           RepaintBoundary(
                           child: Column(
