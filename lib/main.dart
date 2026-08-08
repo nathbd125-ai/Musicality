@@ -2305,7 +2305,7 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 300), // Ralenti considérablement
+      duration: const Duration(seconds: 1200), // Ralenti considérablement
       value: math.Random().nextDouble(),
     );
     Future.delayed(const Duration(seconds: 1), () {
@@ -3133,30 +3133,39 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                           ValueListenableBuilder<double>(
                             valueListenable: _scrollOffset,
                             builder: (context, offset, child) {
-                              final progress = (offset / 25.0).clamp(0.0, 1.0);
-                              if (progress == 0.0) return const SizedBox.shrink();
-
-                              return ClipRect(
+                              final opacity = (offset / 25.0).clamp(0.0, 1.0);
+                              return Opacity(
+                                opacity: opacity,
+                                child: child,
+                              );
+                            },
+                            child: ClipRect(
+                              child: ShaderMask(
+                                shaderCallback: (bounds) {
+                                  return const LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black,
+                                      Colors.black,
+                                      Colors.transparent,
+                                    ],
+                                    stops: [0.0, 0.70, 1.0],
+                                  ).createShader(bounds);
+                                },
+                                blendMode: BlendMode.dstIn,
                                 child: BackdropFilter(
                                   filter: ImageFilter.blur(
-                                    sigmaX: 35.0 * progress,
-                                    sigmaY: 35.0 * progress,
+                                    sigmaX: 35,
+                                    sigmaY: 35,
                                   ),
                                   child: Container(
                                     height: headerHeight,
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.4 * progress),
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Colors.white.withValues(alpha: 0.15 * progress),
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                    ),
+                                    color: Colors.black.withValues(alpha: 0.98),
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
                           RepaintBoundary(
                           child: Column(
@@ -5490,9 +5499,13 @@ class ArtistPageViewState extends State<ArtistPageView> {
                             shaderCallback: (bounds) =>
                                 LinearGradient(
                                   colors: widget.dynamicThemeColors.length >= 2 
-                                      ? widget.dynamicThemeColors 
+                                      ? (widget.dynamicThemeColors[0].computeLuminance() < 0.05 
+                                          ? [Colors.blue, Colors.purple] 
+                                          : widget.dynamicThemeColors)
                                       : (widget.dynamicThemeColors.isNotEmpty 
-                                          ? [widget.dynamicThemeColors[0], widget.dynamicThemeColors[0].withOpacity(0.8)] 
+                                          ? (widget.dynamicThemeColors[0].computeLuminance() < 0.05 
+                                              ? [Colors.blue, Colors.blue.withValues(alpha: 0.8)]
+                                              : [widget.dynamicThemeColors[0], widget.dynamicThemeColors[0].withValues(alpha: 0.8)])
                                           : [Colors.blue, Colors.purple]),
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
@@ -5729,6 +5742,7 @@ class ArtistPageViewState extends State<ArtistPageView> {
         }
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: recs.map((reco) {
             final bool isLocal = reco['isLocal'] as bool;
             final String title = reco['title'] as String;
