@@ -403,6 +403,23 @@ Widget getLocalOrNetworkImageSuperBlurred(MediaItem item) {
   }
 }
 
+Future<void> _cacheGoogleAvatar(String url) async {
+  try {
+    final savedUrl = mmkv.decodeString('last_google_avatar_url');
+    final cacheFile = File('$_documentPath/cached_google_avatar.jpg');
+    
+    if (savedUrl != url || !cacheFile.existsSync()) {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        await cacheFile.writeAsBytes(response.bodyBytes);
+        mmkv.encodeString('last_google_avatar_url', url);
+      }
+    }
+  } catch (e) {
+    print('Failed to cache Google avatar: $e');
+  }
+}
+
 class LyricLine {
   final Duration time;
   final String text;
@@ -4159,11 +4176,23 @@ class _AccountPageViewState extends State<AccountPageView> {
                       imagePath.isNotEmpty &&
                       File(imagePath).existsSync();
 
-                  // 2. Priorité: Locale > Google > Défaut
+                  final cachedGoogleAvatar = File('$_documentPath/cached_google_avatar.jpg');
+                  final hasCachedGoogle = cachedGoogleAvatar.existsSync();
+
+                  if (hasGoogleImage) {
+                    _cacheGoogleAvatar(user.photoURL!);
+                  }
+
+                  // 2. Priorité: Locale > Google Cachée > Google Réseau > Défaut
                   Widget avatarWidget;
                   if (hasLocalImage) {
                     avatarWidget = Image.file(
                       File(imagePath),
+                      fit: BoxFit.cover,
+                    );
+                  } else if (hasCachedGoogle) {
+                    avatarWidget = Image.file(
+                      cachedGoogleAvatar,
                       fit: BoxFit.cover,
                     );
                   } else if (hasGoogleImage) {
