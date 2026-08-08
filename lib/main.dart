@@ -3152,7 +3152,7 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                                       Colors.black,
                                       Colors.transparent,
                                     ],
-                                    stops: [0.0, 0.20, 1.0],
+                                    stops: [0.0, 0.60, 1.0],
                                   ).createShader(bounds);
                                 },
                                 blendMode: BlendMode.dstIn,
