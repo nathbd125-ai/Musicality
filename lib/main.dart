@@ -8636,11 +8636,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   user != null &&
                                                   user.photoURL != null;
 
+                                              final cachedGoogleAvatar = File('$_documentPath/cached_google_avatar.jpg');
+                                              final hasCachedGoogle = cachedGoogleAvatar.existsSync();
+
                                               Widget accountIcon;
                                               if (hasLocalImage) {
                                                 accountIcon = ClipOval(
                                                   child: Image.file(
                                                     File(localImagePath),
+                                                    width: 24,
+                                                    height: 24,
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                );
+                                              } else if (hasCachedGoogle) {
+                                                accountIcon = ClipOval(
+                                                  child: Image.file(
+                                                    cachedGoogleAvatar,
                                                     width: 24,
                                                     height: 24,
                                                     fit: BoxFit.cover,
@@ -8653,6 +8665,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     width: 24,
                                                     height: 24,
                                                     fit: BoxFit.cover,
+                                                    errorBuilder: (context, error, stackTrace) => const Icon(
+                                                      CupertinoIcons.person_fill,
+                                                      size: 24,
+                                                    ),
                                                   ),
                                                 );
                                               } else {
