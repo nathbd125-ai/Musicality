@@ -3105,73 +3105,61 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
             );
           },
           child: NotificationListener<ScrollNotification>(
-            onNotification: (ScrollNotification notification) {
-              if (notification.metrics.axis == Axis.vertical) {
-                _scrollOffset.value = notification.metrics.pixels;
-              }
-              return false;
-            },
-            child: Stack(
-              children: [
-                ListView(
-                  controller: scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.only(
-                    top: headerHeight,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 100,
+              onNotification: (ScrollNotification notification) {
+                if (notification.metrics.axis == Axis.vertical) {
+                  _scrollOffset.value = notification.metrics.pixels;
+                }
+                return false;
+              },
+              child: Stack(
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) {
+                      return LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: const [Colors.transparent, Colors.black],
+                        stops: [0.0, (headerHeight / bounds.height).clamp(0.0, 1.0)],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.dstIn,
+                    child: ListView(
+                      controller: scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.only(
+                        top: headerHeight,
+                        bottom: MediaQuery.of(context).viewInsets.bottom + 100,
+                      ),
+                      children: [widget.content],
+                    ),
                   ),
-                  children: [widget.content],
-                ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: headerHeight,
-                  child: IgnorePointer(
-                    child: Stack(
-                      children: [
-                        ValueListenableBuilder<double>(
-                          valueListenable: _scrollOffset,
-                          builder: (context, offset, child) {
-                            final opacity = (offset / 25.0).clamp(0.0, 1.0);
-                            return Opacity(opacity: opacity, child: child);
-                          },
-                          child: ClipRect(
-                            child: ShaderMask(
-                              shaderCallback: (bounds) {
-                                return const LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.black,
-                                    Colors.black,
-                                    Colors.transparent,
-                                  ],
-                                  stops: [0.0, 0.70, 1.0],
-                                ).createShader(
-                                  Rect.fromLTWH(
-                                    0,
-                                    0,
-                                    bounds.width,
-                                    bounds.height,
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: headerHeight,
+                    child: IgnorePointer(
+                      child: Stack(
+                        children: [
+                          ValueListenableBuilder<double>(
+                            valueListenable: _scrollOffset,
+                            builder: (context, offset, child) {
+                              final opacity = (offset / 25.0).clamp(0.0, 1.0);
+                              return ClipRect(
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 35.0 * opacity,
+                                    sigmaY: 35.0 * opacity,
                                   ),
-                                );
-                              },
-                              blendMode: BlendMode.dstIn,
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(
-                                  sigmaX: 35,
-                                  sigmaY: 35,
+                                  child: Container(
+                                    height: headerHeight,
+                                    color: Colors.transparent,
+                                  ),
                                 ),
-                                child: Container(
-                                  height: headerHeight,
-                                  color: Colors.black.withValues(alpha: 0.98),
-                                ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
-                        ),
-                        RepaintBoundary(
+                          RepaintBoundary(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
