@@ -3158,7 +3158,7 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                                 ),
                                 child: Container(
                                   height: headerHeight,
-                                  color: Colors.black.withValues(alpha: 0.4),
+                                  color: Colors.transparent,
                                 ),
                               ),
                             ),
@@ -7960,8 +7960,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ),
                                             child: BackdropFilter(
                                               filter: ImageFilter.blur(
-                                                sigmaX: 30.0,
-                                                sigmaY: 30.0,
+                                                sigmaX: _isPlayerExpanded ? 0.0 : 15.0,
+                                                sigmaY: _isPlayerExpanded ? 0.0 : 15.0,
                                               ),
                                               child: Stack(
                                                 clipBehavior: Clip.none,
