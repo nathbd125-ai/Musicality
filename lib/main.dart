@@ -2366,9 +2366,16 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
             minHeight: _fixedSize!.height,
             maxHeight: _fixedSize!.height,
             child: RepaintBoundary(
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 25, sigmaY: 25, tileMode: TileMode.mirror),
-                child: SizedBox.expand(child: getLocalOrNetworkImageSuperBlurred(widget.item)),
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _fixedSize!.width / 5,
+                  height: _fixedSize!.height / 5,
+                  child: ImageFiltered(
+                    imageFilter: ImageFilter.blur(sigmaX: 5, sigmaY: 5, tileMode: TileMode.mirror),
+                    child: getLocalOrNetworkImageSuperBlurred(widget.item),
+                  ),
+                ),
               ),
             ),
           ),
@@ -3158,7 +3165,7 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                                 ),
                                 child: Container(
                                   height: headerHeight,
-                                  color: Colors.transparent,
+                                  color: Colors.black.withValues(alpha: 0.01),
                                 ),
                               ),
                             ),
