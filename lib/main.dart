@@ -3134,35 +3134,41 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                             valueListenable: _scrollOffset,
                             builder: (context, offset, child) {
                               final opacity = (offset / 25.0).clamp(0.0, 1.0);
-                              if (opacity == 0.0) return const SizedBox();
-                              
-                              return ClipRect(
-                                child: ShaderMask(
-                                  shaderCallback: (bounds) {
-                                    return const LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.black,
-                                        Colors.black,
-                                        Colors.transparent,
-                                      ],
-                                      stops: [0.0, 0.5, 1.0],
-                                    ).createShader(bounds);
-                                  },
-                                  blendMode: BlendMode.dstIn,
+                              final double baseSigma = 35.0 * opacity;
+                              if (baseSigma <= 0.1) return const SizedBox();
+
+                              final int numBands = 15;
+                              final double gradientHeight = 50.0;
+                              final double solidHeight = headerHeight - gradientHeight;
+                              final double bandHeight = gradientHeight / numBands;
+
+                              List<Widget> bands = [
+                                ClipRect(
                                   child: BackdropFilter(
-                                    filter: ImageFilter.blur(
-                                      sigmaX: 35.0 * opacity,
-                                      sigmaY: 35.0 * opacity,
-                                    ),
-                                    child: Container(
-                                      height: headerHeight,
-                                      color: Colors.white.withValues(alpha: 0.01),
-                                    ),
+                                    filter: ImageFilter.blur(sigmaX: baseSigma, sigmaY: baseSigma),
+                                    child: Container(height: solidHeight, color: Colors.transparent),
                                   ),
                                 ),
-                              );
+                              ];
+
+                              for (int i = 0; i < numBands; i++) {
+                                double progress = i / (numBands - 1);
+                                double factor = 1.0 - (progress * progress);
+                                double sigma = baseSigma * factor;
+                                
+                                if (sigma > 0.5) {
+                                  bands.add(
+                                    ClipRect(
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+                                        child: Container(height: bandHeight, color: Colors.transparent),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+
+                              return Column(children: bands);
                             },
                           ),
                           RepaintBoundary(
