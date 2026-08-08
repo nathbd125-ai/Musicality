@@ -3187,7 +3187,11 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                                   blendMode: BlendMode.srcIn,
                                   shaderCallback: (bounds) =>
                                       LinearGradient(
-                                        colors: widget.themeColors,
+                                        colors: widget.themeColors.length >= 2 
+                                            ? widget.themeColors 
+                                            : (widget.themeColors.isNotEmpty 
+                                                ? [widget.themeColors[0], widget.themeColors[0].withOpacity(0.8)] 
+                                                : [Colors.blue, Colors.purple]),
                                         begin: Alignment.centerLeft,
                                         end: Alignment.centerRight,
                                       ).createShader(
@@ -5472,7 +5476,11 @@ class ArtistPageViewState extends State<ArtistPageView> {
                             blendMode: BlendMode.srcIn,
                             shaderCallback: (bounds) =>
                                 LinearGradient(
-                                  colors: widget.dynamicThemeColors,
+                                  colors: widget.dynamicThemeColors.length >= 2 
+                                      ? widget.dynamicThemeColors 
+                                      : (widget.dynamicThemeColors.isNotEmpty 
+                                          ? [widget.dynamicThemeColors[0], widget.dynamicThemeColors[0].withOpacity(0.8)] 
+                                          : [Colors.blue, Colors.purple]),
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
                                 ).createShader(
@@ -5649,7 +5657,12 @@ class ArtistPageViewState extends State<ArtistPageView> {
           builder: (context, likedSongs, child) {
             final likedItems = _playlist
                 .where((i) => likedSongs.contains(i.id))
-                .toList();
+                .toList()
+              ..sort((a, b) {
+                final countA = songPlayCountNotifier.value[a.id] ?? 0;
+                final countB = songPlayCountNotifier.value[b.id] ?? 0;
+                return countB.compareTo(countA);
+              });
             if (likedItems.isEmpty) return const SizedBox();
 
             return Column(
