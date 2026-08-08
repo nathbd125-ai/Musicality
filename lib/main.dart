@@ -3133,41 +3133,30 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                           ValueListenableBuilder<double>(
                             valueListenable: _scrollOffset,
                             builder: (context, offset, child) {
-                              final opacity = (offset / 25.0).clamp(0.0, 1.0);
-                              return Opacity(
-                                opacity: opacity,
-                                child: child,
-                              );
-                            },
-                            child: ClipRect(
-                              child: ShaderMask(
-                                shaderCallback: (bounds) {
-                                  return const LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black,
-                                      Colors.black,
-                                      Colors.transparent,
-                                    ],
-                                    stops: [0.0, 0.70, 1.0],
-                                  ).createShader(bounds);
-                                },
-                                blendMode: BlendMode.dstIn,
+                              final progress = (offset / 25.0).clamp(0.0, 1.0);
+                              if (progress == 0.0) return const SizedBox.shrink();
+
+                              return ClipRect(
                                 child: BackdropFilter(
                                   filter: ImageFilter.blur(
-                                    sigmaX: 35,
-                                    sigmaY: 35,
+                                    sigmaX: 35.0 * progress,
+                                    sigmaY: 35.0 * progress,
                                   ),
                                   child: Container(
                                     height: headerHeight,
-                                    color: (widget.themeColors.isNotEmpty 
-                                        ? widget.themeColors[0] 
-                                        : Colors.black).withValues(alpha: 0.98),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.4 * progress),
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Colors.white.withValues(alpha: 0.15 * progress),
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                           RepaintBoundary(
                           child: Column(
