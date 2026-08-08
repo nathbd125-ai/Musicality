@@ -2304,7 +2304,7 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 150), // Ralenti
+      duration: const Duration(seconds: 300), // Ralenti considérablement
       value: math.Random().nextDouble(),
     );
     Future.delayed(const Duration(seconds: 1), () {
@@ -2329,15 +2329,16 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           animation: _controller,
           builder: (context, child) {
             final size = MediaQuery.of(context).size;
-            final maxDx = size.width * 0.35; // The image is scaled by 1.8, so 0.35 is safe
+            final maxDx = size.width * 0.35; // L'image est scale par 1.8, donc 0.35 est safe
             final maxDy = size.height * 0.35;
 
             final t = _controller.value * 2 * math.pi;
             final animScale = 1.05 + math.sin(t) * 0.05;
             
-            // Fait obligatoirement des nombres entiers (2, 3, 5) pour que la boucle soit mathématiquement parfaite et sans saccade/téléportation !
-            final dx = (math.sin(t) + math.sin(t * 2)) * 0.5 * maxDx;
-            final dy = (math.cos(t * 3) + math.cos(t * 5)) * 0.5 * maxDy;
+            // On utilise des fréquences basses (1 et 2) et des poids pour éviter les accélérations soudaines
+            final dx = (math.sin(t) * 0.7 + math.sin(t * 2) * 0.3) * maxDx;
+            final dy = (math.cos(t + math.pi/3) * 0.7 + math.cos(t * 2 + math.pi/4) * 0.3) * maxDy;
+            
             return Transform(
               transform: Matrix4.identity()
                 ..translate(dx, dy)
