@@ -405,6 +405,7 @@ Widget getLocalOrNetworkImageSuperBlurred(MediaItem item) {
 
 Future<void> _cacheGoogleAvatar(String url) async {
   try {
+    final mmkv = MMKV.defaultMMKV();
     final savedUrl = mmkv.decodeString('last_google_avatar_url');
     final cacheFile = File('$_documentPath/cached_google_avatar.jpg');
     
@@ -416,7 +417,7 @@ Future<void> _cacheGoogleAvatar(String url) async {
       }
     }
   } catch (e) {
-    print('Failed to cache Google avatar: $e');
+    debugPrint('Failed to cache Google avatar: $e');
   }
 }
 
@@ -5153,7 +5154,7 @@ class SongTile extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
