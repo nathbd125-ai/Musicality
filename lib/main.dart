@@ -3136,41 +3136,32 @@ class _ExplorerSheetState extends State<ExplorerSheet> {
                               final opacity = (offset / 25.0).clamp(0.0, 1.0);
                               if (opacity == 0.0) return const SizedBox();
                               
-                              final double baseSigma = 35.0 * opacity;
-                              
-                              return Column(
-                                children: [
-                                  ClipRect(
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: baseSigma, sigmaY: baseSigma),
-                                      child: Container(height: headerHeight - 40, color: Colors.transparent),
+                              return ClipRect(
+                                child: ShaderMask(
+                                  shaderCallback: (bounds) {
+                                    return const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.black,
+                                        Colors.black,
+                                        Colors.transparent,
+                                      ],
+                                      stops: [0.0, 0.5, 1.0],
+                                    ).createShader(bounds);
+                                  },
+                                  blendMode: BlendMode.dstIn,
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 35.0 * opacity,
+                                      sigmaY: 35.0 * opacity,
+                                    ),
+                                    child: Container(
+                                      height: headerHeight,
+                                      color: Colors.transparent,
                                     ),
                                   ),
-                                  ClipRect(
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: baseSigma * 0.8, sigmaY: baseSigma * 0.8),
-                                      child: Container(height: 10, color: Colors.transparent),
-                                    ),
-                                  ),
-                                  ClipRect(
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: baseSigma * 0.4, sigmaY: baseSigma * 0.4),
-                                      child: Container(height: 10, color: Colors.transparent),
-                                    ),
-                                  ),
-                                  ClipRect(
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: baseSigma * 0.1, sigmaY: baseSigma * 0.1),
-                                      child: Container(height: 10, color: Colors.transparent),
-                                    ),
-                                  ),
-                                  ClipRect(
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(sigmaX: baseSigma * 0.02, sigmaY: baseSigma * 0.02),
-                                      child: Container(height: 10, color: Colors.transparent),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               );
                             },
                           ),
