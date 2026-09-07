@@ -519,8 +519,17 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
             left: 0,
             right: 0,
             child: SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              bottom: true,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.only(
+                  left: 20.0,
+                  right: 20.0,
+                  bottom: 20.0,
+                  top: 12.0,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -604,7 +613,7 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
                         Expanded(
                           flex: 4,
                           child: Padding(
-                            padding: const EdgeInsets.only(top: 14.0),
+                            padding: const EdgeInsets.only(top: 22.0),
                             child: StreamBuilder<PositionData>(
                               stream: widget.positionStream,
                               initialData: PositionData(
