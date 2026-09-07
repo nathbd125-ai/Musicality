@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 import 'dart:io';
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
@@ -242,7 +241,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           (mediaItem.value?.id == nextItem.id);
       final nextSource = _createSource(nextItem, isCrossfadeToSameSong: isSameSong);
 
-      print("[CROSSFADE] Préchargement anticipé de : ${nextItem.title}");
+      debugPrint("[CROSSFADE] Préchargement anticipé de : ${nextItem.title}");
       await _nextPlayer.stop();
       await _nextPlayer.setVolume(0.0);
       await _nextPlayer.setAudioSource(nextSource);
@@ -250,9 +249,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       await _nextPlayer.pause();
 
       _preloadedIndex = nextIndex;
-      print("[CROSSFADE] Préchargé avec succès en amont : ${nextItem.title}");
+      debugPrint("[CROSSFADE] Préchargé avec succès en amont : ${nextItem.title}");
     } catch (e) {
-      print("[CROSSFADE] Échec du préchargement : $e");
+      debugPrint("[CROSSFADE] Échec du préchargement : $e");
       _preloadedIndex = null;
     } finally {
       _isPreloading = false;
@@ -310,7 +309,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     // Si un préchargement est en cours sur _nextPlayer, on attend sa fin propre
     if (_isPreloading && _preloadFuture != null) {
-      print("[CROSSFADE] Attente de la fin du préchargement en cours pour : ${queue.value[nextIndex].title}");
+      debugPrint("[CROSSFADE] Attente de la fin du préchargement en cours pour : ${queue.value[nextIndex].title}");
       try {
         await _preloadFuture;
       } catch (_) {}
@@ -322,12 +321,12 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     try {
       if (_preloadedIndex == nextIndex && _nextPlayer.audioSource != null) {
-        print("[CROSSFADE] Lancement instantané (déjà préchargé) : ${nextItem.title}");
+        debugPrint("[CROSSFADE] Lancement instantané (déjà préchargé) : ${nextItem.title}");
         await _nextPlayer.seek(Duration.zero);
         await _nextPlayer.setVolume(0.0);
         _nextPlayer.play();
       } else {
-        print("[CROSSFADE] Chargement direct à chaud : ${nextItem.title}");
+        debugPrint("[CROSSFADE] Chargement direct à chaud : ${nextItem.title}");
         final nextSource = _createSource(nextItem, isCrossfadeToSameSong: isSameSong);
         await _nextPlayer.stop();
         await _nextPlayer.setVolume(0.0);
@@ -336,7 +335,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         _nextPlayer.play();
       }
     } catch (e) {
-      print("[CROSSFADE] Erreur lors de la préparation du crossfade : $e");
+      debugPrint("[CROSSFADE] Erreur lors de la préparation du crossfade : $e");
       _isCrossfading = false;
       return;
     } finally {
@@ -344,7 +343,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
 
     if (!_isCrossfading || _isPreparing) {
-      print("[CROSSFADE] Annulé pendant le chargement (seek/skip), on abandonne.");
+      debugPrint("[CROSSFADE] Annulé pendant le chargement (seek/skip), on abandonne.");
       _nextPlayer.stop();
       return;
     }

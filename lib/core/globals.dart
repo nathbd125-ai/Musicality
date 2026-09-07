@@ -31,8 +31,6 @@ export 'package:musicality/ui/widgets/crossfade_settings_card.dart';
 export 'package:musicality/ui/widgets/explorer_section_card.dart';
 export 'package:musicality/ui/widgets/explorer_contents.dart';
 
-String _cleanTitle(String title) => cleanTitle(title);
-
 
 late AudioHandler globalAudioHandler;
 late String globalDocumentPath;
@@ -537,7 +535,7 @@ void _parseMusiquesFromJson(List<dynamic> data) {
     final mediaItem = MediaItem(
       id: '${ApiConfig.baseUrl}/$id.flac',
       album: albumName,
-      title: _cleanTitle(rawTitle),
+      title: cleanTitle(rawTitle),
       artist: _extractEnrichedArtist(rawTitle, rawArtist),
       artUri: Uri.parse('${ApiConfig.baseUrl}/$safeImageName.jpg'),
       duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
@@ -718,7 +716,7 @@ Future<void> fetchMusiques() async {
         final mediaItem = MediaItem(
           id: '${ApiConfig.baseUrl}/${entity.songId}.flac',
           album: album,
-          title: _cleanTitle(entity.title),
+          title: cleanTitle(entity.title),
           artist: _extractEnrichedArtist(entity.title, entity.artist),
           artUri: entity.artUri != null ? Uri.parse(entity.artUri!) : null,
           duration: Duration(seconds: entity.durationSeconds),

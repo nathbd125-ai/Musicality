@@ -24,7 +24,6 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:musicality/core/globals.dart';
 import 'package:flutter/material.dart';
-// fallback
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

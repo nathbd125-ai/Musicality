@@ -113,7 +113,6 @@ Future<void> main() async {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
 
-    // ignore: unused_local_variable
     globalAudioHandler = await AudioService.init(
       builder: () => MyAudioHandler(),
       config: const AudioServiceConfig(
@@ -143,14 +142,6 @@ class MusicalityApp extends StatelessWidget {
     );
   }
 }
-
-// ----------------------------------------------------
-// MENU COMPTE (ACCOUNT PAGE) - TRANSFORMÉ EN STATEFUL
-// ----------------------------------------------------
-
-// ----------------------------------------------------
-// HOMESCREEN & NAVIGATION
-// ----------------------------------------------------
 
 Future<void> cacheGoogleAvatar(String url) async {
   try {
