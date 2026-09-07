@@ -22,6 +22,11 @@ export 'package:musicality/core/app_update_service.dart';
 export 'package:musicality/ui/widgets/cached_album_art.dart';
 export 'package:musicality/ui/theme/album_gradients.dart';
 export 'package:musicality/ui/sheets/create_playlist_dialog.dart';
+export 'package:musicality/ui/sheets/auth_dialog.dart';
+export 'package:musicality/ui/widgets/account_profile_header.dart';
+export 'package:musicality/ui/widgets/audio_quality_settings_card.dart';
+export 'package:musicality/ui/widgets/storage_cache_settings_card.dart';
+export 'package:musicality/ui/widgets/crossfade_settings_card.dart';
 
 String _cleanTitle(String title) => cleanTitle(title);
 
