@@ -43,19 +43,36 @@ class LyricsService {
       if (localTtml.existsSync()) {
         try {
           lyricsContent = await localTtml.readAsString();
-        } catch (e) {
-          localTtml.deleteSync();
+        } catch (_) {
+          try {
+            lyricsContent = utf8.decode(await localTtml.readAsBytes(), allowMalformed: true);
+          } catch (_) {
+            localTtml.deleteSync();
+          }
         }
       } else if (localLrc.existsSync()) {
         try {
           lyricsContent = await localLrc.readAsString();
-          // Purge de sécurité si un cache local contient les mauvaises paroles (ex: Afro Trap 11 avec les paroles de Part 7)
-          if (baseName.contains('11') &&
-              lyricsContent.toLowerCase().contains('puissance')) {
-            lyricsContent = "";
+        } catch (_) {
+          try {
+            final bytes = await localLrc.readAsBytes();
+            try {
+              lyricsContent = utf8.decode(bytes);
+            } catch (_) {
+              lyricsContent = latin1
+                  .decode(bytes)
+                  .replaceAll('\u009C', 'œ')
+                  .replaceAll('\u008C', 'Œ')
+                  .replaceAll('\u0092', '’');
+            }
+          } catch (_) {
             localLrc.deleteSync();
           }
-        } catch (e) {
+        }
+        // Purge de sécurité si un cache local contient les mauvaises paroles (ex: Afro Trap 11 avec les paroles de Part 7)
+        if (baseName.contains('11') &&
+            lyricsContent.toLowerCase().contains('puissance')) {
+          lyricsContent = "";
           localLrc.deleteSync();
         }
       }
@@ -64,35 +81,38 @@ class LyricsService {
         lyricsContent = "";
       }
 
-      final bool hasWordSync = lyricsContent.contains('<');
-
-      if (lyricsContent.isEmpty || !hasWordSync) {
+      // Si pas encore de paroles en local, téléchargement distant
+      if (lyricsContent.isEmpty) {
         // 1. Essai de téléchargement du fichier officiel Apple Music .ttml
         try {
           final ttmlUrl = Uri.parse(
             '${ApiConfig.baseUrl}/${Uri.encodeComponent('$baseName.ttml')}',
           );
           final ttmlRes =
-              await http.get(ttmlUrl).timeout(const Duration(seconds: 3));
+              await http.get(ttmlUrl).timeout(const Duration(seconds: 2));
+          final bool isTtmlHtml = ttmlRes.bodyBytes.length >= 9 &&
+              String.fromCharCodes(ttmlRes.bodyBytes.take(64)).toLowerCase().contains('<!doctype');
           if (ttmlRes.statusCode == 200 &&
               ttmlRes.bodyBytes.isNotEmpty &&
-              !ttmlRes.body.contains('<!DOCTYPE')) {
-            lyricsContent = utf8.decode(ttmlRes.bodyBytes);
+              !isTtmlHtml) {
+            lyricsContent = utf8.decode(ttmlRes.bodyBytes, allowMalformed: true);
             await localTtml.writeAsString(lyricsContent);
           }
         } catch (_) {}
 
         // 2. Si pas de .ttml, téléchargement du fichier .lrc
-        if (lyricsContent.isEmpty || !lyricsContent.contains('<')) {
+        if (lyricsContent.isEmpty) {
           try {
             final lrcUrl = Uri.parse(
               '${ApiConfig.baseUrl}/${Uri.encodeComponent('$baseName.lrc')}',
             );
             final response =
-                await http.get(lrcUrl).timeout(const Duration(seconds: 5));
+                await http.get(lrcUrl).timeout(const Duration(seconds: 4));
+            final bool isLrcHtml = response.bodyBytes.length >= 9 &&
+                String.fromCharCodes(response.bodyBytes.take(64)).toLowerCase().contains('<!doctype');
             if (response.statusCode == 200 &&
                 response.bodyBytes.isNotEmpty &&
-                !response.body.contains('<!DOCTYPE')) {
+                !isLrcHtml) {
               String downloaded = "";
               try {
                 downloaded = utf8.decode(response.bodyBytes);
