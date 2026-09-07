@@ -5,7 +5,7 @@ import 'package:musicality/ui/sheets/song_options_overlay.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:musicality/core/globals.dart';
 import 'package:flutter/material.dart';
-// fallback
+import 'package:flutter/services.dart';
 
 class SongTile extends StatelessWidget {
   final MediaItem item;
@@ -283,6 +283,9 @@ class SongTile extends StatelessWidget {
                             likedSongs.any((id) => getBaseId(id) == itemBaseId);
                         return GestureDetector(
                           onTap: () {
+                            if (isHapticFeedbackEnabledNotifier.value) {
+                              HapticFeedback.mediumImpact();
+                            }
                             final currentLikes = Set<String>.from(
                               likedSongsNotifier.value,
                             );

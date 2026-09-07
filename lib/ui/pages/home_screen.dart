@@ -1102,6 +1102,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                   height: 60,
                                                                                   child: Center(
                                                                                     child: HyperOSButton(
+                                                                                      isPlayPause: true,
                                                                                       onTap: () {
                                                                                         if (playing) {
                                                                                           globalAudioHandler.pause();

@@ -71,6 +71,7 @@ final ValueNotifier<bool> isBatterySaverEnabledNotifier = ValueNotifier<bool>(
 final ValueNotifier<int> cacheLimitNotifier = ValueNotifier<int>(100);
 final ValueNotifier<bool> isCrossfadeEnabledNotifier = ValueNotifier<bool>(false);
 final ValueNotifier<int> crossfadeDurationNotifier = ValueNotifier<int>(5);
+final ValueNotifier<bool> isHapticFeedbackEnabledNotifier = ValueNotifier<bool>(true);
 
 // ALGORITHME
 final ValueNotifier<Map<String, int>> artistScoresNotifier =
@@ -163,6 +164,11 @@ Future<void> initPersistence() async {
 
   crossfadeDurationNotifier.addListener(() {
     mmkv.encodeInt('crossfadeDuration', crossfadeDurationNotifier.value);
+  });
+
+  isHapticFeedbackEnabledNotifier.value = mmkv.decodeBool('isHapticFeedbackEnabled', defaultValue: true);
+  isHapticFeedbackEnabledNotifier.addListener(() {
+    mmkv.encodeBool('isHapticFeedbackEnabled', isHapticFeedbackEnabledNotifier.value);
   });
 
   userProfileImageNotifier.addListener(() {

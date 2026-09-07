@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:musicality/core/globals.dart';
 
 class HyperOSShuffleButton extends StatefulWidget {
   final bool isShuffle;
@@ -54,6 +56,9 @@ class _HyperOSShuffleButtonState extends State<HyperOSShuffleButton>
           },
           onTapUp: (_) {
             _scaleController.animateTo(1.0, curve: Curves.easeInOut);
+            if (isHapticFeedbackEnabledNotifier.value) {
+              HapticFeedback.lightImpact();
+            }
             widget.onTap();
           },
           onTapCancel: () {

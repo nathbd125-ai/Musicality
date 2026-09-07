@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:musicality/core/globals.dart';
 
@@ -95,7 +96,13 @@ class MusicalityBottomNavBar extends StatelessWidget {
                     unselectedFontSize: 11,
                     type: BottomNavigationBarType.fixed,
                     currentIndex: currentIndex,
-                    onTap: onTap,
+                    onTap: (index) {
+                      if (index != currentIndex &&
+                          isHapticFeedbackEnabledNotifier.value) {
+                        HapticFeedback.selectionClick();
+                      }
+                      onTap(index);
+                    },
                     items: [
                       const BottomNavigationBarItem(
                         icon: Icon(Icons.home),

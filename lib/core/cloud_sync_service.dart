@@ -34,6 +34,7 @@ Future<void> performCloudBackup() async {
         'cacheLimit': cacheLimitNotifier.value,
         'isCrossfadeEnabled': isCrossfadeEnabledNotifier.value,
         'crossfadeDuration': crossfadeDurationNotifier.value,
+        'isHapticFeedbackEnabled': isHapticFeedbackEnabledNotifier.value,
       },
       'lastSync': FieldValue.serverTimestamp(),
     };
@@ -180,12 +181,20 @@ Future<void> performCloudRestore() async {
           final int cd = (settings['crossfadeDuration'] as num).toInt();
           crossfadeDurationNotifier.value = (cd < 1 || cd > 12) ? 5 : cd;
         }
+        if (settings['isHapticFeedbackEnabled'] != null) {
+          isHapticFeedbackEnabledNotifier.value =
+              settings['isHapticFeedbackEnabled'] as bool;
+        }
       }
 
       // Force la sauvegarde locale immédiate pour que le téléphone soit à jour
       final mmkv = MMKV.defaultMMKV();
       mmkv.encodeBool('isCrossfadeEnabled', isCrossfadeEnabledNotifier.value);
       mmkv.encodeInt('crossfadeDuration', crossfadeDurationNotifier.value);
+      mmkv.encodeBool(
+        'isHapticFeedbackEnabled',
+        isHapticFeedbackEnabledNotifier.value,
+      );
       mmkv.encodeString(
         'likedSongs',
         json.encode(likedSongsNotifier.value.toList()),
@@ -236,4 +245,5 @@ void initAutoSyncListeners() {
   cacheLimitNotifier.addListener(triggerAutoSync);
   isCrossfadeEnabledNotifier.addListener(triggerAutoSync);
   crossfadeDurationNotifier.addListener(triggerAutoSync);
+  isHapticFeedbackEnabledNotifier.addListener(triggerAutoSync);
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:musicality/core/globals.dart';
@@ -242,6 +243,9 @@ class ExplorerRecommendationsContent extends StatelessWidget {
             likedSongs.any((e) => getBaseId(e) == idBase);
         return GestureDetector(
           onTap: () {
+            if (isHapticFeedbackEnabledNotifier.value) {
+              HapticFeedback.mediumImpact();
+            }
             final currentLikes = Set<String>.from(likedSongsNotifier.value);
             final item = globalPlaylist.firstWhere(
               (e) => getBaseId(e.id) == idBase,

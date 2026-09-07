@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:musicality/core/globals.dart';
 
 class AccountPageView extends StatefulWidget {
@@ -246,6 +247,65 @@ class _AccountPageViewState extends State<AccountPageView> {
                                     widget.dynamicGradientColors[0],
                                 onChanged: (val) {
                                   isBatterySaverEnabledNotifier.value = val;
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Retour haptique
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.vibration,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Retour haptique",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  "Vibrations tactiles sur les contrôles et boutons",
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ValueListenableBuilder<bool>(
+                            valueListenable: isHapticFeedbackEnabledNotifier,
+                            builder: (context, isHapticEnabled, _) {
+                              return CupertinoSwitch(
+                                value: isHapticEnabled,
+                                activeTrackColor:
+                                    widget.dynamicGradientColors[0],
+                                onChanged: (val) {
+                                  isHapticFeedbackEnabledNotifier.value = val;
+                                  if (val) {
+                                    HapticFeedback.mediumImpact();
+                                  }
                                 },
                               );
                             },

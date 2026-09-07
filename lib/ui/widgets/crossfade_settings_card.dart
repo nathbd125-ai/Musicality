@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:musicality/core/globals.dart';
 
 class CrossfadeSettingsCard extends StatelessWidget {
@@ -143,7 +144,13 @@ class CrossfadeSettingsCard extends StatelessWidget {
                             max: 12.0,
                             divisions: 11,
                             onChanged: (val) {
-                              crossfadeDurationNotifier.value = val.round();
+                              final newSecs = val.round();
+                              if (newSecs != crossfadeSecs) {
+                                if (isHapticFeedbackEnabledNotifier.value) {
+                                  HapticFeedback.selectionClick();
+                                }
+                                crossfadeDurationNotifier.value = newSecs;
+                              }
                             },
                           ),
                         ),
