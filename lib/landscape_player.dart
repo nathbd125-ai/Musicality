@@ -1,6 +1,9 @@
 import 'package:musicality/ui/widgets/hyper_os_slider.dart';
 import 'package:musicality/core/models.dart';
+import 'package:musicality/core/lyrics_service.dart';
+import 'package:musicality/core/song_download_service.dart';
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'dart:math' as math;
@@ -36,10 +39,15 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
     with SingleTickerProviderStateMixin {
   late AnimationController _visualizerController;
   Waveform? _waveform;
+  StreamSubscription<MediaItem?>? _mediaItemSub;
+  MediaItem? _currentItem;
+  List<LyricLine> _currentLyrics = [];
 
   @override
   void initState() {
     super.initState();
+    _currentItem = widget.item;
+    _currentLyrics = widget.lyrics;
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeRight,
       DeviceOrientation.landscapeLeft,
@@ -49,11 +57,42 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
       vsync: this,
       duration: const Duration(seconds: 1),
     )..repeat();
-    _extractWaveform();
+    _extractWaveform(widget.localFilePath);
+
+    _mediaItemSub = widget.audioHandler.mediaItem.listen((item) {
+      if (item != null && item.id != _currentItem?.id) {
+        if (mounted) {
+          setState(() {
+            _currentItem = item;
+          });
+          _extractWaveform(SongDownloadService.getLocalFilePath(item));
+          _loadLyrics(item);
+        }
+      }
+    });
+  }
+
+  Future<void> _loadLyrics(MediaItem item) async {
+    final cached = LyricsService.getCached(item.id);
+    if (cached != null) {
+      if (mounted) {
+        setState(() {
+          _currentLyrics = cached;
+        });
+      }
+      return;
+    }
+    final lyrics = await LyricsService.fetchLyrics(item);
+    if (mounted && _currentItem?.id == item.id) {
+      setState(() {
+        _currentLyrics = lyrics;
+      });
+    }
   }
 
   @override
   void dispose() {
+    _mediaItemSub?.cancel();
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -63,10 +102,10 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
     super.dispose();
   }
 
-  Future<void> _extractWaveform() async {
+  Future<void> _extractWaveform(String path) async {
     try {
-      if (widget.localFilePath.isNotEmpty) {
-        final audioFile = File(widget.localFilePath);
+      if (path.isNotEmpty) {
+        final audioFile = File(path);
         if (await audioFile.exists()) {
           final waveFile = File('${audioFile.path}.wave');
           if (!await waveFile.exists()) {
@@ -116,15 +155,15 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
           // Background
           Container(
             decoration: BoxDecoration(
-              image: widget.item?.artUri != null
+              image: _currentItem?.artUri != null
                   ? DecorationImage(
                       image:
-                          (widget.item!.artUri!.scheme == 'file'
+                          (_currentItem!.artUri!.scheme == 'file'
                                   ? FileImage(
-                                      File(widget.item!.artUri!.toFilePath()),
+                                      File(_currentItem!.artUri!.toFilePath()),
                                     )
                                   : NetworkImage(
-                                      widget.item!.artUri!.toString(),
+                                      _currentItem!.artUri!.toString(),
                                     ))
                               as ImageProvider,
                       fit: BoxFit.cover,
@@ -336,7 +375,7 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 100),
-                child: widget.lyrics.isEmpty
+                child: _currentLyrics.isEmpty
                     ? const Center(
                         child: Text(
                           "Instrumental",
@@ -349,11 +388,11 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
                           final position =
                               snapshot.data?.position ?? Duration.zero;
                           String currentLine = "";
-                          for (int i = 0; i < widget.lyrics.length; i++) {
-                            if (position >= widget.lyrics[i].time) {
-                              if (i == widget.lyrics.length - 1 ||
-                                  position < widget.lyrics[i + 1].time) {
-                                currentLine = widget.lyrics[i].text;
+                          for (int i = 0; i < _currentLyrics.length; i++) {
+                            if (position >= _currentLyrics[i].time) {
+                              if (i == _currentLyrics.length - 1 ||
+                                  position < _currentLyrics[i + 1].time) {
+                                currentLine = _currentLyrics[i].text;
                                 break;
                               }
                             }

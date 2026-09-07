@@ -52,6 +52,19 @@ class SongDownloadService {
     return (currentQuality > 0) && (targetQuality > currentQuality);
   }
 
+  /// Renvoie le chemin d'accès local du fichier audio s'il est téléchargé, ou une chaîne vide.
+  static String getLocalFilePath(MediaItem item) {
+    final docPath = globalDocumentPath;
+    final safeName = item.id.split('/').last.replaceAll('.flac', '');
+    final localHiRes = File('$docPath/$safeName-hires.flac');
+    if (localHiRes.existsSync()) return localHiRes.path;
+    final localFlac = File('$docPath/$safeName.flac');
+    if (localFlac.existsSync()) return localFlac.path;
+    final localMp3 = File('$docPath/$safeName.mp3');
+    if (localMp3.existsSync()) return localMp3.path;
+    return '';
+  }
+
   /// Scanne le répertoire local des documents pour identifier les musiques téléchargées.
   static Future<void> scanLocalFiles(List<MediaItem> playlist) async {
     final docDir = await getApplicationDocumentsDirectory();

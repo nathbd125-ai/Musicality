@@ -18,6 +18,7 @@ import 'package:musicality/ui/pages/all_musics_view.dart';
 import 'package:musicality/ui/pages/artist_page_view.dart';
 import 'package:musicality/ui/player/liquid_glass_container.dart';
 import 'package:musicality/ui/widgets/real_album_blurred_background.dart';
+import 'package:musicality/landscape_player.dart';
 import 'package:musicality/core/my_audio_handler.dart';
 import 'package:musicality/ui/widgets/hyper_os_slider.dart';
 import 'package:audio_service/audio_service.dart';
@@ -666,25 +667,83 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                   );
                                                                                 },
                                                                               ),
-                                                                              IconButton(
-                                                                                icon: Icon(
-                                                                                  isDownloading
-                                                                                      ? Icons.downloading
-                                                                                      : (needsUpgrade
-                                                                                          ? Icons.cloud_upload
-                                                                                          : (isDownloaded
-                                                                                              ? Icons.cloud_done
-                                                                                              : Icons.cloud_download)),
-                                                                                  size: 26,
-                                                                                ),
-                                                                                color: (isDownloaded || needsUpgrade)
-                                                                                    ? Colors.white
-                                                                                    : Colors.white70,
-                                                                                onPressed: () {
-                                                                                  SongDownloadService.toggleDownload(
-                                                                                    safeItem,
-                                                                                  );
-                                                                                },
+                                                                              Row(
+                                                                                mainAxisSize:
+                                                                                    MainAxisSize.min,
+                                                                                children: [
+                                                                                  IconButton(
+                                                                                    icon: const Icon(
+                                                                                      Icons.screen_rotation_rounded,
+                                                                                      size: 24,
+                                                                                    ),
+                                                                                    color: Colors.white70,
+                                                                                    tooltip: "Mode paysage",
+                                                                                    onPressed: () {
+                                                                                      if (isHapticFeedbackEnabledNotifier.value) {
+                                                                                        HapticFeedback.lightImpact();
+                                                                                      }
+                                                                                      Navigator.of(context).push(
+                                                                                        PageRouteBuilder(
+                                                                                          pageBuilder: (
+                                                                                            context,
+                                                                                            animation,
+                                                                                            secondaryAnimation,
+                                                                                          ) =>
+                                                                                              LandscapeStereoPlayer(
+                                                                                                audioHandler:
+                                                                                                    globalAudioHandler,
+                                                                                                lyrics:
+                                                                                                    _currentLyrics,
+                                                                                                positionStream:
+                                                                                                    _positionDataStream,
+                                                                                                item:
+                                                                                                    safeItem,
+                                                                                                localFilePath:
+                                                                                                    SongDownloadService
+                                                                                                        .getLocalFilePath(
+                                                                                                          safeItem,
+                                                                                                        ),
+                                                                                                themeColors:
+                                                                                                    smoothThemeColors,
+                                                                                              ),
+                                                                                          transitionsBuilder: (
+                                                                                            context,
+                                                                                            animation,
+                                                                                            secondaryAnimation,
+                                                                                            child,
+                                                                                          ) {
+                                                                                            return FadeTransition(
+                                                                                              opacity:
+                                                                                                  animation,
+                                                                                              child:
+                                                                                                  child,
+                                                                                            );
+                                                                                          },
+                                                                                        ),
+                                                                                      );
+                                                                                    },
+                                                                                  ),
+                                                                                  IconButton(
+                                                                                    icon: Icon(
+                                                                                      isDownloading
+                                                                                          ? Icons.downloading
+                                                                                          : (needsUpgrade
+                                                                                              ? Icons.cloud_upload
+                                                                                              : (isDownloaded
+                                                                                                  ? Icons.cloud_done
+                                                                                                  : Icons.cloud_download)),
+                                                                                      size: 26,
+                                                                                    ),
+                                                                                    color: (isDownloaded || needsUpgrade)
+                                                                                        ? Colors.white
+                                                                                        : Colors.white70,
+                                                                                    onPressed: () {
+                                                                                      SongDownloadService.toggleDownload(
+                                                                                        safeItem,
+                                                                                      );
+                                                                                    },
+                                                                                  ),
+                                                                                ],
                                                                               ),
                                                                             ],
                                                                           ),
