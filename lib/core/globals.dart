@@ -28,6 +28,8 @@ export 'package:musicality/ui/widgets/account_profile_header.dart';
 export 'package:musicality/ui/widgets/audio_quality_settings_card.dart';
 export 'package:musicality/ui/widgets/storage_cache_settings_card.dart';
 export 'package:musicality/ui/widgets/crossfade_settings_card.dart';
+export 'package:musicality/ui/widgets/explorer_section_card.dart';
+export 'package:musicality/ui/widgets/explorer_contents.dart';
 
 String _cleanTitle(String title) => cleanTitle(title);
 
