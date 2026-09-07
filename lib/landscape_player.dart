@@ -499,7 +499,9 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
                                   )
                                 : _LandscapeLyricLineView(
                                     key: ValueKey<int>(activeIndex),
+                                    lineIndex: activeIndex,
                                     line: activeLine,
+                                    activeIndexNotifier: _activeIndexNotifier,
                                     positionNotifier: _positionNotifier,
                                     glowColor: glowColor,
                                     unlitColor: unlitColor,
@@ -601,29 +603,32 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
                         // Slider
                         Expanded(
                           flex: 4,
-                          child: StreamBuilder<PositionData>(
-                            stream: widget.positionStream,
-                            initialData: PositionData(
-                              Duration.zero,
-                              Duration.zero,
-                              Duration.zero,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 14.0),
+                            child: StreamBuilder<PositionData>(
+                              stream: widget.positionStream,
+                              initialData: PositionData(
+                                Duration.zero,
+                                Duration.zero,
+                                Duration.zero,
+                              ),
+                              builder: (context, posSnapshot) {
+                                final position = posSnapshot.data!.position;
+                                final duration = posSnapshot.data!.duration;
+                                return HyperOSSlider(
+                                  position: position,
+                                  duration: duration,
+                                  onSeek: (target) {
+                                    _lastKnownPosition = target;
+                                    _lastPositionUpdate = DateTime.now();
+                                    _positionNotifier.value = target;
+                                    _updateActiveIndex(target);
+                                    widget.audioHandler.seek(target);
+                                  },
+                                  gradientColors: _currentThemeColors,
+                                );
+                              },
                             ),
-                            builder: (context, posSnapshot) {
-                              final position = posSnapshot.data!.position;
-                              final duration = posSnapshot.data!.duration;
-                              return HyperOSSlider(
-                                position: position,
-                                duration: duration,
-                                onSeek: (target) {
-                                  _lastKnownPosition = target;
-                                  _lastPositionUpdate = DateTime.now();
-                                  _positionNotifier.value = target;
-                                  _updateActiveIndex(target);
-                                  widget.audioHandler.seek(target);
-                                },
-                                gradientColors: _currentThemeColors,
-                              );
-                            },
                           ),
                         ),
 
@@ -741,14 +746,18 @@ double _calculateFontSize(String text) {
 }
 
 class _LandscapeLyricLineView extends StatelessWidget {
+  final int lineIndex;
   final LyricLine line;
+  final ValueNotifier<int> activeIndexNotifier;
   final ValueNotifier<Duration> positionNotifier;
   final Color glowColor;
   final Color unlitColor;
 
   const _LandscapeLyricLineView({
     super.key,
+    required this.lineIndex,
     required this.line,
+    required this.activeIndexNotifier,
     required this.positionNotifier,
     required this.glowColor,
     required this.unlitColor,
@@ -771,7 +780,9 @@ class _LandscapeLyricLineView extends StatelessWidget {
             final word = line.words[index];
             return _LandscapeKaraokeWord(
               key: ValueKey(word.start.inMilliseconds),
+              lineIndex: lineIndex,
               word: word,
+              activeIndexNotifier: activeIndexNotifier,
               positionNotifier: positionNotifier,
               glowColor: glowColor,
               unlitColor: unlitColor.withValues(alpha: 0.45),
@@ -783,7 +794,9 @@ class _LandscapeLyricLineView extends StatelessWidget {
     }
 
     return _LandscapePlainLineView(
+      lineIndex: lineIndex,
       text: line.text,
+      activeIndexNotifier: activeIndexNotifier,
       glowColor: glowColor,
       unlitColor: unlitColor,
       fontSize: fontSize,
@@ -794,7 +807,9 @@ class _LandscapeLyricLineView extends StatelessWidget {
 enum _WordState { unsung, singing, sung }
 
 class _LandscapeKaraokeWord extends StatefulWidget {
+  final int lineIndex;
   final LyricWord word;
+  final ValueNotifier<int> activeIndexNotifier;
   final ValueNotifier<Duration> positionNotifier;
   final Color glowColor;
   final Color unlitColor;
@@ -802,7 +817,9 @@ class _LandscapeKaraokeWord extends StatefulWidget {
 
   const _LandscapeKaraokeWord({
     super.key,
+    required this.lineIndex,
     required this.word,
+    required this.activeIndexNotifier,
     required this.positionNotifier,
     required this.glowColor,
     required this.unlitColor,
@@ -822,6 +839,7 @@ class _LandscapeKaraokeWordState extends State<_LandscapeKaraokeWord> {
     super.initState();
     _updateState(widget.positionNotifier.value, initial: true);
     widget.positionNotifier.addListener(_onPositionChanged);
+    widget.activeIndexNotifier.addListener(_onActiveIndexChanged);
   }
 
   @override
@@ -830,6 +848,12 @@ class _LandscapeKaraokeWordState extends State<_LandscapeKaraokeWord> {
     if (oldWidget.positionNotifier != widget.positionNotifier) {
       oldWidget.positionNotifier.removeListener(_onPositionChanged);
       widget.positionNotifier.addListener(_onPositionChanged);
+    }
+    if (oldWidget.activeIndexNotifier != widget.activeIndexNotifier) {
+      oldWidget.activeIndexNotifier.removeListener(_onActiveIndexChanged);
+      widget.activeIndexNotifier.addListener(_onActiveIndexChanged);
+    }
+    if (widget.activeIndexNotifier.value == widget.lineIndex) {
       _updateState(widget.positionNotifier.value, initial: true);
     }
   }
@@ -837,10 +861,27 @@ class _LandscapeKaraokeWordState extends State<_LandscapeKaraokeWord> {
   @override
   void dispose() {
     widget.positionNotifier.removeListener(_onPositionChanged);
+    widget.activeIndexNotifier.removeListener(_onActiveIndexChanged);
     super.dispose();
   }
 
+  void _onActiveIndexChanged() {
+    // Dès que le fondu commence (la ligne n'est plus active), on fige l'animation
+    if (widget.activeIndexNotifier.value != widget.lineIndex) {
+      if (_state == _WordState.singing && mounted) {
+        setState(() {
+          _state = _WordState.sung;
+          _progress = 1.0;
+        });
+      }
+    }
+  }
+
   void _onPositionChanged() {
+    // Dès que le fondu commence, l'animation s'arrête immédiatement
+    if (widget.activeIndexNotifier.value != widget.lineIndex) {
+      return;
+    }
     _updateState(widget.positionNotifier.value);
   }
 
@@ -960,13 +1001,17 @@ class _LandscapeKaraokeWordState extends State<_LandscapeKaraokeWord> {
 }
 
 class _LandscapePlainLineView extends StatefulWidget {
+  final int lineIndex;
   final String text;
+  final ValueNotifier<int> activeIndexNotifier;
   final Color glowColor;
   final Color unlitColor;
   final double fontSize;
 
   const _LandscapePlainLineView({
+    required this.lineIndex,
     required this.text,
+    required this.activeIndexNotifier,
     required this.glowColor,
     required this.unlitColor,
     required this.fontSize,
@@ -992,12 +1037,32 @@ class _LandscapePlainLineViewState extends State<_LandscapePlainLineView>
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
+    widget.activeIndexNotifier.addListener(_onActiveIndexChanged);
+  }
+
+  @override
+  void didUpdateWidget(_LandscapePlainLineView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.activeIndexNotifier != widget.activeIndexNotifier) {
+      oldWidget.activeIndexNotifier.removeListener(_onActiveIndexChanged);
+      widget.activeIndexNotifier.addListener(_onActiveIndexChanged);
+    }
   }
 
   @override
   void dispose() {
+    widget.activeIndexNotifier.removeListener(_onActiveIndexChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onActiveIndexChanged() {
+    // Dès que le fondu commence, on stoppe l'animation immédiatement
+    if (widget.activeIndexNotifier.value != widget.lineIndex) {
+      if (_controller.isAnimating) {
+        _controller.stop();
+      }
+    }
   }
 
   @override
