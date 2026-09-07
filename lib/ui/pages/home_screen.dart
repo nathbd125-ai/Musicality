@@ -1,16 +1,10 @@
 import 'package:rxdart/rxdart.dart';
 import 'package:musicality/core/models.dart';
-import 'package:musicality/core/lyrics_parser.dart';
-import 'package:musicality/ui/widgets/update_dialog.dart';
-import 'package:musicality/core/api_config.dart';
 import 'package:flutter/services.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:just_audio/just_audio.dart';
 import 'dart:ui';
 import 'package:musicality/ui/widgets/marquee_widget.dart';
+import 'package:musicality/ui/widgets/musicality_bottom_nav_bar.dart';
 import 'package:musicality/ui/widgets/smooth_icon.dart';
 import 'package:musicality/ui/widgets/hyper_os_button.dart';
 import 'package:musicality/ui/widgets/hyper_os_repeat_button.dart';
@@ -26,8 +20,6 @@ import 'package:musicality/ui/player/liquid_glass_container.dart';
 import 'package:musicality/ui/widgets/real_album_blurred_background.dart';
 import 'package:musicality/core/my_audio_handler.dart';
 import 'package:musicality/ui/widgets/hyper_os_slider.dart';
-import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:musicality/core/globals.dart';
@@ -47,8 +39,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _isPlayerExpanded = false;
   bool _isAppInForeground = true;
-  final Set<String> _downloadedSongs = {};
-  final Set<String> _downloadingSongs = {};
   late final Stream<PositionData> _positionDataStream;
 
   late final PageController _mainPageController;
@@ -77,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _mainPageController = PageController(initialPage: _currentIndex);
-    _scanLocalFiles();
+    SongDownloadService.scanLocalFiles(globalPlaylist);
     _checkForUpdates();
 
     _positionDataStream =
@@ -130,12 +120,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _fetchLyrics(MediaItem item) async {
     final songId = item.id;
-    final decodedName = Uri.decodeComponent(item.id.split('/').last);
-    final baseName = decodedName.replaceAll(RegExp(r'-hires\.(flac|mp3)$'), '').replaceAll(RegExp(r'\.(flac|mp3)$'), '');
-
-    if (_lyricsCache.containsKey(songId)) {
+    if (LyricsService.hasCached(songId)) {
       setState(() {
-        _currentLyrics = _lyricsCache[songId]!;
+        _currentLyrics = LyricsService.getCached(songId)!;
         _isLoadingLyrics = false;
       });
       return;
@@ -145,396 +132,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _currentLyrics = [];
     });
 
-    try {
-      final docDir = await getApplicationDocumentsDirectory();
-      final localTtml = File('${docDir.path}/$baseName.ttml');
-      final localLrc = File('${docDir.path}/$baseName.lrc');
-      String lyricsContent = "";
-
-      if (localTtml.existsSync()) {
-        try {
-          lyricsContent = await localTtml.readAsString();
-        } catch (e) {
-          localTtml.deleteSync();
-        }
-      } else if (localLrc.existsSync()) {
-        try {
-          lyricsContent = await localLrc.readAsString();
-          // Purge de sécurité si un cache local contient les mauvaises paroles (ex: Afro Trap 11 avec les paroles de Part 7)
-          if (baseName.contains('11') && lyricsContent.toLowerCase().contains('puissance')) {
-            lyricsContent = "";
-            localLrc.deleteSync();
-          }
-        } catch (e) {
-          localLrc.deleteSync();
-        }
-      }
-
-      if (lyricsContent.contains('<!DOCTYPE')) {
-        lyricsContent = "";
-      }
-
-      final bool hasWordSync = lyricsContent.contains('<');
-
-      if (lyricsContent.isEmpty || !hasWordSync) {
-        // 1. Essai de téléchargement du fichier officiel Apple Music .ttml
-        try {
-          final ttmlUrl = Uri.parse('${ApiConfig.baseUrl}/${Uri.encodeComponent('$baseName.ttml')}');
-          final ttmlRes = await http.get(ttmlUrl).timeout(const Duration(seconds: 3));
-          if (ttmlRes.statusCode == 200 && ttmlRes.bodyBytes.isNotEmpty && !ttmlRes.body.contains('<!DOCTYPE')) {
-            lyricsContent = utf8.decode(ttmlRes.bodyBytes);
-            await localTtml.writeAsString(lyricsContent);
-          }
-        } catch (_) {}
-
-        // 2. Si pas de .ttml, téléchargement du fichier .lrc
-        if (lyricsContent.isEmpty || !lyricsContent.contains('<')) {
-          try {
-            final lrcUrl = Uri.parse('${ApiConfig.baseUrl}/${Uri.encodeComponent('$baseName.lrc')}');
-            final response = await http.get(lrcUrl).timeout(const Duration(seconds: 5));
-            if (response.statusCode == 200 && response.bodyBytes.isNotEmpty && !response.body.contains('<!DOCTYPE')) {
-              String downloaded = "";
-              try {
-                downloaded = utf8.decode(response.bodyBytes);
-              } catch (_) {
-                downloaded = latin1
-                    .decode(response.bodyBytes)
-                    .replaceAll('\u009C', 'œ')
-                    .replaceAll('\u008C', 'Œ')
-                    .replaceAll('\u0092', '’');
-              }
-              if (downloaded.isNotEmpty) {
-                lyricsContent = downloaded;
-                await localLrc.writeAsString(lyricsContent);
-              }
-            }
-          } catch (_) {}
-        }
-      }
-
-      if (!mounted || _lastSongId != songId) return;
-      if (lyricsContent.isNotEmpty) {
-        _parseLRC(lyricsContent, songId);
-        return;
-      }
-    } catch (e) {
-      debugPrint("Erreur de récupération des paroles: $e");
-    }
-
+    final lyrics = await LyricsService.fetchLyrics(item);
     if (mounted && _lastSongId == songId) {
       setState(() {
-        _currentLyrics = [
-          LyricLine(
-            time: Duration.zero,
-            text: "Paroles indisponibles pour ce titre",
-          ),
-        ];
-        _isLoadingLyrics = false;
-      });
-    }
-  }
-
-  final Map<String, List<LyricLine>> _lyricsCache = {};
-
-  void _parseLRC(String lrcContent, String songId) {
-    if (!mounted || _lastSongId != songId) return;
-    final parsedLines = LyricsParser.parse(lrcContent);
-    if (mounted && _lastSongId == songId) {
-      _lyricsCache[songId] = parsedLines;
-      setState(() {
-        _currentLyrics = parsedLines;
+        _currentLyrics = lyrics;
         _isLoadingLyrics = false;
       });
     }
   }
 
   Future<void> _checkForUpdates() async {
-    // Les mises à jour directes par APK sont réservées à Android. Sur iOS, les MAJ passent par TestFlight / App Store.
-    if (!Platform.isAndroid) return;
-
-    try {
-      final response = await http
-          .get(
-            Uri.parse(
-              '${ApiConfig.baseUrl}/version.json?t=${DateTime.now().millisecondsSinceEpoch}',
-            ),
-          )
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        String decodedBody;
-        try {
-          decodedBody = utf8.decode(response.bodyBytes);
-        } catch (e) {
-          decodedBody = latin1.decode(response.bodyBytes);
-        }
-        Map<String, dynamic>? data;
-        try {
-          data = jsonDecode(decodedBody) as Map<String, dynamic>;
-        } catch (_) {
-          // Fallback avec regex si le JSON contient des guillemets non échappés dans releaseNotes
-          final versionMatch = RegExp(r'"version"\s*:\s*"([^"]+)"').firstMatch(decodedBody);
-          final buildMatch = RegExp(r'"buildNumber"\s*:\s*(\d+)').firstMatch(decodedBody);
-          final downloadMatch = RegExp(r'"downloadUrl"\s*:\s*"([^"]+)"').firstMatch(decodedBody);
-          final notesMatch = RegExp(r'"releaseNotes"\s*:\s*"(.*)"\s*\}', dotAll: true).firstMatch(decodedBody);
-
-          if (versionMatch != null && buildMatch != null) {
-            data = {
-              'version': versionMatch.group(1),
-              'buildNumber': int.tryParse(buildMatch.group(1)!) ?? 0,
-              'downloadUrl': downloadMatch?.group(1),
-              'releaseNotes': notesMatch?.group(1),
-            };
-          }
-        }
-
-        if (data == null) return;
-
-        final serverVersion = (data['version'] as String?) ?? 'Nouvelle version';
-        final serverBuild = (data['buildNumber'] as int?) ?? 0;
-
-        final packageInfo = await PackageInfo.fromPlatform();
-        final localBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-
-        if (serverBuild > localBuild) {
-          if (mounted) {
-            String downloadUrl = (data['downloadUrl'] as String?) ??
-                '${ApiConfig.baseUrl}/app-release.apk';
-            // S'assurer que le téléchargement passe en HTTPS
-            if (downloadUrl.startsWith('http://164.132.104.67')) {
-              downloadUrl = downloadUrl.replaceFirst(
-                'http://164.132.104.67',
-                'https://musicality.duckdns.org',
-              );
-            }
-
-            _showUpdateDialog(
-              serverVersion: serverVersion,
-              releaseNotes:
-                  data['releaseNotes'] ?? 'Nouvelle version disponible !',
-              downloadUrl: downloadUrl,
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Impossible de vérifier les mises à jour : $e");
-    }
-  }
-
-  void _showUpdateDialog({
-    required String serverVersion,
-    required String releaseNotes,
-    required String downloadUrl,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return UpdateDialog(
-          serverVersion: serverVersion,
-          releaseNotes: releaseNotes,
-          downloadUrl: downloadUrl,
-        );
-      },
-    );
-  }
-
-  Future<void> _scanLocalFiles() async {
-    final docDir = await getApplicationDocumentsDirectory();
-    final Set<String> localIds = {};
-    for (var item in globalPlaylist) {
-      final safeName = item.id.split('/').last.replaceAll('.flac', '');
-      final hiResFile = File('${docDir.path}/$safeName-hires.flac');
-      final flacFile = File('${docDir.path}/$safeName.flac');
-      final mp3File = File('${docDir.path}/$safeName.mp3');
-
-      if (hiResFile.existsSync() ||
-          flacFile.existsSync() ||
-          mp3File.existsSync()) {
-        localIds.add(item.id);
-      }
-    }
-    setState(() {
-      _downloadedSongs.addAll(localIds);
-    });
-  }
-
-  Future<void> _toggleDownload(MediaItem item) async {
-    final docDir = await getApplicationDocumentsDirectory();
-    final safeName = item.id.split('/').last.replaceAll('.flac', '');
-
-    final localHiRes = File('${docDir.path}/$safeName-hires.flac');
-    final localFlac = File('${docDir.path}/$safeName.flac');
-    final localMp3 = File('${docDir.path}/$safeName.mp3');
-
-    final cacheHiRes = File('${docDir.path}/cache/$safeName-hires.flac');
-    final cacheFlac = File('${docDir.path}/cache/$safeName.flac');
-    final cacheMp3 = File('${docDir.path}/cache/$safeName.mp3');
-
-    bool wantHiRes = isDownloadHiResNotifier.value;
-    bool wantFlac = isDownloadLosslessNotifier.value;
-    bool hasFlac = item.extras?['hasFlac'] as bool? ?? true;
-    bool hasHiRes = item.extras?['hasHiRes'] as bool? ?? false;
-
-    bool targetHiRes = false;
-    bool targetFlac = false;
-
-    if (wantHiRes && hasHiRes) {
-      targetHiRes = true;
-    } else if ((wantHiRes || wantFlac) && hasFlac) {
-      targetFlac = true;
-    }
-
-    bool hasLocalHiRes = localHiRes.existsSync();
-    bool hasLocalFlac = localFlac.existsSync();
-    bool hasLocalMp3 = localMp3.existsSync();
-
-    int targetQuality = targetHiRes ? 3 : (targetFlac ? 2 : 1);
-    int currentQuality = hasLocalHiRes ? 3 : (hasLocalFlac ? 2 : (hasLocalMp3 ? 1 : 0));
-
-    bool needsUpgrade = (currentQuality > 0) && (targetQuality > currentQuality);
-
-    bool downloadHiRes = targetHiRes;
-    bool downloadFlac = targetFlac;
-
-    if (_downloadedSongs.contains(item.id) && !needsUpgrade) {
-      if (localHiRes.existsSync()) localHiRes.deleteSync();
-      if (localFlac.existsSync()) localFlac.deleteSync();
-      if (localMp3.existsSync()) localMp3.deleteSync();
-
-      setState(() {
-        _downloadedSongs.remove(item.id);
-      });
-
-      if (globalAudioHandler is MyAudioHandler) {
-        (globalAudioHandler as MyAudioHandler).updateSourceForId(item.id);
-      }
-    } else {
-      if (_downloadingSongs.contains(item.id)) return;
-      
-      if (needsUpgrade) {
-        if (localHiRes.existsSync()) localHiRes.deleteSync();
-        if (localFlac.existsSync()) localFlac.deleteSync();
-        if (localMp3.existsSync()) localMp3.deleteSync();
-        setState(() {
-          _downloadedSongs.remove(item.id);
-        });
-      }
-
-      setState(() {
-        _downloadingSongs.add(item.id);
-      });
-
-      try {
-        String downloadUrl;
-        File fileToSave;
-        File candidateCache;
-
-        if (downloadHiRes) {
-          downloadUrl = item.id.replaceAll('.flac', '-hires.flac');
-          fileToSave = localHiRes;
-          candidateCache = cacheHiRes;
-          // Si téléchargement en Hi-Res, suppression automatique des caches de qualité inférieure
-          if (cacheFlac.existsSync()) {
-            try {
-              cacheFlac.deleteSync();
-            } catch (_) {}
-          }
-          if (cacheMp3.existsSync()) {
-            try {
-              cacheMp3.deleteSync();
-            } catch (_) {}
-          }
-        } else if (downloadFlac) {
-          downloadUrl = item.id;
-          fileToSave = localFlac;
-          if (cacheHiRes.existsSync()) {
-            candidateCache = cacheHiRes;
-            fileToSave = localHiRes;
-          } else {
-            candidateCache = cacheFlac;
-          }
-          // Si téléchargement en FLAC, suppression automatique du cache MP3 inférieur
-          if (cacheMp3.existsSync()) {
-            try {
-              cacheMp3.deleteSync();
-            } catch (_) {}
-          }
-        } else {
-          downloadUrl = item.id.replaceAll('.flac', '.mp3');
-          fileToSave = localMp3;
-          candidateCache = cacheMp3;
-        }
-
-        bool extractedFromCache = false;
-
-        // Extraction intelligente depuis le cache sans réseau si le fichier est complet
-        if (candidateCache.existsSync()) {
-          try {
-            final client = HttpClient()
-              ..connectionTimeout = const Duration(seconds: 3);
-            final headReq = await client.headUrl(Uri.parse(downloadUrl.replaceAll('#', '%23')));
-            final headRes = await headReq.close();
-            final expectedLength = headRes.contentLength;
-
-            if (expectedLength > 0 &&
-                candidateCache.lengthSync() >= expectedLength) {
-              await candidateCache.copy(fileToSave.path);
-              try {
-                candidateCache.deleteSync();
-              } catch (_) {}
-              extractedFromCache = true;
-            }
-          } catch (_) {
-            if (candidateCache.lengthSync() > 3 * 1024 * 1024) {
-              await candidateCache.copy(fileToSave.path);
-              try {
-                candidateCache.deleteSync();
-              } catch (_) {}
-              extractedFromCache = true;
-            }
-          }
-        }
-
-        // Si non extrait du cache (fichier absent ou partiel), téléchargement réseau
-        if (!extractedFromCache) {
-          if (candidateCache.existsSync()) {
-            try {
-              candidateCache.deleteSync();
-            } catch (_) {}
-          }
-
-          final client = HttpClient();
-          final request = await client.getUrl(Uri.parse(downloadUrl.replaceAll('#', '%23')));
-          final response = await request.close();
-          await response.pipe(fileToSave.openWrite());
-        }
-
-        if (fileToSave == localHiRes) {
-          if (localFlac.existsSync()) localFlac.deleteSync();
-          if (localMp3.existsSync()) localMp3.deleteSync();
-        } else if (fileToSave == localFlac) {
-          if (localHiRes.existsSync()) localHiRes.deleteSync();
-          if (localMp3.existsSync()) localMp3.deleteSync();
-        } else {
-          if (localHiRes.existsSync()) localHiRes.deleteSync();
-          if (localFlac.existsSync()) localFlac.deleteSync();
-        }
-
-        setState(() {
-          _downloadingSongs.remove(item.id);
-          _downloadedSongs.add(item.id);
-        });
-
-        if (globalAudioHandler is MyAudioHandler) {
-          (globalAudioHandler as MyAudioHandler).updateSourceForId(item.id);
-        }
-      } catch (e) {
-        debugPrint("Erreur téléchargement: $e");
-        setState(() {
-          _downloadingSongs.remove(item.id);
-        });
-      }
+    final updateInfo = await AppUpdateService.checkForUpdates();
+    if (updateInfo != null && mounted) {
+      AppUpdateService.showUpdateDialog(context, updateInfo);
     }
   }
 
@@ -901,53 +511,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             final playing =
                                                 playbackState?.playing ?? false;
 
-                                            final isDownloaded =
-                                                _downloadedSongs.contains(
-                                                  safeItem.id,
-                                                );
-                                            final isDownloading =
-                                                _downloadingSongs.contains(
-                                                  safeItem.id,
-                                                );
-
                                             return ListenableBuilder(
                                               listenable: Listenable.merge([
                                                 isLiquidGlassEnabledNotifier,
                                                 isDownloadHiResNotifier,
                                                 isDownloadLosslessNotifier,
+                                                SongDownloadService.downloadedSongsNotifier,
+                                                SongDownloadService.downloadingSongsNotifier,
                                               ]),
                                               builder: (context, _) {
-                                                bool isLiquidGlass = isLiquidGlassEnabledNotifier.value;
-                                                bool needsUpgrade = false;
-                                                if (isDownloaded) {
-                                                  final safeNameForUp = safeItem.id.split('/').last.replaceAll('.flac', '');
-                                                  final File localHiResUp = File('$globalDocumentPath/$safeNameForUp-hires.flac');
-                                                  final File localFlacUp = File('$globalDocumentPath/$safeNameForUp.flac');
-                                                  final File localMp3Up = File('$globalDocumentPath/$safeNameForUp.mp3');
-                                                  
-                                                  bool wantHiResUp = isDownloadHiResNotifier.value;
-                                                  bool wantFlacUp = isDownloadLosslessNotifier.value;
-                                                  bool itemHasHiRes = safeItem.extras?['hasHiRes'] as bool? ?? false;
-                                                  bool itemHasFlac = safeItem.extras?['hasFlac'] as bool? ?? true;
-                                                  
-                                                  bool targetHiRes = false;
-                                                  bool targetFlac = false;
-                                                  
-                                                  if (wantHiResUp && itemHasHiRes) {
-                                                    targetHiRes = true;
-                                                  } else if ((wantHiResUp || wantFlacUp) && itemHasFlac) {
-                                                    targetFlac = true;
-                                                  }
-                                                  
-                                                  bool hasLocalHiRes = localHiResUp.existsSync();
-                                                  bool hasLocalFlac = localFlacUp.existsSync();
-                                                  bool hasLocalMp3 = localMp3Up.existsSync();
-                                                  
-                                                  int targetQuality = targetHiRes ? 3 : (targetFlac ? 2 : 1);
-                                                  int currentQuality = hasLocalHiRes ? 3 : (hasLocalFlac ? 2 : (hasLocalMp3 ? 1 : 0));
-                                                  
-                                                  needsUpgrade = (currentQuality > 0) && (targetQuality > currentQuality);
-                                                }
+                                                final bool isLiquidGlass = isLiquidGlassEnabledNotifier.value;
+                                                final bool isDownloaded = SongDownloadService.isDownloaded(safeItem.id);
+                                                final bool isDownloading = SongDownloadService.isDownloading(safeItem.id);
+                                                final bool needsUpgrade = SongDownloadService.checkNeedsUpgrade(safeItem);
                                                 return AnimatedPositioned(
                                                   key: _miniPlayerKey,
                                                   duration: transitionDuration,
@@ -1106,7 +682,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                     ? Colors.white
                                                                                     : Colors.white70,
                                                                                 onPressed: () {
-                                                                                  _toggleDownload(
+                                                                                  SongDownloadService.toggleDownload(
                                                                                     safeItem,
                                                                                   );
                                                                                 },
@@ -1820,181 +1396,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                     const SizedBox.expand(),
                                                               ),
                                                             ),
-                                                        Align(
-                                                          alignment: Alignment
-                                                              .topCenter,
-                                                          child: MediaQuery.removePadding(
-                                                            context: context,
-                                                            removeBottom: true,
-                                                            child: Theme(
-                                                              data:
-                                                                  Theme.of(
-                                                                    context,
-                                                                  ).copyWith(
-                                                                    splashColor:
-                                                                        Colors
-                                                                            .transparent,
-                                                                    highlightColor:
-                                                                        Colors
-                                                                            .transparent,
-                                                                  ),
-                                                              child: StreamBuilder<User?>(
-                                                                stream: FirebaseAuth
-                                                                    .instance
-                                                                    .authStateChanges(),
-                                                                builder:
-                                                                    (
-                                                                      context,
-                                                                      authSnapshot,
-                                                                    ) {
-                                                                      final user =
-                                                                          authSnapshot
-                                                                              .data;
-
-                                                                      return ValueListenableBuilder<
-                                                                        String?
-                                                                      >(
-                                                                        valueListenable:
-                                                                            userProfileImageNotifier,
-                                                                        builder:
-                                                                            (
-                                                                              context,
-                                                                              localImagePath,
-                                                                              _,
-                                                                            ) {
-                                                                              // Logique de l'icône (Locale > Google > Défaut)
-                                                                              final hasLocalImage =
-                                                                                  localImagePath !=
-                                                                                      null &&
-                                                                                  localImagePath.isNotEmpty &&
-                                                                                  File(
-                                                                                    localImagePath,
-                                                                                  ).existsSync();
-                                                                              final hasGoogleImage =
-                                                                                  user !=
-                                                                                      null &&
-                                                                                  user.photoURL !=
-                                                                                      null;
-
-                                                                              final cachedGoogleAvatar = File(
-                                                                                '$globalDocumentPath/cached_google_avatar.jpg',
-                                                                              );
-                                                                              final hasCachedGoogle = cachedGoogleAvatar.existsSync();
-
-                                                                              Widget
-                                                                              accountIcon;
-                                                                              if (hasLocalImage) {
-                                                                                accountIcon = ClipOval(
-                                                                                  child: Image.file(
-                                                                                    File(
-                                                                                      localImagePath,
-                                                                                    ),
-                                                                                    width: 24,
-                                                                                    height: 24,
-                                                                                    fit: BoxFit.cover,
-                                                                                  ),
-                                                                                );
-                                                                              } else if (hasCachedGoogle) {
-                                                                                accountIcon = ClipOval(
-                                                                                  child: Image.file(
-                                                                                    cachedGoogleAvatar,
-                                                                                    width: 24,
-                                                                                    height: 24,
-                                                                                    fit: BoxFit.cover,
-                                                                                  ),
-                                                                                );
-                                                                              } else if (hasGoogleImage) {
-                                                                                accountIcon = ClipOval(
-                                                                                  child: Image.network(
-                                                                                    user.photoURL!,
-                                                                                    width: 24,
-                                                                                    height: 24,
-                                                                                    fit: BoxFit.cover,
-                                                                                    errorBuilder:
-                                                                                        (
-                                                                                          context,
-                                                                                          error,
-                                                                                          stackTrace,
-                                                                                        ) => const Icon(
-                                                                                          CupertinoIcons.person_fill,
-                                                                                          size: 24,
-                                                                                        ),
-                                                                                  ),
-                                                                                );
-                                                                              } else {
-                                                                                accountIcon = const Icon(
-                                                                                  CupertinoIcons.person_alt_circle,
-                                                                                );
-                                                                              }
-
-                                                                              return BottomNavigationBar(
-                                                                                backgroundColor: Colors.transparent,
-                                                                                elevation: 0,
-                                                                                selectedItemColor: Colors.white,
-                                                                                unselectedItemColor: Colors.white54,
-                                                                                selectedFontSize: 11,
-                                                                                unselectedFontSize: 11,
-                                                                                type: BottomNavigationBarType.fixed,
-                                                                                currentIndex: _currentIndex,
-                                                                                onTap:
-                                                                                    (
-                                                                                      index,
-                                                                                    ) {
-                                                                                      FocusScope.of(
-                                                                                        context,
-                                                                                      ).unfocus();
-                                                                                      setState(
-                                                                                        () {
-                                                                                          _currentIndex = index;
-                                                                                        },
-                                                                                      );
-                                                                                      _mainPageController.animateToPage(
-                                                                                        index,
-                                                                                        duration: const Duration(
-                                                                                          milliseconds: 400,
-                                                                                        ),
-                                                                                        curve: Curves.fastOutSlowIn,
-                                                                                      );
-                                                                                    },
-                                                                                items: [
-                                                                                  const BottomNavigationBarItem(
-                                                                                    icon: Icon(
-                                                                                      Icons.home,
-                                                                                    ),
-                                                                                    label: 'Accueil',
-                                                                                  ),
-                                                                                  const BottomNavigationBarItem(
-                                                                                    icon: Icon(
-                                                                                      CupertinoIcons.person_2_fill,
-                                                                                    ),
-                                                                                    label: 'Artistes',
-                                                                                  ),
-                                                                                  const BottomNavigationBarItem(
-                                                                                    icon: Icon(
-                                                                                      CupertinoIcons.music_note,
-                                                                                    ),
-                                                                                    label: 'Musiques',
-                                                                                  ),
-                                                                                  const BottomNavigationBarItem(
-                                                                                    icon: Icon(
-                                                                                      CupertinoIcons.heart_fill,
-                                                                                    ),
-                                                                                    label: 'Bibliothèque',
-                                                                                  ),
-                                                                                  // 👇 L'ICÔNE DYNAMIQUE EST ICI 👇
-                                                                                  BottomNavigationBarItem(
-                                                                                    icon: accountIcon,
-                                                                                    label: 'Compte',
-                                                                                  ),
-                                                                                ],
-                                                                              );
-                                                                            },
-                                                                      );
-                                                                    },
+                                                        MusicalityBottomNavBar(
+                                                          currentIndex: _currentIndex,
+                                                          onTap: (index) {
+                                                            FocusScope.of(context).unfocus();
+                                                            setState(() {
+                                                              _currentIndex = index;
+                                                            });
+                                                            _mainPageController.animateToPage(
+                                                              index,
+                                                              duration: const Duration(
+                                                                milliseconds: 400,
                                                               ),
-                                                              // --- FIN DE LA NOUVELLE BARRE DE NAVIGATION ---
-                                                            ),
-                                                          ),
+                                                              curve: Curves.fastOutSlowIn,
+                                                            );
+                                                          },
                                                         ),
                                                       ],
                                                     ),
