@@ -249,6 +249,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _checkForUpdates() async {
+    // Les mises à jour directes par APK sont réservées à Android. Sur iOS, les MAJ passent par TestFlight / App Store.
+    if (!Platform.isAndroid) return;
+
     try {
       final response = await http
           .get(

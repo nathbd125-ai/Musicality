@@ -238,6 +238,9 @@ class _AccountPageViewState extends State<AccountPageView> {
                               await googleSignIn.initialize(
                                 serverClientId:
                                     '154016653293-0f6vgsqeacs4kneqr0bsfplropbb2gvs.apps.googleusercontent.com',
+                                clientId: Platform.isIOS
+                                    ? '154016653293-pflk08mmpvoglsm04ennrvj9u4itut49.apps.googleusercontent.com'
+                                    : null,
                               );
 
                               final googleAccount = await googleSignIn
@@ -295,6 +298,61 @@ class _AccountPageViewState extends State<AccountPageView> {
                           ),
                         ),
                       ),
+
+                      // --- LE BOUTON APPLE (OBLIGATOIRE SUR IOS SELON LES RÈGLES APP STORE) ---
+                      if (Platform.isIOS) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: CupertinoButton(
+                            color: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            onPressed: () async {
+                              try {
+                                final appleProvider = AppleAuthProvider();
+                                appleProvider.addScope('email');
+                                appleProvider.addScope('name');
+
+                                await FirebaseAuth.instance.signInWithProvider(
+                                  appleProvider,
+                                );
+                                await performCloudRestore();
+
+                                if (!mounted) return;
+                                _showSnackBar("Connexion Apple réussie !");
+
+                                if (dialogContext.mounted) {
+                                  Navigator.pop(dialogContext);
+                                }
+                              } catch (e) {
+                                if (!mounted) return;
+                                _showSnackBar(
+                                  "Erreur Apple : $e",
+                                  isError: true,
+                                );
+                              }
+                            },
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.apple,
+                                  color: Colors.black,
+                                  size: 26,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  "Continuer avec Apple",
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -83,5 +83,18 @@
         <!-- Autoriser l'accès à la galerie photo pour les pochettes de playlists -->
         <key>NSPhotoLibraryUsageDescription</key>
         <string>Musicality a besoin d'accéder à vos photos pour personnaliser vos playlists et votre profil.</string>
+
+        <!-- Configuration Google Sign-In pour iOS -->
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleTypeRole</key>
+                <string>Editor</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>com.googleusercontent.apps.154016653293-pflk08mmpvoglsm04ennrvj9u4itut49</string>
+                </array>
+            </dict>
+        </array>
     </dict>
 </plist>
