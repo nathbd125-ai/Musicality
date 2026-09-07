@@ -1,0 +1,208 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "1:8632908835836996955",
+      "lastPropertyId": "4:6081268516144066571",
+      "name": "ArtistScoreEntity",
+      "properties": [
+        {
+          "id": "1:8075099286635864020",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:1364604299991801962",
+          "name": "artist",
+          "indexId": "1:108281488429462901",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:5587424284888047123",
+          "name": "score",
+          "type": 6
+        },
+        {
+          "id": "4:6081268516144066571",
+          "name": "listeningTimeSeconds",
+          "type": 6
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "2:3314733562263411748",
+      "lastPropertyId": "2:528618893913277280",
+      "name": "LikedSongEntity",
+      "properties": [
+        {
+          "id": "1:1260222917979696202",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:528618893913277280",
+          "name": "songId",
+          "indexId": "2:189957034368685619",
+          "type": 9,
+          "flags": 2080
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "3:3162607642279285744",
+      "lastPropertyId": "3:127138895229558762",
+      "name": "PlayCountEntity",
+      "properties": [
+        {
+          "id": "1:3575194204395196104",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7426645639815148079",
+          "name": "songId",
+          "indexId": "3:1390977040743255012",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:127138895229558762",
+          "name": "count",
+          "type": 6
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "4:215814196929102299",
+      "lastPropertyId": "3:1474523494619023276",
+      "name": "PlaylistEntity",
+      "properties": [
+        {
+          "id": "1:1230337618724078588",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:673691709699598858",
+          "name": "name",
+          "indexId": "4:7355379647484401323",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:1474523494619023276",
+          "name": "imagePath",
+          "type": 9
+        }
+      ],
+      "relations": [
+        {
+          "id": "1:8704535822728462939",
+          "name": "songs",
+          "targetId": "6:1311467324580566175"
+        }
+      ]
+    },
+    {
+      "id": "5:3291702195195788920",
+      "lastPropertyId": "3:2865170068010330566",
+      "name": "SearchHistoryEntity",
+      "properties": [
+        {
+          "id": "1:1357237277273605675",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:208415122124100690",
+          "name": "query",
+          "type": 9
+        },
+        {
+          "id": "3:2865170068010330566",
+          "name": "timestamp",
+          "type": 6
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "6:1311467324580566175",
+      "lastPropertyId": "9:6293221523930204558",
+      "name": "SongEntity",
+      "properties": [
+        {
+          "id": "1:2704676496189655761",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:8581885044575556394",
+          "name": "songId",
+          "indexId": "5:80378336110315379",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:5450353782807221623",
+          "name": "title",
+          "type": 9
+        },
+        {
+          "id": "4:3966702646048308422",
+          "name": "artist",
+          "type": 9
+        },
+        {
+          "id": "5:5635055790770288773",
+          "name": "album",
+          "type": 9
+        },
+        {
+          "id": "6:2449868467259353053",
+          "name": "artUri",
+          "type": 9
+        },
+        {
+          "id": "7:6290243596636626650",
+          "name": "durationSeconds",
+          "type": 6
+        },
+        {
+          "id": "8:6348157095181649026",
+          "name": "hasFlac",
+          "type": 1
+        },
+        {
+          "id": "9:6293221523930204558",
+          "name": "hasHiRes",
+          "type": 1
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "lastEntityId": "6:1311467324580566175",
+  "lastIndexId": "5:80378336110315379",
+  "lastRelationId": "1:8704535822728462939",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [],
+  "retiredIndexUids": [],
+  "retiredPropertyUids": [],
+  "retiredRelationUids": [],
+  "version": 1
+}

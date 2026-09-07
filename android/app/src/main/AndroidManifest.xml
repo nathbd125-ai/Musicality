@@ -8,11 +8,30 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Indique à Android que l'app peut tirer parti de Vulkan quand disponible -->
+    <uses-feature
+        android:name="android.hardware.vulkan.version"
+        android:version="0x400003"
+        android:required="false" />
+
+    <!-- Nécessaire pour url_launcher sur Android 11+ (API 30+) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
+
     <application
         android:label="musicality"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true"
+        tools:replace="android:label,android:icon"
         tools:ignore="MissingClass">
 
         <activity
@@ -35,6 +54,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Active le moteur graphique Impeller (backend Vulkan par défaut sur Android) -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="true" />
+
         <!-- Meta-data obligatoire pour les plugins Flutter -->
         <meta-data
             android:name="flutterEmbedding"
@@ -44,6 +68,7 @@
         <service android:name="com.ryanheise.audioservice.AudioService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="true"
+            tools:replace="android:foregroundServiceType,android:exported"
             tools:ignore="Instantiable,MissingClass"> <!-- Fait taire l'erreur sur AudioService -->
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
@@ -53,6 +78,7 @@
         <!-- Le récepteur pour capter les boutons des casques/écouteurs bluetooth -->
         <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
             android:exported="true"
+            tools:replace="android:exported"
             tools:ignore="Instantiable,MissingClass"> <!-- Fait taire l'erreur sur MediaButtonReceiver -->
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />

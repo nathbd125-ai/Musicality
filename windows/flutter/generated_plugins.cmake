@@ -8,6 +8,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_auth
   firebase_core
   mmkv_win32
+  objectbox_flutter_libs
   url_launcher_windows
 )
 
