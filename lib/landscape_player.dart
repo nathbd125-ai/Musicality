@@ -1,7 +1,6 @@
 import 'package:musicality/ui/widgets/hyper_os_slider.dart';
 import 'package:musicality/core/models.dart';
-import 'package:musicality/core/lyrics_service.dart';
-import 'package:musicality/core/song_download_service.dart';
+import 'package:musicality/core/globals.dart';
 
 import 'dart:async';
 import 'dart:io';
@@ -40,36 +39,109 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
   late AnimationController _visualizerController;
   Waveform? _waveform;
   StreamSubscription<MediaItem?>? _mediaItemSub;
+  StreamSubscription<PositionData>? _positionSub;
+  StreamSubscription<PlaybackState>? _playbackSub;
   MediaItem? _currentItem;
   List<LyricLine> _currentLyrics = [];
+  late List<Color> _currentThemeColors;
+
+  final ValueNotifier<Duration> _positionNotifier =
+      ValueNotifier<Duration>(Duration.zero);
+  final ValueNotifier<int> _activeIndexNotifier = ValueNotifier<int>(-1);
+  Duration _lastKnownPosition = Duration.zero;
+  DateTime _lastPositionUpdate = DateTime.now();
+  bool _isPlaying = false;
+
+  bool get _hasNoLyrics {
+    if (_currentLyrics.isEmpty) return true;
+    if (_currentLyrics.length == 1) {
+      final text = _currentLyrics.first.text.trim().toLowerCase();
+      if (text.contains('indisponible') ||
+          text.contains('pas de parole') ||
+          text.contains('instrumental') ||
+          text.isEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   @override
   void initState() {
     super.initState();
     _currentItem = widget.item;
     _currentLyrics = widget.lyrics;
+    _currentThemeColors = widget.themeColors;
+
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeRight,
       DeviceOrientation.landscapeLeft,
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
     _visualizerController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
     )..repeat();
+    _visualizerController.addListener(_onVisualizerTick);
+
     _extractWaveform(widget.localFilePath);
+
+    _playbackSub = widget.audioHandler.playbackState.listen((state) {
+      _isPlaying = state.playing;
+    });
+
+    _positionSub = widget.positionStream.listen((data) {
+      _lastKnownPosition = data.position;
+      _lastPositionUpdate = DateTime.now();
+      _positionNotifier.value = data.position;
+      _updateActiveIndex(data.position);
+    });
 
     _mediaItemSub = widget.audioHandler.mediaItem.listen((item) {
       if (item != null && item.id != _currentItem?.id) {
         if (mounted) {
           setState(() {
             _currentItem = item;
+            _currentThemeColors = getAlbumGradientColors(item);
           });
+          _activeIndexNotifier.value = -1;
           _extractWaveform(SongDownloadService.getLocalFilePath(item));
           _loadLyrics(item);
         }
       }
     });
+  }
+
+  void _onVisualizerTick() {
+    if (_isPlaying && !_hasNoLyrics) {
+      final elapsed = DateTime.now().difference(_lastPositionUpdate);
+      final current = _lastKnownPosition + elapsed;
+      _positionNotifier.value = current;
+      _updateActiveIndex(current);
+    }
+  }
+
+  void _updateActiveIndex(Duration position) {
+    if (_hasNoLyrics) {
+      if (_activeIndexNotifier.value != -1) {
+        _activeIndexNotifier.value = -1;
+      }
+      return;
+    }
+    int newIndex = -1;
+    for (int i = 0; i < _currentLyrics.length; i++) {
+      if (position >= _currentLyrics[i].time) {
+        if (i == _currentLyrics.length - 1 ||
+            position < _currentLyrics[i + 1].time) {
+          newIndex = i;
+          break;
+        }
+      }
+    }
+    if (_activeIndexNotifier.value != newIndex) {
+      _activeIndexNotifier.value = newIndex;
+    }
   }
 
   Future<void> _loadLyrics(MediaItem item) async {
@@ -79,6 +151,7 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
         setState(() {
           _currentLyrics = cached;
         });
+        _updateActiveIndex(_positionNotifier.value);
       }
       return;
     }
@@ -87,12 +160,18 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
       setState(() {
         _currentLyrics = lyrics;
       });
+      _updateActiveIndex(_positionNotifier.value);
     }
   }
 
   @override
   void dispose() {
+    _visualizerController.removeListener(_onVisualizerTick);
     _mediaItemSub?.cancel();
+    _positionSub?.cancel();
+    _playbackSub?.cancel();
+    _positionNotifier.dispose();
+    _activeIndexNotifier.dispose();
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -374,49 +453,57 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
             alignment: Alignment.center,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 100),
-                child: _currentLyrics.isEmpty
-                    ? const Center(
+                padding: const EdgeInsets.symmetric(horizontal: 80),
+                child: _hasNoLyrics
+                    ? Center(
+                        key: const ValueKey('no_lyrics'),
                         child: Text(
-                          "Instrumental",
-                          style: TextStyle(color: Colors.white54, fontSize: 24),
+                          _currentLyrics.isNotEmpty
+                              ? _currentLyrics.first.text
+                              : "Instrumental",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _getUnlitColor(_currentThemeColors)
+                                .withValues(alpha: 0.8),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       )
-                    : StreamBuilder<PositionData>(
-                        stream: widget.positionStream,
-                        builder: (context, snapshot) {
-                          final position =
-                              snapshot.data?.position ?? Duration.zero;
-                          String currentLine = "";
-                          for (int i = 0; i < _currentLyrics.length; i++) {
-                            if (position >= _currentLyrics[i].time) {
-                              if (i == _currentLyrics.length - 1 ||
-                                  position < _currentLyrics[i + 1].time) {
-                                currentLine = _currentLyrics[i].text;
-                                break;
-                              }
-                            }
-                          }
+                    : ValueListenableBuilder<int>(
+                        valueListenable: _activeIndexNotifier,
+                        builder: (context, activeIndex, _) {
+                          final LyricLine? activeLine = (activeIndex >= 0 &&
+                                  activeIndex < _currentLyrics.length)
+                              ? _currentLyrics[activeIndex]
+                              : null;
+
+                          final glowColor = _currentThemeColors.isNotEmpty
+                              ? _currentThemeColors.first
+                              : Colors.cyanAccent;
+                          final unlitColor =
+                              _getUnlitColor(_currentThemeColors);
+
                           return AnimatedSwitcher(
                             duration: const Duration(milliseconds: 300),
                             transitionBuilder:
                                 (Widget child, Animation<double> animation) {
-                                  return FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  );
-                                },
-                            child: Text(
-                              currentLine,
-                              key: ValueKey<String>(currentLine),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 42,
-                                fontWeight: FontWeight.bold,
-                                height: 1.3,
-                              ),
-                            ),
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
+                            child: activeLine == null
+                                ? const SizedBox.shrink(
+                                    key: ValueKey<int>(-1),
+                                  )
+                                : _LandscapeLyricLineView(
+                                    key: ValueKey<int>(activeIndex),
+                                    line: activeLine,
+                                    positionNotifier: _positionNotifier,
+                                    glowColor: glowColor,
+                                    unlitColor: unlitColor,
+                                  ),
                           );
                         },
                       ),
@@ -528,9 +615,13 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
                                 position: position,
                                 duration: duration,
                                 onSeek: (target) {
+                                  _lastKnownPosition = target;
+                                  _lastPositionUpdate = DateTime.now();
+                                  _positionNotifier.value = target;
+                                  _updateActiveIndex(target);
                                   widget.audioHandler.seek(target);
                                 },
-                                gradientColors: widget.themeColors,
+                                gradientColors: _currentThemeColors,
                               );
                             },
                           ),
@@ -613,6 +704,330 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
           ),
         ],
       ),
+    );
+  }
+}
+
+List<Shadow> _buildGlowShadows(Color glowColor, double factor) {
+  if (isBatterySaverEnabledNotifier.value || factor <= 0.01) return const [];
+  final f = factor.clamp(0.0, 1.0);
+  return [
+    Shadow(
+      color: Colors.white.withValues(alpha: (f * 0.95).clamp(0.0, 1.0)),
+      blurRadius: (8.0 * f).clamp(0.1, 8.0),
+    ),
+    Shadow(
+      color: glowColor.withValues(alpha: (f * 0.85).clamp(0.0, 1.0)),
+      blurRadius: (20.0 * f).clamp(0.1, 20.0),
+    ),
+    Shadow(
+      color: glowColor.withValues(alpha: (f * 0.35).clamp(0.0, 1.0)),
+      blurRadius: (30.0 * f).clamp(0.1, 30.0),
+    ),
+  ];
+}
+
+Color _getUnlitColor(List<Color> themeColors) {
+  if (themeColors.isNotEmpty) {
+    return Color.lerp(themeColors.first, Colors.white, 0.45)!;
+  }
+  return Colors.white70;
+}
+
+double _calculateFontSize(String text) {
+  if (text.length > 55) return 28.0;
+  if (text.length > 35) return 34.0;
+  return 40.0;
+}
+
+class _LandscapeLyricLineView extends StatelessWidget {
+  final LyricLine line;
+  final ValueNotifier<Duration> positionNotifier;
+  final Color glowColor;
+  final Color unlitColor;
+
+  const _LandscapeLyricLineView({
+    super.key,
+    required this.line,
+    required this.positionNotifier,
+    required this.glowColor,
+    required this.unlitColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double fontSize = _calculateFontSize(line.text);
+    final bool hasWords = line.words.isNotEmpty;
+
+    if (hasWords) {
+      return RepaintBoundary(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          runAlignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: (fontSize * 0.26).clamp(8.0, 14.0),
+          runSpacing: 8.0,
+          children: List.generate(line.words.length, (index) {
+            final word = line.words[index];
+            return _LandscapeKaraokeWord(
+              key: ValueKey(word.start.inMilliseconds),
+              word: word,
+              positionNotifier: positionNotifier,
+              glowColor: glowColor,
+              unlitColor: unlitColor.withValues(alpha: 0.45),
+              fontSize: fontSize,
+            );
+          }),
+        ),
+      );
+    }
+
+    return _LandscapePlainLineView(
+      text: line.text,
+      glowColor: glowColor,
+      unlitColor: unlitColor,
+      fontSize: fontSize,
+    );
+  }
+}
+
+enum _WordState { unsung, singing, sung }
+
+class _LandscapeKaraokeWord extends StatefulWidget {
+  final LyricWord word;
+  final ValueNotifier<Duration> positionNotifier;
+  final Color glowColor;
+  final Color unlitColor;
+  final double fontSize;
+
+  const _LandscapeKaraokeWord({
+    super.key,
+    required this.word,
+    required this.positionNotifier,
+    required this.glowColor,
+    required this.unlitColor,
+    required this.fontSize,
+  });
+
+  @override
+  State<_LandscapeKaraokeWord> createState() => _LandscapeKaraokeWordState();
+}
+
+class _LandscapeKaraokeWordState extends State<_LandscapeKaraokeWord> {
+  _WordState _state = _WordState.unsung;
+  double _progress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateState(widget.positionNotifier.value, initial: true);
+    widget.positionNotifier.addListener(_onPositionChanged);
+  }
+
+  @override
+  void didUpdateWidget(_LandscapeKaraokeWord oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.positionNotifier != widget.positionNotifier) {
+      oldWidget.positionNotifier.removeListener(_onPositionChanged);
+      widget.positionNotifier.addListener(_onPositionChanged);
+      _updateState(widget.positionNotifier.value, initial: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.positionNotifier.removeListener(_onPositionChanged);
+    super.dispose();
+  }
+
+  void _onPositionChanged() {
+    _updateState(widget.positionNotifier.value);
+  }
+
+  void _updateState(Duration pos, {bool initial = false}) {
+    final start = widget.word.start;
+    final end = widget.word.end;
+
+    if (pos < start) {
+      if (_state != _WordState.unsung || initial) {
+        if (!initial && mounted) {
+          setState(() {
+            _state = _WordState.unsung;
+            _progress = 0.0;
+          });
+        } else {
+          _state = _WordState.unsung;
+          _progress = 0.0;
+        }
+      }
+    } else if (pos >= end) {
+      if (_state != _WordState.sung || initial) {
+        if (!initial && mounted) {
+          setState(() {
+            _state = _WordState.sung;
+            _progress = 1.0;
+          });
+        } else {
+          _state = _WordState.sung;
+          _progress = 1.0;
+        }
+      }
+    } else {
+      final elapsed = (pos - start).inMilliseconds;
+      final duration = (end - start).inMilliseconds.clamp(1, 10000);
+      final newProgress = (elapsed / duration).clamp(0.0, 1.0);
+      if (mounted) {
+        setState(() {
+          _state = _WordState.singing;
+          _progress = newProgress;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseTextStyle = TextStyle(
+      fontSize: widget.fontSize,
+      fontWeight: FontWeight.bold,
+      height: 1.3,
+    );
+
+    // 1. Mot non encore chanté : couleur unlit atténuée
+    if (_state == _WordState.unsung || _progress <= 0.005) {
+      return Text(
+        widget.word.text,
+        style: baseTextStyle.copyWith(color: widget.unlitColor),
+      );
+    }
+
+    // 2. Mot entièrement chanté : blanc éclatant avec aura lumineuse
+    if (_state == _WordState.sung || _progress >= 0.995) {
+      final shadows = _buildGlowShadows(widget.glowColor, 1.0);
+      return Text(
+        widget.word.text,
+        style: baseTextStyle.copyWith(
+          color: Colors.white,
+          shadows: shadows,
+        ),
+      );
+    }
+
+    // 3. Mot en cours de chant actif : balayage lumineux par gradient + ombre de lueur
+    final shadows = _buildGlowShadows(widget.glowColor, _progress);
+    final glowWidget = shadows.isNotEmpty
+        ? Text(
+            widget.word.text,
+            style: baseTextStyle.copyWith(
+              color: Colors.transparent,
+              shadows: shadows,
+            ),
+          )
+        : null;
+
+    final litWidget = Text(
+      widget.word.text,
+      style: baseTextStyle.copyWith(
+        color: Colors.white,
+        shadows: const [],
+      ),
+    );
+    final unlitWidget = Text(
+      widget.word.text,
+      style: baseTextStyle.copyWith(color: widget.unlitColor),
+    );
+
+    return Stack(
+      children: [
+        ?glowWidget,
+        unlitWidget,
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => LinearGradient(
+            colors: const [
+              Colors.white,
+              Colors.white,
+              Colors.transparent,
+              Colors.transparent,
+            ],
+            stops: [0.0, _progress, _progress, 1.0],
+          ).createShader(bounds),
+          child: litWidget,
+        ),
+      ],
+    );
+  }
+}
+
+class _LandscapePlainLineView extends StatefulWidget {
+  final String text;
+  final Color glowColor;
+  final Color unlitColor;
+  final double fontSize;
+
+  const _LandscapePlainLineView({
+    required this.text,
+    required this.glowColor,
+    required this.unlitColor,
+    required this.fontSize,
+  });
+
+  @override
+  State<_LandscapePlainLineView> createState() => _LandscapePlainLineViewState();
+}
+
+class _LandscapePlainLineViewState extends State<_LandscapePlainLineView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    )..forward();
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseTextStyle = TextStyle(
+      fontSize: widget.fontSize,
+      fontWeight: FontWeight.bold,
+      height: 1.3,
+    );
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        final progress = _animation.value;
+        final shadows = _buildGlowShadows(widget.glowColor, progress);
+        final color = Color.lerp(
+          widget.unlitColor.withValues(alpha: 0.55),
+          Colors.white,
+          progress,
+        )!;
+
+        return Text(
+          widget.text,
+          textAlign: TextAlign.center,
+          style: baseTextStyle.copyWith(
+            color: color,
+            shadows: shadows,
+          ),
+        );
+      },
     );
   }
 }
