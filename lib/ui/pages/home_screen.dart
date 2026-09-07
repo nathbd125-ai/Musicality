@@ -1011,6 +1011,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                     ),
                                                                                   )
                                                                                 : MusicalityLyricsView(
+                                                                                    key: ValueKey(safeItem.id),
+                                                                                    songId: safeItem.id,
                                                                                     lyrics: _currentLyrics,
                                                                                     positionStream: _positionDataStream,
                                                                                     themeColors: smoothThemeColors,

@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:ui';
 
 class MusicalityLyricsView extends StatefulWidget {
+  final String? songId;
   final List<LyricLine> lyrics;
   final Stream<PositionData> positionStream;
   final List<Color> themeColors;
@@ -14,6 +15,7 @@ class MusicalityLyricsView extends StatefulWidget {
 
   const MusicalityLyricsView({
     super.key,
+    this.songId,
     required this.lyrics,
     required this.positionStream,
     this.themeColors = const [Colors.purple, Colors.blue],
@@ -39,13 +41,27 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   DateTime _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
   bool _isPlaying = false;
 
+  bool get _hasNoLyrics {
+    if (widget.lyrics.isEmpty) return true;
+    if (widget.lyrics.length == 1) {
+      final text = widget.lyrics.first.text.trim().toLowerCase();
+      if (text.contains('indisponible') ||
+          text.contains('pas de parole') ||
+          text.contains('instrumental') ||
+          text.isEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
     _generateKeys();
 
     _ticker = createTicker((_) {
-      if (_isPlaying && widget.isExpanded) {
+      if (_isPlaying && widget.isExpanded && !_hasNoLyrics) {
         final elapsed = DateTime.now().difference(_lastPositionUpdate);
         final current = _lastKnownPosition + elapsed;
         _positionNotifier.value = current;
@@ -57,17 +73,35 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     }
 
     _listenToPosition();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0.0);
+      }
+    });
   }
 
   @override
   void didUpdateWidget(MusicalityLyricsView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.lyrics != widget.lyrics) {
+    final bool songChanged = oldWidget.songId != widget.songId;
+    final bool lyricsChanged = oldWidget.lyrics != widget.lyrics;
+
+    if (songChanged || lyricsChanged) {
+      _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
       _activeIndexNotifier.value = -1;
+      _lastKnownPosition = Duration.zero;
+      _lastPositionUpdate = DateTime.now();
+      _positionNotifier.value = Duration.zero;
       _generateKeys();
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(0.0);
       }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0.0);
+        }
+      });
       setState(() {});
     }
 
@@ -78,7 +112,9 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
         } else {
           _ticker.muted = false;
         }
-        if (_activeIndexNotifier.value >= 0) {
+        if (_activeIndexNotifier.value <= 0) {
+          _scrollToTop(immediate: true);
+        } else {
           _scrollToActiveIndex(_activeIndexNotifier.value, immediate: true);
         }
       } else {
@@ -93,7 +129,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
   void _listenToPosition() {
     _positionSubscription = widget.positionStream.listen((data) {
-      if (!mounted || widget.lyrics.isEmpty) return;
+      if (!mounted || _hasNoLyrics) return;
 
       _lastKnownPosition = data.position;
       _lastPositionUpdate = DateTime.now();
@@ -107,7 +143,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   }
 
   void _checkActiveIndex(Duration position) {
-    if (widget.lyrics.isEmpty) return;
+    if (_hasNoLyrics) return;
 
     int newIndex = -1;
     int left = 0;
@@ -125,13 +161,43 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
     if (newIndex != _activeIndexNotifier.value) {
       _activeIndexNotifier.value = newIndex;
-      if (widget.isExpanded && newIndex >= 0) {
-        _scrollToActiveIndex(newIndex);
+      if (widget.isExpanded) {
+        if (newIndex <= 0) {
+          _scrollToTop();
+        } else {
+          _scrollToActiveIndex(newIndex);
+        }
       }
     }
   }
 
+  void _scrollToTop({bool immediate = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.isExpanded) return;
+      if (!immediate &&
+          DateTime.now().difference(_lastUserScrollTime).inMilliseconds < 2500) {
+        return;
+      }
+      if (_scrollController.hasClients) {
+        if (immediate) {
+          _scrollController.jumpTo(0.0);
+        } else {
+          _scrollController.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      }
+    });
+  }
+
   void _scrollToActiveIndex(int targetIndex, {bool immediate = false}) {
+    if (targetIndex <= 0) {
+      _scrollToTop(immediate: immediate);
+      return;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || targetIndex < 0 || targetIndex >= _lyricKeys.length) {
         return;
@@ -177,15 +243,34 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.lyrics.isEmpty) {
-      return const SizedBox();
+    final unlitColor = _getUnlitColor();
+
+    if (_hasNoLyrics) {
+      final String message = widget.lyrics.isNotEmpty
+          ? widget.lyrics.first.text
+          : "Paroles indisponibles pour ce titre";
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40.0),
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: unlitColor.withValues(alpha: 0.8),
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+      );
     }
 
     final screenHeight = MediaQuery.of(context).size.height;
     final glowColor = widget.themeColors.isNotEmpty
         ? widget.themeColors.first
         : Colors.cyanAccent;
-    final unlitColor = _getUnlitColor();
 
     return RepaintBoundary(
       child: ShaderMask(
