@@ -46,6 +46,9 @@ class CrossfadeSettingsCard extends StatelessWidget {
                   value: isCrossfadeEnabled,
                   activeTrackColor: dynamicGradientColors[0],
                   onChanged: (val) {
+                    if (isHapticFeedbackEnabledNotifier.value) {
+                      HapticFeedback.lightImpact();
+                    }
                     isCrossfadeEnabledNotifier.value = val;
                   },
                 );
