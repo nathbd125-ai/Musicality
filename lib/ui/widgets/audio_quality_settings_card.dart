@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:musicality/core/globals.dart';
 
 class AudioQualitySettingsCard extends StatelessWidget {
@@ -92,6 +93,9 @@ class AudioQualitySettingsCard extends StatelessWidget {
                 thumbColor: Colors.white.withValues(alpha: 0.2),
                 groupValue: currentQuality,
                 onValueChanged: (int? value) {
+                  if (value != null && value != currentQuality && isHapticFeedbackEnabledNotifier.value) {
+                    HapticFeedback.selectionClick();
+                  }
                   if (value == 0) {
                     isHiResNotifier.value = false;
                     isLosslessNotifier.value = false;
@@ -211,6 +215,9 @@ class AudioQualitySettingsCard extends StatelessWidget {
                 thumbColor: Colors.white.withValues(alpha: 0.2),
                 groupValue: currentQuality,
                 onValueChanged: (int? value) {
+                  if (value != null && value != currentQuality && isHapticFeedbackEnabledNotifier.value) {
+                    HapticFeedback.selectionClick();
+                  }
                   if (value == 0) {
                     isDownloadHiResNotifier.value = false;
                     isDownloadLosslessNotifier.value = false;
@@ -282,7 +289,12 @@ class AudioQualitySettingsCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: _deleteDownloads,
+              onPressed: () {
+                if (isHapticFeedbackEnabledNotifier.value) {
+                  HapticFeedback.mediumImpact();
+                }
+                _deleteDownloads();
+              },
               child: Text(
                 "Supprimer $downloadedCount téléchargement${downloadedCount > 1 ? 's' : ''}",
                 style: const TextStyle(

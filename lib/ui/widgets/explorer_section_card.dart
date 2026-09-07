@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:musicality/core/globals.dart';
 
 class ExplorerSectionCard extends StatelessWidget {
   final String title;
@@ -40,7 +42,12 @@ class ExplorerSectionCard extends StatelessWidget {
         child: Material(
           type: MaterialType.transparency,
           child: InkWell(
-            onTap: onExplore,
+            onTap: () {
+              if (isHapticFeedbackEnabledNotifier.value) {
+                HapticFeedback.lightImpact();
+              }
+              onExplore();
+            },
             highlightColor: Colors.white.withValues(alpha: 0.05),
             splashColor: Colors.white.withValues(alpha: 0.1),
             child: Stack(

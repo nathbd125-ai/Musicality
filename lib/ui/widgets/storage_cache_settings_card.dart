@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:musicality/core/globals.dart';
 
 class StorageCacheSettingsCard extends StatelessWidget {
@@ -111,6 +112,9 @@ class StorageCacheSettingsCard extends StatelessWidget {
                   value: isCacheEnabled,
                   activeTrackColor: activeTrackColor,
                   onChanged: (val) {
+                    if (isHapticFeedbackEnabledNotifier.value) {
+                      HapticFeedback.lightImpact();
+                    }
                     isCacheEnabledNotifier.value = val;
                   },
                 );
@@ -147,6 +151,9 @@ class StorageCacheSettingsCard extends StatelessWidget {
                               : cacheLimit,
                           onValueChanged: (int? value) {
                             if (value != null) {
+                              if (isHapticFeedbackEnabledNotifier.value) {
+                                HapticFeedback.selectionClick();
+                              }
                               cacheLimitNotifier.value = value;
                               Future.delayed(
                                 const Duration(milliseconds: 100),
@@ -221,7 +228,12 @@ class StorageCacheSettingsCard extends StatelessWidget {
                       ),
                       child: CupertinoButton(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        onPressed: _clearCache,
+                        onPressed: () {
+                          if (isHapticFeedbackEnabledNotifier.value) {
+                            HapticFeedback.mediumImpact();
+                          }
+                          _clearCache();
+                        },
                         child: Text(
                           "Vider le cache (${(cacheSizeBytes / (1024 * 1024)).toStringAsFixed(1)} Mo)",
                           style: const TextStyle(

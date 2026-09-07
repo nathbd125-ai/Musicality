@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:musicality/core/globals.dart';
@@ -88,6 +89,9 @@ class AccountProfileHeader extends StatelessWidget {
 
                 return GestureDetector(
                   onTap: () async {
+                    if (isHapticFeedbackEnabledNotifier.value) {
+                      HapticFeedback.lightImpact();
+                    }
                     final picker = ImagePicker();
                     final xfile = await picker.pickImage(
                       source: ImageSource.gallery,
@@ -204,7 +208,12 @@ class AccountProfileHeader extends StatelessWidget {
                               horizontal: 24,
                             ),
                             color: Colors.white.withValues(alpha: 0.1),
-                            onPressed: () => FirebaseAuth.instance.signOut(),
+                            onPressed: () {
+                              if (isHapticFeedbackEnabledNotifier.value) {
+                                HapticFeedback.lightImpact();
+                              }
+                              FirebaseAuth.instance.signOut();
+                            },
                             child: const Text(
                               "Se déconnecter",
                               style: TextStyle(
@@ -222,7 +231,12 @@ class AccountProfileHeader extends StatelessWidget {
                                     vertical: 12,
                                   ),
                                   color: Colors.white.withValues(alpha: 0.1),
-                                  onPressed: () => _showAuth(context, false),
+                                  onPressed: () {
+                                    if (isHapticFeedbackEnabledNotifier.value) {
+                                      HapticFeedback.lightImpact();
+                                    }
+                                    _showAuth(context, false);
+                                  },
                                   child: const Text(
                                     "Créer un compte",
                                     style: TextStyle(
@@ -239,7 +253,12 @@ class AccountProfileHeader extends StatelessWidget {
                                     vertical: 12,
                                   ),
                                   color: dynamicGradientColors[0],
-                                  onPressed: () => _showAuth(context, true),
+                                  onPressed: () {
+                                    if (isHapticFeedbackEnabledNotifier.value) {
+                                      HapticFeedback.lightImpact();
+                                    }
+                                    _showAuth(context, true);
+                                  },
                                   child: const Text(
                                     "Connexion",
                                     style: TextStyle(

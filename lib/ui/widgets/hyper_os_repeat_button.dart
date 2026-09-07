@@ -1,17 +1,18 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:musicality/core/globals.dart';
 
 class HyperOSRepeatButton extends StatefulWidget {
-  final bool isLooping;
+  final LoopMode loopMode;
   final VoidCallback onTap;
   final List<Color> gradientColors;
   final double size;
 
   const HyperOSRepeatButton({
     super.key,
-    required this.isLooping,
+    required this.loopMode,
     required this.onTap,
     required this.gradientColors,
     required this.size,
@@ -79,43 +80,62 @@ class _HyperOSRepeatButtonState extends State<HyperOSRepeatButton>
                 transitionBuilder: (child, animation) {
                   return FadeTransition(opacity: animation, child: child);
                 },
-                child: widget.isLooping
-                    ? ShaderMask(
-                        key: const ValueKey('loop_active'),
-                        blendMode: BlendMode.srcIn,
-                        shaderCallback: (bounds) {
-                          return LinearGradient(
-                            colors: widget.gradientColors,
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ).createShader(bounds);
-                        },
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Icon(CupertinoIcons.repeat, size: animatedSize),
-                            Transform.translate(
-                              offset: const Offset(0, 0),
-                              child: Text(
-                                '1',
-                                style: TextStyle(
-                                  fontSize: animatedSize * 0.25,
-                                  fontWeight: FontWeight.w900,
-                                  decoration: TextDecoration.none,
-                                  color: Colors.white,
-                                  height: 1.0,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Icon(
-                        key: const ValueKey('loop_inactive'),
+                child: widget.loopMode == LoopMode.off
+                    ? Icon(
+                        key: const ValueKey('loop_off'),
                         CupertinoIcons.repeat,
                         color: Colors.white.withValues(alpha: 0.55),
                         size: animatedSize,
-                      ),
+                      )
+                    : (widget.loopMode == LoopMode.all
+                        ? ShaderMask(
+                            key: const ValueKey('loop_all'),
+                            blendMode: BlendMode.srcIn,
+                            shaderCallback: (bounds) {
+                              return LinearGradient(
+                                colors: widget.gradientColors,
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ).createShader(bounds);
+                            },
+                            child: Icon(
+                              CupertinoIcons.repeat,
+                              size: animatedSize,
+                            ),
+                          )
+                        : ShaderMask(
+                            key: const ValueKey('loop_one'),
+                            blendMode: BlendMode.srcIn,
+                            shaderCallback: (bounds) {
+                              return LinearGradient(
+                                colors: widget.gradientColors,
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ).createShader(bounds);
+                            },
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.repeat,
+                                  size: animatedSize,
+                                ),
+                                Transform.translate(
+                                  offset: const Offset(0, 0),
+                                  child: Text(
+                                    '1',
+                                    style: TextStyle(
+                                      fontSize: animatedSize * 0.25,
+                                      fontWeight: FontWeight.w900,
+                                      decoration: TextDecoration.none,
+                                      color: Colors.white,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
               ),
             ),
           ),

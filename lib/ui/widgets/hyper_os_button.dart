@@ -1,7 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:musicality/core/globals.dart';
 
 class HyperOSButton extends StatefulWidget {
   final Widget child;
@@ -48,13 +46,6 @@ class _HyperOSButtonState extends State<HyperOSButton>
       onTapDown: (_) => _controller.animateTo(0.85, curve: Curves.easeInOut),
       onTapUp: (_) {
         _controller.animateTo(1.0, curve: Curves.easeInOut);
-        if (isHapticFeedbackEnabledNotifier.value) {
-          if (widget.isPlayPause) {
-            HapticFeedback.mediumImpact();
-          } else {
-            HapticFeedback.lightImpact();
-          }
-        }
         widget.onTap();
       },
       onTapCancel: () => _controller.animateTo(1.0, curve: Curves.easeInOut),

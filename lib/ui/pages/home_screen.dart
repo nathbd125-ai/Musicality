@@ -1253,11 +1253,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                     final loopMode =
                                                                                         snapshot.data ??
                                                                                         LoopMode.all;
-                                                                                    final isLooping =
-                                                                                        loopMode ==
-                                                                                        LoopMode.one;
                                                                                     return HyperOSRepeatButton(
-                                                                                      isLooping: isLooping,
+                                                                                      loopMode: loopMode,
                                                                                       onTap: () {
                                                                                         (globalAudioHandler
                                                                                                 as MyAudioHandler)

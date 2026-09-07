@@ -4,6 +4,7 @@ import 'package:musicality/ui/pages/artist_profile_screen.dart';
 import 'package:musicality/ui/widgets/custom_search_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:audio_service/audio_service.dart';
 
 class ArtistPageView extends StatefulWidget {
@@ -191,6 +192,9 @@ class ArtistPageViewState extends State<ArtistPageView> {
                         size: 20,
                       ),
                       onTap: () {
+                        if (isHapticFeedbackEnabledNotifier.value) {
+                          HapticFeedback.lightImpact();
+                        }
                         FocusScope.of(context).unfocus();
                         Navigator.of(context).push(
                           PageRouteBuilder(

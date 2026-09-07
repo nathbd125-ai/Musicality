@@ -246,6 +246,9 @@ class _AccountPageViewState extends State<AccountPageView> {
                                 activeTrackColor:
                                     widget.dynamicGradientColors[0],
                                 onChanged: (val) {
+                                  if (isHapticFeedbackEnabledNotifier.value) {
+                                    HapticFeedback.lightImpact();
+                                  }
                                   isBatterySaverEnabledNotifier.value = val;
                                 },
                               );
@@ -272,26 +275,13 @@ class _AccountPageViewState extends State<AccountPageView> {
                           ),
                           const SizedBox(width: 16),
                           const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Retour haptique",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  "Vibrations tactiles sur les contrôles et boutons",
-                                  style: TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              "Retour haptique",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
                           ValueListenableBuilder<bool>(
