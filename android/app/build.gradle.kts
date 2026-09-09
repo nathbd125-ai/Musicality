@@ -45,7 +45,7 @@ val isStudio = isStudioRequested()
 
 android {
     namespace = "com.musicality"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -53,11 +53,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    buildFeatures {
+        resValues = true
+    }
+
     defaultConfig {
         applicationId = if (isStudio) "com.musicality.studio" else "com.musicality"
+        manifestPlaceholders["appName"] = if (isStudio) "Musicality Studio" else "Musicality"
         resValue("string", "app_name", if (isStudio) "Musicality Studio" else "Musicality")
-        minSdk = 24
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 32
+        targetSdk = 37
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         ndk {

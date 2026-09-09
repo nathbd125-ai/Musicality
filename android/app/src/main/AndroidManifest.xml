@@ -27,7 +27,7 @@
     </queries>
 
     <application
-        android:label="@string/app_name"
+        android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true"
