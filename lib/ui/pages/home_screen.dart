@@ -459,13 +459,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                   ),
                                                   child: TweenAnimationBuilder<double>(
                                                     tween: Tween<double>(
-                                                      end: (isLiquidGlass || isBatterySaver)
+                                                      end: (isLiquidGlass || isBatterySaver || _isPlayerExpanded)
                                                           ? 0.001
                                                           : 20.0,
                                                     ),
                                                     duration: const Duration(milliseconds: 600),
                                                     curve: Curves.easeInOutCubic,
                                                     builder: (context, currentSigma, child) {
+                                                      if (currentSigma <= 0.01) {
+                                                        return child!;
+                                                      }
                                                       return BackdropFilter(
                                                         filter: ImageFilter.blur(
                                                           sigmaX: currentSigma,

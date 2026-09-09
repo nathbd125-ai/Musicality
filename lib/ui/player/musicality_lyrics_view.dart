@@ -531,12 +531,10 @@ class _LyricLineItemState extends State<_LyricLineItem>
               ),
             );
 
-            // Isole UNIQUEMENT la ligne active ou en cours d'animation dans son propre calque GPU
-            // Cela empêche le rafraîchissement 120 FPS de repeindre les 119 autres lignes !
-            if (_isActive || _controller.isAnimating) {
-              return RepaintBoundary(child: lineWidget);
-            }
-            return lineWidget;
+            // Isole CHAQUE ligne dans son propre calque GPU (RepaintBoundary).
+            // Les 80+ lignes inactives restent ainsi en cache de texture GPU et ne sont jamais
+            // repeintes pendant que le mot en cours de chant s'anime à 120 FPS.
+            return RepaintBoundary(child: lineWidget);
           },
         );
       },
