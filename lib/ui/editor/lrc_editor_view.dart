@@ -9,14 +9,86 @@ import 'package:musicality/core/vps_sync_service.dart';
 
 class _EditableLyricItem {
   Duration time;
+  Duration? endTime;
+  List<LyricWord> words;
   TextEditingController controller;
   final FocusNode focusNode;
 
   _EditableLyricItem({
     required this.time,
     required String text,
-  })  : controller = TextEditingController(text: text),
+    this.endTime,
+    List<LyricWord>? words,
+  })  : words = words != null ? List<LyricWord>.from(words) : [],
+        controller = TextEditingController(text: text),
         focusNode = FocusNode();
+
+  void shift(int deltaMs) {
+    final newTimeMs = (time.inMilliseconds + deltaMs).clamp(0, 9999999);
+    time = Duration(milliseconds: newTimeMs);
+
+    if (endTime != null) {
+      final newEndMs = (endTime!.inMilliseconds + deltaMs).clamp(0, 9999999);
+      endTime = Duration(milliseconds: newEndMs);
+    }
+
+    if (words.isNotEmpty) {
+      words = words.map((w) {
+        final newStartMs = (w.start.inMilliseconds + deltaMs).clamp(0, 9999999);
+        final newEndMs = (w.end.inMilliseconds + deltaMs).clamp(0, 9999999);
+        return LyricWord(
+          text: w.text,
+          start: Duration(milliseconds: newStartMs),
+          end: Duration(milliseconds: newEndMs),
+        );
+      }).toList();
+    }
+  }
+
+  /// Retourne les mots synchronisés avec le texte actuel du contrôleur.
+  /// Si le texte a été édité, conserve au maximum les timestamps des mots correspondants.
+  List<LyricWord> getSynchronizedWords() {
+    final currentText = controller.text.trim();
+    if (currentText.isEmpty) return [];
+
+    final rawTokens = currentText.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+    if (rawTokens.isEmpty) return [];
+
+    // Si le nombre de mots correspond au nombre de mots d'origine
+    if (words.isNotEmpty && rawTokens.length == words.length) {
+      final result = <LyricWord>[];
+      for (int i = 0; i < words.length; i++) {
+        result.add(LyricWord(
+          text: rawTokens[i],
+          start: words[i].start,
+          end: words[i].end,
+        ));
+      }
+      return result;
+    }
+
+    // Si les mots d'origine existent mais que le nombre de mots a changé, interpolation
+    if (words.isNotEmpty) {
+      final start = words.first.start;
+      final end = endTime ?? (words.last.end > start ? words.last.end : start + const Duration(seconds: 3));
+      final totalMs = (end - start).inMilliseconds;
+      final result = <LyricWord>[];
+      var curStart = start;
+
+      final totalChars = rawTokens.fold<int>(0, (sum, t) => sum + t.length);
+      for (final t in rawTokens) {
+        final wMs = totalChars > 0
+            ? (totalMs * (t.length / totalChars)).round()
+            : (totalMs / rawTokens.length).round();
+        final wEnd = curStart + Duration(milliseconds: wMs.clamp(120, 5000));
+        result.add(LyricWord(text: t, start: curStart, end: wEnd));
+        curStart = wEnd;
+      }
+      return result;
+    }
+
+    return [];
+  }
 
   void dispose() {
     controller.dispose();
@@ -83,7 +155,14 @@ class _LrcEditorViewState extends State<LrcEditorView> {
       if (line.text.toLowerCase().contains('paroles indisponibles')) {
         continue;
       }
-      _items.add(_EditableLyricItem(time: line.time, text: line.text));
+      _items.add(
+        _EditableLyricItem(
+          time: line.time,
+          text: line.text,
+          endTime: line.endTime,
+          words: line.words,
+        ),
+      );
     }
   }
 
@@ -104,8 +183,7 @@ class _LrcEditorViewState extends State<LrcEditorView> {
       _globalOffsetSeconds += deltaSeconds;
       final deltaMs = (deltaSeconds * 1000).round();
       for (final item in _items) {
-        final newMs = (item.time.inMilliseconds + deltaMs).clamp(0, 9999999);
-        item.time = Duration(milliseconds: newMs);
+        item.shift(deltaMs);
       }
     });
   }
@@ -116,8 +194,7 @@ class _LrcEditorViewState extends State<LrcEditorView> {
     setState(() {
       final deltaMs = (-_globalOffsetSeconds * 1000).round();
       for (final item in _items) {
-        final newMs = (item.time.inMilliseconds + deltaMs).clamp(0, 9999999);
-        item.time = Duration(milliseconds: newMs);
+        item.shift(deltaMs);
       }
       _globalOffsetSeconds = 0.0;
     });
@@ -126,20 +203,22 @@ class _LrcEditorViewState extends State<LrcEditorView> {
   void _adjustLine(int index, int deltaMs) {
     HapticFeedback.selectionClick();
     setState(() {
-      final newMs = (_items[index].time.inMilliseconds + deltaMs).clamp(0, 9999999);
-      _items[index].time = Duration(milliseconds: newMs);
+      _items[index].shift(deltaMs);
     });
   }
 
   void _syncLineToCurrentPosition(int index) {
     HapticFeedback.heavyImpact();
+    final deltaMs = _currentPosition.inMilliseconds - _items[index].time.inMilliseconds;
     setState(() {
-      _items[index].time = _currentPosition;
+      _items[index].shift(deltaMs);
     });
+    final wordCount = _items[index].words.length;
+    final wordMsg = wordCount > 0 ? ' ($wordCount mots synchronisés)' : '';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Ligne calée à ${VpsSyncService.formatTimestamp(_currentPosition)}',
+          'Ligne calée à ${VpsSyncService.formatTimestamp(_currentPosition)}$wordMsg',
           style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.purple.shade700,
@@ -165,6 +244,8 @@ class _LrcEditorViewState extends State<LrcEditorView> {
       final newItem = _EditableLyricItem(
         time: _currentPosition,
         text: '',
+        endTime: _currentPosition + const Duration(seconds: 3),
+        words: const [],
       );
       _items.add(newItem);
       _sortItems();
@@ -196,12 +277,13 @@ class _LrcEditorViewState extends State<LrcEditorView> {
   Future<void> _saveAndUpload() async {
     if (_isSaving) return;
 
+    final totalWords = _items.fold<int>(0, (sum, item) => sum + item.words.length);
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
       builder: (ctx) => CupertinoAlertDialog(
         title: const Text('Remplacer les paroles sur le VPS ?'),
         content: Text(
-          'Cette action va formater ${_items.length} lignes de paroles au format .lrc, '
+          'Cette action va formater ${_items.length} lignes ($totalWords mots synchronisés) au format .lrc, '
           'mettre à jour votre copie locale, et remplacer directement le fichier sur le serveur VPS :\n\n'
           '${LyricsService.getBaseName(widget.mediaItem.id)}.lrc',
         ),
@@ -233,6 +315,8 @@ class _LrcEditorViewState extends State<LrcEditorView> {
             (item) => LyricLine(
               time: item.time,
               text: item.controller.text.trim(),
+              endTime: item.endTime,
+              words: item.getSynchronizedWords(),
             ),
           )
           .toList();
@@ -447,27 +531,49 @@ class _LrcEditorViewState extends State<LrcEditorView> {
                           ],
                         ],
                       ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(
+                            CupertinoIcons.textformat_size,
+                            color: Colors.purpleAccent,
+                            size: 11,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Cible : ${_items.length} lignes • ${_items.fold<int>(0, (sum, i) => sum + i.words.length)} mots',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
                 // Boutons d'offset global rapide
                 _OffsetButton(
                   label: '-0.5s',
+                  tooltip: 'Décale toutes les lignes et tous les mots de -0.5s',
                   onTap: () => _applyGlobalOffset(-0.5),
                 ),
                 const SizedBox(width: 4),
                 _OffsetButton(
                   label: '-0.1s',
+                  tooltip: 'Décale toutes les lignes et tous les mots de -0.1s',
                   onTap: () => _applyGlobalOffset(-0.1),
                 ),
                 const SizedBox(width: 4),
                 _OffsetButton(
                   label: '+0.1s',
+                  tooltip: 'Décale toutes les lignes et tous les mots de +0.1s',
                   onTap: () => _applyGlobalOffset(0.1),
                 ),
                 const SizedBox(width: 4),
                 _OffsetButton(
                   label: '+0.5s',
+                  tooltip: 'Décale toutes les lignes et tous les mots de +0.5s',
                   onTap: () => _applyGlobalOffset(0.5),
                 ),
               ],
@@ -580,6 +686,42 @@ class _LrcEditorViewState extends State<LrcEditorView> {
                                     ),
                                   ),
                                 ),
+                                if (item.words.isNotEmpty) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.purple.withValues(alpha: 0.22),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.purpleAccent.withValues(alpha: 0.4),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          CupertinoIcons.sparkles,
+                                          color: Colors.purpleAccent,
+                                          size: 10,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          '${item.words.length} mots',
+                                          style: const TextStyle(
+                                            color: Colors.purpleAccent,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(width: 8),
 
                                 // Bouton TARGET "Caler ici"
@@ -824,16 +966,18 @@ class _LrcEditorViewState extends State<LrcEditorView> {
 
 class _OffsetButton extends StatelessWidget {
   final String label;
+  final String? tooltip;
   final VoidCallback onTap;
 
   const _OffsetButton({
     required this.label,
+    this.tooltip,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    Widget button = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: Container(
@@ -852,6 +996,15 @@ class _OffsetButton extends StatelessWidget {
         ),
       ),
     );
+
+    if (tooltip != null) {
+      button = Tooltip(
+        message: tooltip!,
+        child: button,
+      );
+    }
+
+    return button;
   }
 }
 

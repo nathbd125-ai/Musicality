@@ -51,6 +51,47 @@ void main() {
       expect(lrc, equals(expected));
     });
 
+    test('formatWordTimestamp formate correctement les durées en <mm:ss.xx>', () {
+      expect(
+        VpsSyncService.formatWordTimestamp(Duration.zero),
+        equals('<00:00.00>'),
+      );
+      expect(
+        VpsSyncService.formatWordTimestamp(const Duration(milliseconds: 14250)),
+        equals('<00:14.25>'),
+      );
+      expect(
+        VpsSyncService.formatWordTimestamp(
+          const Duration(minutes: 1, seconds: 2, milliseconds: 340),
+        ),
+        equals('<01:02.34>'),
+      );
+    });
+
+    test('formatLrc formate au standard Enhanced LRC lorsque les mots sont présents', () {
+      final lines = [
+        LyricLine(
+          time: const Duration(seconds: 10),
+          text: 'Hello world',
+          words: const [
+            LyricWord(
+              text: 'Hello',
+              start: Duration(seconds: 10),
+              end: Duration(milliseconds: 10500),
+            ),
+            LyricWord(
+              text: 'world',
+              start: Duration(milliseconds: 10500),
+              end: Duration(seconds: 11),
+            ),
+          ],
+        ),
+      ];
+
+      final lrc = VpsSyncService.formatLrc(lines);
+      expect(lrc, equals('[00:10.00] <00:10.00>Hello <00:10.50>world'));
+    });
+
     test('LyricsService.getBaseName extrait correctement le nom de base', () {
       expect(
         LyricsService.getBaseName('https://example.com/media/Autotune.mp3'),

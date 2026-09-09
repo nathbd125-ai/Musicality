@@ -442,18 +442,30 @@ class LyricsParser {
           final List<LyricWord> words = [];
           final tokens = lineContent.split(RegExp(r'\s+'));
 
+          Duration? pendingStart;
           for (final token in tokens) {
             final t = token.trim();
             if (t.isEmpty) continue;
 
             final matches = wordTagRegExp.allMatches(t).toList();
             final wordCleanText = t.replaceAll(RegExp(r'<[^>]+>'), '').trim();
-            if (wordCleanText.isEmpty) continue;
+
+            if (wordCleanText.isEmpty) {
+              if (matches.isNotEmpty) {
+                final first = matches.first;
+                pendingStart = parseTime(first.group(1)!, first.group(2)!, first.group(3));
+              }
+              continue;
+            }
 
             Duration wStart;
             if (matches.isNotEmpty) {
               final first = matches.first;
               wStart = parseTime(first.group(1)!, first.group(2)!, first.group(3));
+              pendingStart = null;
+            } else if (pendingStart != null) {
+              wStart = pendingStart;
+              pendingStart = null;
             } else {
               wStart = lineTime;
             }
