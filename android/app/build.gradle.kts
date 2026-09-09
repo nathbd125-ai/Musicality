@@ -1,5 +1,7 @@
 import java.util.Properties
 import java.io.FileInputStream
+import java.util.Base64
+import java.nio.charset.StandardCharsets
 
 plugins {
     id("com.android.application")
@@ -23,8 +25,8 @@ fun isStudioRequested(): Boolean {
             val entries = dartDefines.split(",")
             for (entry in entries) {
                 val decoded = String(
-                    java.util.Base64.getDecoder().decode(entry),
-                    java.nio.charset.StandardCharsets.UTF_8,
+                    Base64.getDecoder().decode(entry),
+                    StandardCharsets.UTF_8,
                 )
                 if (decoded.contains("STUDIO_MODE=true")) {
                     return true
@@ -64,7 +66,7 @@ android {
         }
     }
 
-    packagingOptions {
+    packaging {
         jniLibs {
             excludes += listOf("lib/armeabi-v7a/**", "lib/x86/**", "lib/x86_64/**")
         }
