@@ -13,6 +13,9 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+val isStudio = (project.findProperty("studio") as? String == "true") ||
+               (project.findProperty("isStudio") as? String == "true")
+
 android {
     namespace = "com.musicality"
     compileSdk = flutter.compileSdkVersion
@@ -24,7 +27,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.musicality"
+        applicationId = if (isStudio) "com.musicality.studio" else "com.musicality"
+        resValue("string", "app_name", if (isStudio) "Musicality Studio" else "Musicality")
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

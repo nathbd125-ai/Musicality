@@ -27,7 +27,7 @@
     </queries>
 
     <application
-        android:label="musicality"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true"

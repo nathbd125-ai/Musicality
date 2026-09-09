@@ -53,6 +53,12 @@ jobs:
           rm -rf Payload
 
       # --- BUILD STUDIO (Éditeur de paroles & Sync VPS) ---
+      - name: 🤖 Build Android Studio (APK Dédiée)
+        if: ${{ inputs.variant == 'all' || inputs.variant == 'studio' }}
+        run: |
+          flutter build apk --release --target-platform android-arm64 --dart-define=STUDIO_MODE=true -Pstudio=true
+          mv build/app/outputs/flutter-apk/app-release.apk Musicality_Studio_Android.apk
+
       - name: 🍏 Build iOS Studio (IPA Dédiée)
         if: ${{ inputs.variant == 'all' || inputs.variant == 'studio' }}
         run: |
@@ -71,6 +77,13 @@ jobs:
         with:
           name: Musicality-Android-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: 🚀 Upload APK Studio
+        if: ${{ inputs.variant == 'all' || inputs.variant == 'studio' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Musicality-Studio-Android-APK
+          path: Musicality_Studio_Android.apk
 
       - name: 🚀 Upload IPA Standard
         if: ${{ inputs.variant == 'all' || inputs.variant == 'standard' }}
@@ -99,6 +112,7 @@ jobs:
           name: Musicality v${{ env.APP_VERSION }}
           files: |
             build/app/outputs/flutter-apk/app-release.apk
+            Musicality_Studio_Android.apk
             Musicality_iOS.ipa
             Musicality_Studio_iOS.ipa
           draft: false

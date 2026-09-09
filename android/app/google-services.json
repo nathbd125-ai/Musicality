@@ -92,6 +92,43 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:154016653293:android:cc2b59c62dcf10db0cd1e5",
+        "android_client_info": {
+          "package_name": "com.musicality.studio"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "154016653293-tqiito80nm91qmv04430kveac9fmcatn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.musicality.studio",
+            "certificate_hash": "8ed16bc3f550678ff77454059335b63d6330aa68"
+          }
+        },
+        {
+          "client_id": "154016653293-0f6vgsqeacs4kneqr0bsfplropbb2gvs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATamVQrvrc6ZzwihMLAx2VcnG-Zm_RDqI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "154016653293-0f6vgsqeacs4kneqr0bsfplropbb2gvs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
