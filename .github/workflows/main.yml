@@ -1,12 +1,22 @@
 name: Build Musicality (APK & IPA)
 
 on:
-  workflow_dispatch: # Permet d'avoir le bouton "Run" manuel
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Version à fabriquer'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - standard
+          - studio
 
 jobs:
   build:
     name: 🛠️ Fabrication APK & IPA
-    runs-on: macos-latest # On utilise un Mac virtuel gratuit
+    runs-on: macos-latest
     permissions:
       contents: write
 
@@ -28,27 +38,53 @@ jobs:
       - name: 📦 Téléchargement des dépendances
         run: flutter pub get
 
-      - name: 🤖 Build Android (APK)
+      # --- BUILD STANDARD ---
+      - name: 🤖 Build Android Standard (APK)
+        if: ${{ inputs.variant == 'all' || inputs.variant == 'standard' }}
         run: flutter build apk --release --target-platform android-arm64
 
-      - name: 🍏 Build iOS (IPA sans sécurité Apple)
+      - name: 🍏 Build iOS Standard (IPA)
+        if: ${{ inputs.variant == 'all' || inputs.variant == 'standard' }}
         run: |
           flutter build ios --release --no-codesign
           mkdir Payload
           mv build/ios/iphoneos/Runner.app Payload/
           zip -r Musicality_iOS.ipa Payload
+          rm -rf Payload
 
-      - name: 🚀 Upload de l'APK (Android)
+      # --- BUILD STUDIO (Éditeur de paroles & Sync VPS) ---
+      - name: 🍏 Build iOS Studio (IPA Dédiée)
+        if: ${{ inputs.variant == 'all' || inputs.variant == 'studio' }}
+        run: |
+          flutter build ios --release --no-codesign --dart-define=STUDIO_MODE=true
+          mkdir Payload
+          mv build/ios/iphoneos/Runner.app Payload/
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.example.musicality.studio" Payload/Runner.app/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Musicality Studio" Payload/Runner.app/Info.plist || true
+          zip -r Musicality_Studio_iOS.ipa Payload
+          rm -rf Payload
+
+      # --- UPLOADS DES ARTIFACTS ---
+      - name: 🚀 Upload APK Standard
+        if: ${{ inputs.variant == 'all' || inputs.variant == 'standard' }}
         uses: actions/upload-artifact@v4
         with:
           name: Musicality-Android-APK
           path: build/app/outputs/flutter-apk/app-release.apk
 
-      - name: 🚀 Upload de l'IPA (iOS)
+      - name: 🚀 Upload IPA Standard
+        if: ${{ inputs.variant == 'all' || inputs.variant == 'standard' }}
         uses: actions/upload-artifact@v4
         with:
           name: Musicality-iOS-IPA
           path: Musicality_iOS.ipa
+
+      - name: 🚀 Upload IPA Studio
+        if: ${{ inputs.variant == 'all' || inputs.variant == 'studio' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Musicality-Studio-iOS-IPA
+          path: Musicality_Studio_iOS.ipa
 
       - name: 🏷️ Extraction de la version de l'app
         id: extract_version
@@ -64,6 +100,7 @@ jobs:
           files: |
             build/app/outputs/flutter-apk/app-release.apk
             Musicality_iOS.ipa
+            Musicality_Studio_iOS.ipa
           draft: false
           prerelease: false
         env:

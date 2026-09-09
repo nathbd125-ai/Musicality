@@ -24,6 +24,8 @@ import 'package:musicality/ui/widgets/hyper_os_slider.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:musicality/core/globals.dart';
+import 'package:musicality/core/app_config.dart';
+import 'package:musicality/ui/editor/lrc_editor_view.dart';
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -671,6 +673,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                 mainAxisSize:
                                                                                     MainAxisSize.min,
                                                                                 children: [
+                                                                                  ValueListenableBuilder<bool>(
+                                                                                    valueListenable: AppConfig.isStudioModeNotifier,
+                                                                                    builder: (context, isStudio, _) {
+                                                                                      if (!isStudio) return const SizedBox.shrink();
+                                                                                      return IconButton(
+                                                                                        icon: const Icon(
+                                                                                          CupertinoIcons.pencil_ellipsis_rectangle,
+                                                                                          size: 24,
+                                                                                        ),
+                                                                                        color: Colors.cyanAccent,
+                                                                                        tooltip: "Éditeur LRC (Studio)",
+                                                                                        onPressed: () {
+                                                                                          if (isHapticFeedbackEnabledNotifier.value) {
+                                                                                            HapticFeedback.lightImpact();
+                                                                                          }
+                                                                                          Navigator.of(context).push(
+                                                                                            MaterialPageRoute(
+                                                                                              builder: (context) => LrcEditorView(
+                                                                                                mediaItem: safeItem,
+                                                                                                initialLyrics: _currentLyrics,
+                                                                                                positionStream: _positionDataStream,
+                                                                                                onSaved: () async {
+                                                                                                  final reloaded = await LyricsService.fetchLyrics(safeItem);
+                                                                                                  if (mounted) {
+                                                                                                    setState(() {
+                                                                                                      _currentLyrics = reloaded;
+                                                                                                    });
+                                                                                                  }
+                                                                                                },
+                                                                                              ),
+                                                                                            ),
+                                                                                          );
+                                                                                        },
+                                                                                      );
+                                                                                    },
+                                                                                  ),
                                                                                   IconButton(
                                                                                     icon: const Icon(
                                                                                       Icons.screen_rotation_rounded,

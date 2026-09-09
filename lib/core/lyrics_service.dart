@@ -23,16 +23,43 @@ class LyricsService {
     _lyricsCache.clear();
   }
 
+  static String getBaseName(String itemId) {
+    final decodedName = Uri.decodeComponent(itemId.split('/').last);
+    return decodedName
+        .replaceAll(RegExp(r'-hires\.(flac|mp3)$'), '')
+        .replaceAll(RegExp(r'\.(flac|mp3)$'), '');
+  }
+
+  static Future<void> updateAndSaveLyrics({
+    required String songId,
+    required String baseName,
+    required String lrcContent,
+    required List<LyricLine> newLyrics,
+  }) async {
+    _lyricsCache[songId] = newLyrics;
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final localLrc = File('${docDir.path}/$baseName.lrc');
+      await localLrc.writeAsString(lrcContent, flush: true);
+
+      final localTtml = File('${docDir.path}/$baseName.ttml');
+      if (localTtml.existsSync()) {
+        try {
+          localTtml.deleteSync();
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint("Erreur de sauvegarde locale des paroles: $e");
+    }
+  }
+
   static Future<List<LyricLine>> fetchLyrics(MediaItem item) async {
     final songId = item.id;
     if (_lyricsCache.containsKey(songId)) {
       return _lyricsCache[songId]!;
     }
 
-    final decodedName = Uri.decodeComponent(item.id.split('/').last);
-    final baseName = decodedName
-        .replaceAll(RegExp(r'-hires\.(flac|mp3)$'), '')
-        .replaceAll(RegExp(r'\.(flac|mp3)$'), '');
+    final baseName = getBaseName(item.id);
 
     try {
       final docDir = await getApplicationDocumentsDirectory();

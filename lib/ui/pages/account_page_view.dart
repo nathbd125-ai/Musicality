@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:musicality/core/globals.dart';
+import 'package:musicality/core/app_config.dart';
 
 class AccountPageView extends StatefulWidget {
   final List<Color> dynamicGradientColors;
@@ -318,6 +319,66 @@ class _AccountPageViewState extends State<AccountPageView> {
                       // Fondu enchaîné (Crossfade)
                       CrossfadeSettingsCard(
                         dynamicGradientColors: widget.dynamicGradientColors,
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Mode Musicality Studio
+                      ValueListenableBuilder<bool>(
+                        valueListenable: AppConfig.isStudioModeNotifier,
+                        builder: (context, isStudio, _) {
+                          return Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  CupertinoIcons.pencil_ellipsis_rectangle,
+                                  color: Colors.cyanAccent,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Musicality Studio",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    Text(
+                                      isStudio
+                                          ? "Éditeur de paroles & sync VPS activés"
+                                          : "Activer les outils d'édition LRC",
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              CupertinoSwitch(
+                                value: isStudio,
+                                activeTrackColor: Colors.purpleAccent,
+                                onChanged: (val) {
+                                  AppConfig.setStudioModeOverride(val);
+                                  if (isHapticFeedbackEnabledNotifier.value) {
+                                    HapticFeedback.mediumImpact();
+                                  }
+                                },
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
