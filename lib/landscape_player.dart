@@ -129,6 +129,22 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
       }
       return;
     }
+
+    final currentIndex = _activeIndexNotifier.value;
+    if (currentIndex == -1) {
+      if (_currentLyrics.isNotEmpty && position < _currentLyrics.first.time) {
+        return;
+      }
+    } else if (currentIndex >= 0 && currentIndex < _currentLyrics.length) {
+      final currentLineTime = _currentLyrics[currentIndex].time;
+      final nextLineTime = (currentIndex + 1 < _currentLyrics.length)
+          ? _currentLyrics[currentIndex + 1].time
+          : const Duration(days: 365);
+      if (position >= currentLineTime && position < nextLineTime) {
+        return;
+      }
+    }
+
     int newIndex = -1;
     for (int i = 0; i < _currentLyrics.length; i++) {
       if (position >= _currentLyrics[i].time) {
@@ -995,22 +1011,32 @@ class _LandscapeKaraokeWordState extends State<_LandscapeKaraokeWord> {
       children: [
         ?glowWidget,
         unlitWidget,
-        ShaderMask(
-          blendMode: BlendMode.srcIn,
-          shaderCallback: (bounds) => LinearGradient(
-            colors: const [
-              Colors.white,
-              Colors.white,
-              Colors.transparent,
-              Colors.transparent,
-            ],
-            stops: [0.0, _progress, _progress, 1.0],
-          ).createShader(bounds),
+        ClipRect(
+          clipper: _LandscapeHorizontalPercentClipper(_progress),
           child: litWidget,
         ),
       ],
     );
   }
+}
+
+class _LandscapeHorizontalPercentClipper extends CustomClipper<Rect> {
+  final double factor;
+  const _LandscapeHorizontalPercentClipper(this.factor);
+
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTWH(
+      0,
+      0,
+      size.width * factor.clamp(0.0, 1.0),
+      size.height,
+    );
+  }
+
+  @override
+  bool shouldReclip(_LandscapeHorizontalPercentClipper oldClipper) =>
+      oldClipper.factor != factor;
 }
 
 class _LandscapePlainLineView extends StatefulWidget {

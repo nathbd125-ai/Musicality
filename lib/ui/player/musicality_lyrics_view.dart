@@ -55,6 +55,11 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     return false;
   }
 
+  bool get _isUnsyncedLyrics {
+    if (_hasNoLyrics) return true;
+    return widget.lyrics.every((l) => l.time == Duration.zero);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -62,14 +67,14 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     _generateKeys();
 
     _ticker = createTicker((_) {
-      if (_isPlaying && widget.isExpanded && !_hasNoLyrics) {
+      if (_isPlaying && widget.isExpanded && !_isUnsyncedLyrics) {
         final elapsed = DateTime.now().difference(_lastPositionUpdate);
         final current = _lastKnownPosition + elapsed;
         _positionNotifier.value = current;
         _checkActiveIndex(current);
       }
     });
-    if (widget.isExpanded) {
+    if (widget.isExpanded && !_isUnsyncedLyrics) {
       _ticker.start();
     }
 
@@ -106,8 +111,8 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       setState(() {});
     }
 
-    if (widget.isExpanded != oldWidget.isExpanded) {
-      if (widget.isExpanded) {
+    if (widget.isExpanded != oldWidget.isExpanded || songChanged || lyricsChanged) {
+      if (widget.isExpanded && !_isUnsyncedLyrics) {
         if (!_ticker.isActive) {
           _ticker.start();
         } else {
@@ -119,7 +124,9 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
           _scrollToActiveIndex(_activeIndexNotifier.value, immediate: true);
         }
       } else {
-        _ticker.muted = true;
+        if (_ticker.isActive) {
+          _ticker.muted = true;
+        }
       }
     }
   }
@@ -145,6 +152,21 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
   void _checkActiveIndex(Duration position) {
     if (_hasNoLyrics) return;
+
+    final currentIndex = _activeIndexNotifier.value;
+    if (currentIndex == -1) {
+      if (widget.lyrics.isNotEmpty && position < widget.lyrics.first.time) {
+        return;
+      }
+    } else if (currentIndex >= 0 && currentIndex < widget.lyrics.length) {
+      final currentLineTime = widget.lyrics[currentIndex].time;
+      final nextLineTime = (currentIndex + 1 < widget.lyrics.length)
+          ? widget.lyrics[currentIndex + 1].time
+          : const Duration(days: 365);
+      if (position >= currentLineTime && position < nextLineTime) {
+        return;
+      }
+    }
 
     int newIndex = -1;
     int left = 0;
@@ -229,7 +251,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!mounted) return;
     if (state == AppLifecycleState.resumed) {
-      if (widget.isExpanded) {
+      if (widget.isExpanded && !_isUnsyncedLyrics) {
         if (!_ticker.isActive) {
           _ticker.start();
         } else {
@@ -237,7 +259,9 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
         }
       }
     } else {
-      _ticker.muted = true;
+      if (_ticker.isActive) {
+        _ticker.muted = true;
+      }
     }
   }
 
@@ -583,6 +607,9 @@ class _KaraokeLineWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isActive) {
       if (lineActiveProgress > 0.001) {
+        final shadows = _buildGlowShadows(glowColor, lineActiveProgress);
+        final wordColor =
+            Color.lerp(unlitColor, Colors.white, lineActiveProgress)!;
         return Wrap(
           spacing: 7.0,
           runSpacing: 7.0,
@@ -595,6 +622,8 @@ class _KaraokeLineWidget extends StatelessWidget {
               glowColor: glowColor,
               unlitColor: unlitColor,
               blurRadius: blurRadius,
+              cachedFadeShadows: shadows,
+              cachedFadeColor: wordColor,
             );
           }).toList(),
         );
@@ -618,21 +647,23 @@ class _KaraokeLineWidget extends StatelessWidget {
 
     // LIGNE ACTIVE :
     // Le Wrap est instancié UNE SEULE FOIS pour toute la ligne.
-    // Chaque mot écoute individuellement et ne se rafraîchit à 120 FPS QUE lorsqu'il est en train d'être chanté !
-    // Les 20+ autres mots restent totalement immobiles sans aucun recalcul de disposition (performLayout) de Wrap.
+    // Chaque mot est isolé dans son RepaintBoundary et écoute individuellement.
+    // Il ne se rafraîchit à 120 FPS QUE lorsqu'il est en train d'être chanté !
     return Wrap(
       spacing: 7.0,
       runSpacing: 7.0,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: List.generate(line.words.length, (index) {
         final word = line.words[index];
-        return _DynamicKaraokeWord(
-          key: ValueKey(word.start.inMilliseconds),
-          word: word,
-          positionNotifier: positionNotifier,
-          glowColor: glowColor,
-          unlitColor: unlitColor,
-          blurRadius: blurRadius,
+        return RepaintBoundary(
+          child: _DynamicKaraokeWord(
+            key: ValueKey(word.start.inMilliseconds),
+            word: word,
+            positionNotifier: positionNotifier,
+            glowColor: glowColor,
+            unlitColor: unlitColor,
+            blurRadius: blurRadius,
+          ),
         );
       }),
     );
@@ -747,6 +778,25 @@ class _DynamicKaraokeWordState extends State<_DynamicKaraokeWord> {
   }
 }
 
+class _HorizontalPercentClipper extends CustomClipper<Rect> {
+  final double factor;
+  const _HorizontalPercentClipper(this.factor);
+
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTWH(
+      0,
+      0,
+      size.width * factor.clamp(0.0, 1.0),
+      size.height,
+    );
+  }
+
+  @override
+  bool shouldReclip(_HorizontalPercentClipper oldClipper) =>
+      oldClipper.factor != factor;
+}
+
 class _KaraokeWord extends StatelessWidget {
   final String text;
   final double lightFactor;
@@ -754,6 +804,8 @@ class _KaraokeWord extends StatelessWidget {
   final Color glowColor;
   final Color unlitColor;
   final double blurRadius;
+  final List<Shadow>? cachedFadeShadows;
+  final Color? cachedFadeColor;
 
   const _KaraokeWord({
     required this.text,
@@ -762,22 +814,24 @@ class _KaraokeWord extends StatelessWidget {
     required this.glowColor,
     required this.unlitColor,
     this.blurRadius = 0.0,
+    this.cachedFadeShadows,
+    this.cachedFadeColor,
   });
+
+  static const TextStyle _baseTextStyle = TextStyle(
+    fontSize: 27,
+    fontWeight: FontWeight.bold,
+    height: 1.35,
+  );
 
   @override
   Widget build(BuildContext context) {
-    const baseTextStyle = TextStyle(
-      fontSize: 27,
-      fontWeight: FontWeight.bold,
-      height: 1.35,
-    );
-
     // 1. Mot non encore chanté : couleur unlit avec flou direct sur glyphes (120 FPS ultra fluide)
     if (lightFactor <= 0.005) {
       if (blurRadius > 0.08) {
         return Text(
           text,
-          style: baseTextStyle.copyWith(
+          style: _baseTextStyle.copyWith(
             foreground: Paint()
               ..color = unlitColor
               ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
@@ -786,7 +840,7 @@ class _KaraokeWord extends StatelessWidget {
       }
       return Text(
         text,
-        style: baseTextStyle.copyWith(color: unlitColor),
+        style: _baseTextStyle.copyWith(color: unlitColor),
       );
     }
 
@@ -795,7 +849,7 @@ class _KaraokeWord extends StatelessWidget {
       final shadows = _buildGlowShadows(glowColor, 1.0);
       return Text(
         text,
-        style: baseTextStyle.copyWith(
+        style: _baseTextStyle.copyWith(
           color: Colors.white,
           shadows: shadows,
         ),
@@ -804,12 +858,14 @@ class _KaraokeWord extends StatelessWidget {
 
     // 3. Ligne qui se termine (estompage progressif de la lumière et du blanc sur 2,8s)
     if (!isCurrent) {
-      final shadows = _buildGlowShadows(glowColor, lightFactor);
-      final wordColor = Color.lerp(unlitColor, Colors.white, lightFactor)!;
+      final shadows =
+          cachedFadeShadows ?? _buildGlowShadows(glowColor, lightFactor);
+      final wordColor = cachedFadeColor ??
+          Color.lerp(unlitColor, Colors.white, lightFactor)!;
       if (blurRadius > 0.08) {
         return Text(
           text,
-          style: baseTextStyle.copyWith(
+          style: _baseTextStyle.copyWith(
             foreground: Paint()
               ..color = wordColor
               ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
@@ -819,7 +875,7 @@ class _KaraokeWord extends StatelessWidget {
       }
       return Text(
         text,
-        style: baseTextStyle.copyWith(
+        style: _baseTextStyle.copyWith(
           color: wordColor,
           shadows: shadows,
         ),
@@ -827,6 +883,7 @@ class _KaraokeWord extends StatelessWidget {
     }
 
     // 4. Mot en cours de chant actif (sweep fluide de gauche à droite uniquement sur ce mot précis)
+    // Remplacement du ShaderMask (saveLayer 120 FPS) par un ClipRect matériel ultra performant (0 pixel altéré)
     final shadows = _buildGlowShadows(
       glowColor,
       lightFactor,
@@ -834,7 +891,7 @@ class _KaraokeWord extends StatelessWidget {
     final glowWidget = shadows.isNotEmpty
         ? Text(
             text,
-            style: baseTextStyle.copyWith(
+            style: _baseTextStyle.copyWith(
               color: Colors.transparent,
               shadows: shadows,
             ),
@@ -843,31 +900,22 @@ class _KaraokeWord extends StatelessWidget {
 
     final litWidget = Text(
       text,
-      style: baseTextStyle.copyWith(
+      style: _baseTextStyle.copyWith(
         color: Colors.white,
         shadows: const [],
       ),
     );
     final unlitWidget = Text(
       text,
-      style: baseTextStyle.copyWith(color: unlitColor),
+      style: _baseTextStyle.copyWith(color: unlitColor),
     );
 
     return Stack(
       children: [
         ?glowWidget,
         unlitWidget,
-        ShaderMask(
-          blendMode: BlendMode.srcIn,
-          shaderCallback: (bounds) => LinearGradient(
-            colors: const [
-              Colors.white,
-              Colors.white,
-              Colors.transparent,
-              Colors.transparent,
-            ],
-            stops: [0.0, lightFactor, lightFactor, 1.0],
-          ).createShader(bounds),
+        ClipRect(
+          clipper: _HorizontalPercentClipper(lightFactor),
           child: litWidget,
         ),
       ],
@@ -892,18 +940,12 @@ class _PlainLineWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const baseTextStyle = TextStyle(
-      fontSize: 27,
-      fontWeight: FontWeight.bold,
-      height: 1.35,
-    );
-
     if (lineActiveProgress <= 0.005) {
       if (blurRadius > 0.08) {
         return Text(
           text,
           textAlign: TextAlign.left,
-          style: baseTextStyle.copyWith(
+          style: _KaraokeWord._baseTextStyle.copyWith(
             foreground: Paint()
               ..color = unlitColor
               ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
@@ -913,7 +955,7 @@ class _PlainLineWidget extends StatelessWidget {
       return Text(
         text,
         textAlign: TextAlign.left,
-        style: baseTextStyle.copyWith(color: unlitColor),
+        style: _KaraokeWord._baseTextStyle.copyWith(color: unlitColor),
       );
     }
 
@@ -922,7 +964,7 @@ class _PlainLineWidget extends StatelessWidget {
       return Text(
         text,
         textAlign: TextAlign.left,
-        style: baseTextStyle.copyWith(
+        style: _KaraokeWord._baseTextStyle.copyWith(
           color: Colors.white,
           shadows: shadows,
         ),
@@ -935,7 +977,7 @@ class _PlainLineWidget extends StatelessWidget {
       return Text(
         text,
         textAlign: TextAlign.left,
-        style: baseTextStyle.copyWith(
+        style: _KaraokeWord._baseTextStyle.copyWith(
           foreground: Paint()
             ..color = color
             ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
@@ -946,7 +988,7 @@ class _PlainLineWidget extends StatelessWidget {
     return Text(
       text,
       textAlign: TextAlign.left,
-      style: baseTextStyle.copyWith(
+      style: _KaraokeWord._baseTextStyle.copyWith(
         color: color,
         shadows: shadows,
       ),
