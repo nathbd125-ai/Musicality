@@ -232,37 +232,40 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
       body: Stack(
         children: [
           // Background
-          Container(
-            decoration: BoxDecoration(
-              image: _currentItem?.artUri != null
-                  ? DecorationImage(
-                      image:
-                          (_currentItem!.artUri!.scheme == 'file'
-                                  ? FileImage(
-                                      File(_currentItem!.artUri!.toFilePath()),
-                                    )
-                                  : NetworkImage(
-                                      _currentItem!.artUri!.toString(),
-                                    ))
-                              as ImageProvider,
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-              child: Container(color: Colors.black.withAlpha(100)),
+          RepaintBoundary(
+            child: Container(
+              decoration: BoxDecoration(
+                image: _currentItem?.artUri != null
+                    ? DecorationImage(
+                        image:
+                            (_currentItem!.artUri!.scheme == 'file'
+                                    ? FileImage(
+                                        File(_currentItem!.artUri!.toFilePath()),
+                                      )
+                                    : NetworkImage(
+                                        _currentItem!.artUri!.toString(),
+                                      ))
+                                as ImageProvider,
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                child: Container(color: Colors.black.withAlpha(100)),
+              ),
             ),
           ),
 
           // Stereo Visualizer
-          StreamBuilder<PlaybackState>(
-            stream: widget.audioHandler.playbackState,
-            builder: (context, playbackSnapshot) {
-              final isPlaying = playbackSnapshot.data?.playing ?? false;
-              return StreamBuilder<PositionData>(
-                stream: widget.positionStream,
-                builder: (context, positionSnapshot) {
+          RepaintBoundary(
+            child: StreamBuilder<PlaybackState>(
+              stream: widget.audioHandler.playbackState,
+              builder: (context, playbackSnapshot) {
+                final isPlaying = playbackSnapshot.data?.playing ?? false;
+                return StreamBuilder<PositionData>(
+                  stream: widget.positionStream,
+                  builder: (context, positionSnapshot) {
                   final position =
                       positionSnapshot.data?.position ?? Duration.zero;
                   final duration =
@@ -447,6 +450,7 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
               );
             },
           ),
+        ),
 
           // Lyrics in the center
           Align(

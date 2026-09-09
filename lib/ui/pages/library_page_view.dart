@@ -473,23 +473,25 @@ class LibraryPageViewState extends State<LibraryPageView> {
                   : Colors.white,
             ),
             builder: (context, topColor, child) {
-              return ShaderMask(
-                shaderCallback: (Rect bounds) {
-                  return LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      topColor ?? Colors.black,
-                      Colors.black,
-                      Colors.black,
-                    ],
-                    stops: const [0.0, 0.05, 1.0],
-                  ).createShader(
-                    Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                  );
-                },
-                blendMode: BlendMode.dstIn,
-                child: child,
+              return RepaintBoundary(
+                child: ShaderMask(
+                  shaderCallback: (Rect bounds) {
+                    return LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        topColor ?? Colors.black,
+                        Colors.black,
+                        Colors.black,
+                      ],
+                      stops: const [0.0, 0.05, 1.0],
+                    ).createShader(
+                      Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                    );
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: child,
+                ),
               );
             },
             child: ValueListenableBuilder<Set<String>>(

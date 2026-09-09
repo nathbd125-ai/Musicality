@@ -66,12 +66,17 @@ class ArtistPageViewState extends State<ArtistPageView> {
 
   @override
   Widget build(BuildContext context) {
-    final allArtists = globalPlaylist
+    final Map<String, MediaItem> artistSampleMap = {};
+    for (final song in globalPlaylist) {
+      final artist = extractPrimaryArtist(song.artist);
+      if (artist.isNotEmpty && artist != 'Inconnu') {
+        artistSampleMap.putIfAbsent(artist.toLowerCase(), () => song);
+      }
+    }
+    final allArtists = artistSampleMap.values
         .map((e) => extractPrimaryArtist(e.artist))
-        .where((a) => a.isNotEmpty && a != 'Inconnu')
-        .toSet()
-        .toList();
-    allArtists.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     List<String> matchingArtists = allArtists;
 
@@ -150,16 +155,14 @@ class ArtistPageViewState extends State<ArtistPageView> {
                   itemCount: matchingArtists.length,
                   itemBuilder: (context, index) {
                     final artistName = matchingArtists[index];
-                    final sampleItem = globalPlaylist.firstWhere(
-                      (e) => extractPrimaryArtist(e.artist).toLowerCase() == artistName.toLowerCase(),
-                      orElse: () => globalPlaylist.isNotEmpty
-                          ? globalPlaylist.first
-                          : MediaItem(
-                              id: 'dummy',
-                              title: 'Aucune',
-                              artist: '',
-                            ),
-                    );
+                    final sampleItem = artistSampleMap[artistName.toLowerCase()] ??
+                        (globalPlaylist.isNotEmpty
+                            ? globalPlaylist.first
+                            : MediaItem(
+                                id: 'dummy',
+                                title: 'Aucune',
+                                artist: '',
+                              ));
 
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(

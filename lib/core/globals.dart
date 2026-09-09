@@ -63,7 +63,7 @@ final ValueNotifier<bool> isDownloadLosslessNotifier = ValueNotifier<bool>(
 final ValueNotifier<bool> isDownloadHiResNotifier = ValueNotifier<bool>(false);
 final ValueNotifier<bool> isCacheEnabledNotifier = ValueNotifier<bool>(false);
 final ValueNotifier<bool> isLiquidGlassEnabledNotifier = ValueNotifier<bool>(
-  true,
+  false,
 );
 final ValueNotifier<bool> isBatterySaverEnabledNotifier = ValueNotifier<bool>(
   false,
