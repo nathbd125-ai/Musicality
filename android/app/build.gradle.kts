@@ -13,8 +13,33 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
-val isStudio = (project.findProperty("studio") as? String == "true") ||
-               (project.findProperty("isStudio") as? String == "true")
+fun isStudioRequested(): Boolean {
+    if (project.hasProperty("studio") || project.hasProperty("isStudio")) {
+        return true
+    }
+    val dartDefines = project.findProperty("dart-defines") as? String
+    if (dartDefines != null) {
+        try {
+            val entries = dartDefines.split(",")
+            for (entry in entries) {
+                val decoded = String(
+                    java.util.Base64.getDecoder().decode(entry),
+                    java.nio.charset.StandardCharsets.UTF_8,
+                )
+                if (decoded.contains("STUDIO_MODE=true")) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {
+            if (dartDefines.contains("STUDIO_MODE")) {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+val isStudio = isStudioRequested()
 
 android {
     namespace = "com.musicality"
