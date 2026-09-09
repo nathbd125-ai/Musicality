@@ -40,7 +40,8 @@ class _HyperOSSliderState extends State<HyperOSSlider> {
         : widget.position.inMilliseconds.toDouble();
     final double pct = (currentMs / maxMs).clamp(0.0, 1.0);
 
-    return GestureDetector(
+    return RepaintBoundary(
+      child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (details) {
         final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
@@ -179,6 +180,7 @@ class _HyperOSSliderState extends State<HyperOSSlider> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

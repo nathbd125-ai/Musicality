@@ -122,67 +122,69 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
   Widget build(BuildContext context) {
     final size = _fixedSize ?? MediaQuery.of(context).size * 1.8;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        AnimatedBuilder(
-          animation: Listenable.merge([_controller, _saverAnimation]),
-          builder: (context, child) {
-            final screen = MediaQuery.of(context).size;
-            final maxDx = screen.width * 0.35;
-            final maxDy = screen.height * 0.35;
+    return RepaintBoundary(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          AnimatedBuilder(
+            animation: Listenable.merge([_controller, _saverAnimation]),
+            builder: (context, child) {
+              final screen = MediaQuery.of(context).size;
+              final maxDx = screen.width * 0.35;
+              final maxDy = screen.height * 0.35;
 
-            final t = _controller.value * 2 * math.pi;
-            final driftScale = 1.05 + math.sin(t) * 0.05;
+              final t = _controller.value * 2 * math.pi;
+              final driftScale = 1.05 + math.sin(t) * 0.05;
 
-            final driftDx = (math.sin(t) * 0.7 + math.sin(t * 2) * 0.3) * maxDx;
-            final driftDy =
-                (math.cos(t + math.pi / 3) * 0.7 +
-                    math.cos(t * 2 + math.pi / 4) * 0.3) *
-                maxDy;
+              final driftDx = (math.sin(t) * 0.7 + math.sin(t * 2) * 0.3) * maxDx;
+              final driftDy =
+                  (math.cos(t + math.pi / 3) * 0.7 +
+                      math.cos(t * 2 + math.pi / 4) * 0.3) *
+                  maxDy;
 
-            final saverProgress = _saverAnimation.value;
-            final dx = lerpDouble(driftDx, 0.0, saverProgress) ?? 0.0;
-            final dy = lerpDouble(driftDy, 0.0, saverProgress) ?? 0.0;
-            final scale = lerpDouble(driftScale, 1.05, saverProgress) ?? 1.05;
+              final saverProgress = _saverAnimation.value;
+              final dx = lerpDouble(driftDx, 0.0, saverProgress) ?? 0.0;
+              final dy = lerpDouble(driftDy, 0.0, saverProgress) ?? 0.0;
+              final scale = lerpDouble(driftScale, 1.05, saverProgress) ?? 1.05;
 
-            return Transform.translate(
-              offset: Offset(dx, dy),
-              child: Transform.scale(
-                scale: scale,
-                alignment: Alignment.center,
-                child: child,
-              ),
-            );
-          },
-          child: RepaintBoundary(
-            child: OverflowBox(
-              minWidth: size.width,
-              maxWidth: size.width,
-              minHeight: size.height,
-              maxHeight: size.height,
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: size.width / 4,
-                  height: size.height / 4,
-                  child: RepaintBoundary(
-                    child: ImageFiltered(
-                      imageFilter: ImageFilter.blur(
-                        sigmaX: 6,
-                        sigmaY: 6,
-                        tileMode: TileMode.mirror,
+              return Transform.translate(
+                offset: Offset(dx, dy),
+                child: Transform.scale(
+                  scale: scale,
+                  alignment: Alignment.center,
+                  child: child,
+                ),
+              );
+            },
+            child: RepaintBoundary(
+              child: OverflowBox(
+                minWidth: size.width,
+                maxWidth: size.width,
+                minHeight: size.height,
+                maxHeight: size.height,
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: size.width / 4,
+                    height: size.height / 4,
+                    child: RepaintBoundary(
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(
+                          sigmaX: 6,
+                          sigmaY: 6,
+                          tileMode: TileMode.mirror,
+                        ),
+                        child: getLocalOrNetworkImageSuperBlurred(widget.item),
                       ),
-                      child: getLocalOrNetworkImageSuperBlurred(widget.item),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-        Container(color: Colors.black.withValues(alpha: 0.15)),
-      ],
+          Container(color: Colors.black.withValues(alpha: 0.15)),
+        ],
+      ),
     );
   }
 }

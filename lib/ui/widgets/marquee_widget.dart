@@ -197,8 +197,9 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
       ),
     );
 
-    return AnimatedBuilder(
-      animation: _scrollController,
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _scrollController,
       builder: (context, childWidget) {
         final double offset = _scrollController.hasClients
             ? _scrollController.offset
@@ -263,6 +264,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget> {
         );
       },
       child: marquee,
-    );
-  }
+    ),
+  );
+}
 }

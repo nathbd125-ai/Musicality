@@ -27,7 +27,7 @@ class MusicalityLyricsView extends StatefulWidget {
 }
 
 class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<int> _activeIndexNotifier = ValueNotifier<int>(-1);
   StreamSubscription<PositionData>? _positionSubscription;
@@ -58,6 +58,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _generateKeys();
 
     _ticker = createTicker((_) {
@@ -225,7 +226,24 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    if (state == AppLifecycleState.resumed) {
+      if (widget.isExpanded) {
+        if (!_ticker.isActive) {
+          _ticker.start();
+        } else {
+          _ticker.muted = false;
+        }
+      }
+    } else {
+      _ticker.muted = true;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _positionNotifier.dispose();
     _activeIndexNotifier.dispose();
