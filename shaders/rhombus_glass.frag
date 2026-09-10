@@ -16,6 +16,44 @@ float SD_RBox(vec2 position, vec2 halfSize, float cornerRadius) {
     return length(max(position, vec2(0.0))) + min(max(position.x, position.y), 0.0) - cornerRadius;
 }
 
+// Deep, silky-smooth Golden Spiral (Vogel) frosted blur + Chromatic Aberration
+vec4 sampleFrostedGlass(vec2 baseUv, vec2 displacement, vec2 screenSize) {
+    vec2 uvG = baseUv + displacement;
+    vec2 uvR = baseUv + displacement * 1.03;
+    vec2 uvB = baseUv + displacement * 0.97;
+
+    // Center tap
+    vec4 color = vec4(
+        texture(uTexture, clamp(uvR, 0.001, 0.999)).r,
+        texture(uTexture, clamp(uvG, 0.001, 0.999)).g,
+        texture(uTexture, clamp(uvB, 0.001, 0.999)).b,
+        texture(uTexture, clamp(uvG, 0.001, 0.999)).a
+    ) * 0.14;
+
+    // Frosted glass blur radius in physical pixels (~8-9 logical px of deep smooth blur)
+    float blurRadius = 24.0;
+    float angle = 0.0;
+    
+    // 12-tap golden angle distribution for uniform circular bokeh blur
+    for (int i = 1; i <= 12; i++) {
+        angle += 2.39996323; // Golden angle (137.5 degrees)
+        float r = sqrt(float(i) / 12.0) * blurRadius;
+        vec2 offset = vec2(cos(angle), sin(angle)) * r / screenSize;
+        
+        vec2 sR = clamp(uvR + offset * 1.02, 0.001, 0.999);
+        vec2 sG = clamp(uvG + offset, 0.001, 0.999);
+        vec2 sB = clamp(uvB + offset * 0.98, 0.001, 0.999);
+        
+        float weight = 0.105 - float(i) * 0.0045;
+        color.r += texture(uTexture, sR).r * weight;
+        color.g += texture(uTexture, sG).g * weight;
+        color.b += texture(uTexture, sB).b * weight;
+        color.a += texture(uTexture, sG).a * weight;
+    }
+
+    return color;
+}
+
 void main() {
     // In BackdropFilter, FlutterFragCoord().xy is the GLOBAL screen coordinate.
     vec2 fragCoord = FlutterFragCoord().xy;
@@ -34,7 +72,7 @@ void main() {
         return;
     }
     
-    // 3. Subtle interior zoom (5% magnification for realistic glass lens thickness)
+    // 3. Subtle interior zoom (5% magnification for realistic glass lens depth)
     // Pulls sampling UVs slightly towards the center of the widget
     vec2 zoomDisplacement = -(coord / uScreenSize) * 0.05;
 
@@ -75,18 +113,8 @@ void main() {
     // UV coordinates on the full screen texture
     vec2 baseUv = fragCoord / uScreenSize;
 
-    // Chromatic aberration (color dispersion across the glass)
-    vec2 uvR = clamp(baseUv + totalDisplacement * 1.03, 0.001, 0.999);
-    vec2 uvG = clamp(baseUv + totalDisplacement * 1.00, 0.001, 0.999);
-    vec2 uvB = clamp(baseUv + totalDisplacement * 0.97, 0.001, 0.999);
-    
-    // Sample texture (hardware-blurred by ImageFilter.compose)
-    float r = texture(uTexture, uvR).r;
-    float g = texture(uTexture, uvG).g;
-    float b = texture(uTexture, uvB).b;
-    float a = texture(uTexture, uvG).a;
-    
-    vec4 m_color = vec4(r, g, b, a);
+    // Sample texture with deep frosted Vogel blur + chromatic aberration
+    vec4 m_color = sampleFrostedGlass(baseUv, totalDisplacement, uScreenSize);
     
     // Clean edge specular highlight on the 3D rim
     float highlightIntensity = 0.16;
