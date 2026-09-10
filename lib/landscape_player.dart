@@ -227,17 +227,10 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
     });
   }
 
-  IconData _getBatteryIcon(int level, bool isCharging) {
-    if (isCharging) return CupertinoIcons.battery_charging;
-    if (level <= 15) return CupertinoIcons.battery_empty;
-    if (level <= 60) return CupertinoIcons.battery_25_percent;
-    return CupertinoIcons.battery_full;
-  }
-
   Color _getBatteryColor(int level, bool isCharging) {
     if (isCharging) return Colors.greenAccent.shade400;
     if (level <= 20) return Colors.redAccent;
-    return Colors.white70;
+    return Colors.white;
   }
 
   @override
@@ -777,68 +770,76 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
             ),
           ),
 
-          // Top Right Status: Battery Info + Charging Bolt + Close Button
+          // Top Left: Close Button (croix déplacée à l'opposé pour quitter le mode paysage)
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 16.0, left: 16.0),
+                child: SizedBox(
+                  height: 36,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(CupertinoIcons.clear),
+                    color: Colors.white70,
+                    iconSize: 22,
+                    tooltip: "Quitter le mode paysage",
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Top Right: Indicateur dynamique de batterie + Éclair vert si en charge
           SafeArea(
             child: Align(
               alignment: Alignment.topRight,
               child: Padding(
                 padding: const EdgeInsets.only(top: 16.0, right: 16.0),
-                child: Builder(
-                  builder: (context) {
-                    final bool isCharging =
-                        _batteryState == BatteryState.charging ||
-                        _batteryState == BatteryState.full;
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Niveau de batterie
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _getBatteryIcon(_batteryLevel, isCharging),
-                              color: _getBatteryColor(_batteryLevel, isCharging),
-                              size: 18,
+                child: SizedBox(
+                  height: 36,
+                  child: Builder(
+                    builder: (context) {
+                      final bool isCharging =
+                          _batteryState == BatteryState.charging ||
+                          _batteryState == BatteryState.full;
+                      final Color batteryColor =
+                          _getBatteryColor(_batteryLevel, isCharging);
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Jauge visuelle proportionnelle au niveau de batterie réel
+                          _BatteryIconWidget(
+                            level: _batteryLevel,
+                            isCharging: isCharging,
+                            color: batteryColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$_batteryLevel%',
+                            style: TextStyle(
+                              color: batteryColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(width: 5),
-                            Text(
-                              '$_batteryLevel%',
-                              style: TextStyle(
-                                color: _getBatteryColor(
-                                  _batteryLevel,
-                                  isCharging,
-                                ),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          ),
+
+                          // Éclair vert (uniquement si l'appareil est en charge)
+                          if (isCharging) ...[
+                            const SizedBox(width: 6),
+                            Icon(
+                              CupertinoIcons.bolt_fill,
+                              color: Colors.greenAccent.shade400,
+                              size: 16,
                             ),
                           ],
-                        ),
-
-                        // Éclair vert (uniquement si en charge)
-                        if (isCharging) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            CupertinoIcons.bolt_fill,
-                            color: Colors.greenAccent.shade400,
-                            size: 18,
-                          ),
                         ],
-
-                        const SizedBox(width: 8),
-
-                        // Croix pour fermer (à droite de l'éclair)
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(CupertinoIcons.clear),
-                          color: Colors.white70,
-                          iconSize: 22,
-                          tooltip: "Quitter le mode paysage",
-                        ),
-                      ],
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -846,6 +847,102 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
         ],
       ),
     );
+  }
+}
+
+/// Widget affichant une icône de batterie personnalisée avec remplissage proportionnel dynamique
+class _BatteryIconWidget extends StatelessWidget {
+  final int level;
+  final bool isCharging;
+  final Color color;
+
+  const _BatteryIconWidget({
+    required this.level,
+    required this.isCharging,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(22, 11),
+      painter: _BatteryPainter(
+        level: level,
+        isCharging: isCharging,
+        color: color,
+      ),
+    );
+  }
+}
+
+class _BatteryPainter extends CustomPainter {
+  final int level;
+  final bool isCharging;
+  final Color color;
+
+  _BatteryPainter({
+    required this.level,
+    required this.isCharging,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double bodyWidth = size.width - 3.0;
+    final double bodyHeight = size.height;
+
+    // Contour du boîtier de batterie
+    final Paint borderPaint = Paint()
+      ..color = color.withValues(alpha: 0.65)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3;
+
+    final RRect bodyRRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0.65, 0.65, bodyWidth - 1.3, bodyHeight - 1.3),
+      const Radius.circular(3.0),
+    );
+    canvas.drawRRect(bodyRRect, borderPaint);
+
+    // Borne positive (+) à droite
+    final Paint terminalPaint = Paint()
+      ..color = color.withValues(alpha: 0.65)
+      ..style = PaintingStyle.fill;
+
+    final double terminalHeight = bodyHeight * 0.42;
+    final double terminalTop = (bodyHeight - terminalHeight) / 2;
+    final RRect terminalRRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(bodyWidth, terminalTop, 1.8, terminalHeight),
+      const Radius.circular(1.0),
+    );
+    canvas.drawRRect(terminalRRect, terminalPaint);
+
+    // Remplissage intérieur proportionnel (ex: 50% = rempli à moitié)
+    final int clampedLevel = level.clamp(0, 100);
+    if (clampedLevel > 0) {
+      const double pad = 2.0;
+      final double maxFillWidth = bodyWidth - (pad * 2);
+      final double fillHeight = bodyHeight - (pad * 2);
+      final double fillFraction = clampedLevel / 100.0;
+      final double fillWidth =
+          (maxFillWidth * fillFraction).clamp(1.5, maxFillWidth);
+
+      final Paint fillPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill;
+
+      final RRect fillRRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(pad, pad, fillWidth, fillHeight),
+        const Radius.circular(1.5),
+      );
+      canvas.drawRRect(fillRRect, fillPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BatteryPainter oldDelegate) {
+    return oldDelegate.level != level ||
+        oldDelegate.isCharging != isCharging ||
+        oldDelegate.color != color;
   }
 }
 
