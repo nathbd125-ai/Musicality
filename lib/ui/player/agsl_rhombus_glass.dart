@@ -12,7 +12,7 @@ class AGSLRhombusGlass extends StatefulWidget {
     super.key,
     required this.child,
     this.cornerRadius = 40.0,
-    this.distance = 35.0,
+    this.distance = 150.0,
     this.blurSigma = 16.0,
     this.enabled = true,
   });
