@@ -231,58 +231,60 @@ Future<void> showAuthDialog({
                       ),
                     ),
 
-                    // --- LE BOUTON APPLE (OBLIGATOIRE SUR IOS SELON LES RÈGLES APP STORE) ---
-                    if (Platform.isIOS) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: CupertinoButton(
-                          color: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          onPressed: () async {
-                            try {
-                              final appleProvider = AppleAuthProvider();
-                              appleProvider.addScope('email');
-                              appleProvider.addScope('name');
+                    // --- BOUTON APPLE (disponible sur toutes les plateformes) ---
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: CupertinoButton(
+                        color: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        onPressed: () async {
+                          try {
+                            final appleProvider = AppleAuthProvider();
+                            appleProvider.addScope('email');
+                            appleProvider.addScope('name');
 
-                              await FirebaseAuth.instance.signInWithProvider(
-                                appleProvider,
-                              );
-                              await performCloudRestore();
+                            await FirebaseAuth.instance.signInWithProvider(
+                              appleProvider,
+                            );
+                            await performCloudRestore();
 
-                              showSnackBar("Connexion Apple réussie !");
+                            showSnackBar("Connexion Apple réussie !");
 
-                              if (dialogContext.mounted) {
-                                Navigator.pop(dialogContext);
-                              }
-                            } catch (e) {
-                              showSnackBar(
-                                "Erreur Apple : $e",
-                                isError: true,
-                              );
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
                             }
-                          },
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.apple,
+                          } catch (e) {
+                            final isNotAllowed = e is FirebaseAuthException &&
+                                e.code == 'operation-not-allowed';
+                            showSnackBar(
+                              isNotAllowed
+                                  ? "La connexion Apple n'est pas encore disponible sur Android. Utilise Google ou un compte email."
+                                  : "Erreur Apple : $e",
+                              isError: true,
+                            );
+                          }
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.apple,
+                              color: Colors.black,
+                              size: 26,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              "Continuer avec Apple",
+                              style: TextStyle(
                                 color: Colors.black,
-                                size: 26,
+                                fontWeight: FontWeight.bold,
                               ),
-                              SizedBox(width: 8),
-                              Text(
-                                "Continuer avec Apple",
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
