@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_waveform/just_waveform.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:battery_plus/battery_plus.dart';
 
 class LandscapeStereoPlayer extends StatefulWidget {
   final AudioHandler audioHandler;
@@ -52,6 +53,12 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
   DateTime _lastPositionUpdate = DateTime.now();
   bool _isPlaying = false;
 
+  final Battery _battery = Battery();
+  int _batteryLevel = 100;
+  BatteryState _batteryState = BatteryState.unknown;
+  StreamSubscription<BatteryState>? _batteryStateSub;
+  Timer? _batteryTimer;
+
   bool get _hasNoLyrics {
     if (_currentLyrics.isEmpty) return true;
     if (_currentLyrics.length == 1) {
@@ -72,6 +79,7 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
     _currentItem = widget.item;
     _currentLyrics = widget.lyrics;
     _currentThemeColors = widget.themeColors;
+    _initBattery();
 
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeRight,
@@ -180,12 +188,66 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
     }
   }
 
+  void _initBattery() async {
+    try {
+      final level = await _battery.batteryLevel;
+      final state = await _battery.batteryState;
+      if (mounted) {
+        setState(() {
+          _batteryLevel = level;
+          _batteryState = state;
+        });
+      }
+    } catch (e) {
+      debugPrint("Battery init error: $e");
+    }
+
+    _batteryStateSub = _battery.onBatteryStateChanged.listen((state) async {
+      int level = _batteryLevel;
+      try {
+        level = await _battery.batteryLevel;
+      } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _batteryState = state;
+          _batteryLevel = level;
+        });
+      }
+    });
+
+    _batteryTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      try {
+        final level = await _battery.batteryLevel;
+        if (mounted && level != _batteryLevel) {
+          setState(() {
+            _batteryLevel = level;
+          });
+        }
+      } catch (_) {}
+    });
+  }
+
+  IconData _getBatteryIcon(int level, bool isCharging) {
+    if (isCharging) return CupertinoIcons.battery_charging;
+    if (level <= 15) return CupertinoIcons.battery_empty;
+    if (level <= 60) return CupertinoIcons.battery_25_percent;
+    return CupertinoIcons.battery_full;
+  }
+
+  Color _getBatteryColor(int level, bool isCharging) {
+    if (isCharging) return Colors.greenAccent.shade400;
+    if (level <= 20) return Colors.redAccent;
+    return Colors.white70;
+  }
+
   @override
   void dispose() {
     _visualizerController.removeListener(_onVisualizerTick);
     _mediaItemSub?.cancel();
     _positionSub?.cancel();
     _playbackSub?.cancel();
+    _batteryStateSub?.cancel();
+    _batteryTimer?.cancel();
     _positionNotifier.dispose();
     _activeIndexNotifier.dispose();
     SystemChrome.setPreferredOrientations([
@@ -705,13 +767,6 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
                               color: Colors.white70,
                               iconSize: 28,
                             ),
-                            const SizedBox(width: 32),
-                            IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(CupertinoIcons.clear),
-                              color: Colors.white38,
-                              iconSize: 24,
-                            ),
                           ],
                         ),
                       ],
@@ -722,16 +777,68 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
             ),
           ),
 
-          // High Quality Icon Top Right
+          // Top Right Status: Battery Info + Charging Bolt + Close Button
           SafeArea(
             child: Align(
               alignment: Alignment.topRight,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Icon(
-                  CupertinoIcons.bolt_fill,
-                  color: Colors.greenAccent.shade400,
-                  size: 20,
+                padding: const EdgeInsets.only(top: 16.0, right: 16.0),
+                child: Builder(
+                  builder: (context) {
+                    final bool isCharging =
+                        _batteryState == BatteryState.charging ||
+                        _batteryState == BatteryState.full;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Niveau de batterie
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _getBatteryIcon(_batteryLevel, isCharging),
+                              color: _getBatteryColor(_batteryLevel, isCharging),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              '$_batteryLevel%',
+                              style: TextStyle(
+                                color: _getBatteryColor(
+                                  _batteryLevel,
+                                  isCharging,
+                                ),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Éclair vert (uniquement si en charge)
+                        if (isCharging) ...[
+                          const SizedBox(width: 8),
+                          Icon(
+                            CupertinoIcons.bolt_fill,
+                            color: Colors.greenAccent.shade400,
+                            size: 18,
+                          ),
+                        ],
+
+                        const SizedBox(width: 8),
+
+                        // Croix pour fermer (à droite de l'éclair)
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(CupertinoIcons.clear),
+                          color: Colors.white70,
+                          iconSize: 22,
+                          tooltip: "Quitter le mode paysage",
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
