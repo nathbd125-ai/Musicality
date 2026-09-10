@@ -130,10 +130,15 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
         shader.setFloat(8, screenSize.width * dpr);
         shader.setFloat(9, screenSize.height * dpr);
 
+        final compositeFilter = ImageFilter.compose(
+          outer: ImageFilter.shader(shader),
+          inner: _blurFilter,
+        );
+
         return ClipRRect(
           borderRadius: BorderRadius.circular(widget.cornerRadius),
           child: BackdropFilter(
-            filter: ImageFilter.shader(shader),
+            filter: compositeFilter,
             child: widget.child,
           ),
         );
