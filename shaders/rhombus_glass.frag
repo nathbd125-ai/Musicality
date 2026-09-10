@@ -47,34 +47,38 @@ void main() {
     vec2 coord = localCoord - uSize * 0.5;
     
     vec2 rr_size = uSize * 0.5;
-    float cornerRadius = max(uCornerRadius, 1.0);
+    float cornerRadius = min(max(uCornerRadius, 1.0), min(rr_size.x, rr_size.y));
     
-    // 2. SDF for the rounded box
+    // 2. SDF for clipping outer bounds (clean rounded box)
     float sdf = SD_RBox(coord, rr_size, cornerRadius);
-    
-    // Default flat normal and distortion
-    vec3 n1 = vec3(0.0, 0.0, 1.0);
-    float z2_z1 = 0.0;
-
-    // 3. Use the FULL half-height as bevel width so the effect covers the entire widget
-    //    (instead of only cornerRadius pixels at the edges)
-    float bevelWidth = rr_size.y;
-
-    if (sdf > -bevelWidth && sdf <= 0.0) {
-        vec2 e = vec2(1.0, 0.0);
-        float dx = SD_RBox(coord + e.xy, rr_size, cornerRadius) - SD_RBox(coord - e.xy, rr_size, cornerRadius);
-        float dy = SD_RBox(coord + e.yx, rr_size, cornerRadius) - SD_RBox(coord - e.yx, rr_size, cornerRadius);
-        vec2 n2d = normalize(vec2(dx, dy));
-        if (length(vec2(dx, dy)) == 0.0) n2d = vec2(0.0);
-        
-        float x = sdf + bevelWidth;
-        float R = bevelWidth;
-        float z = sqrt(max(0.0, R*R - x*x));
-        n1 = normalize(vec3(n2d * (x / R), z / R));
-        z2_z1 = abs(sdf) / R * uDistance;
+    if (sdf > 0.0) {
+        fragColor = vec4(0.0);
+        return;
     }
-    
-    // 4. Calculate 3D Refraction using Snell's Law
+
+    // 3. Continuous top-to-bottom single glass lens profile
+    //    Analytical top boundary with smooth circular corners (Zero 45° seams or triangle artifacts)
+    float dx = max(0.0, abs(coord.x) - (rr_size.x - cornerRadius));
+    float y_top = -rr_size.y;
+    vec2 n2d = vec2(0.0, 1.0);
+
+    if (dx > 0.0) {
+        float cornerY = sqrt(max(0.0, cornerRadius * cornerRadius - dx * dx));
+        y_top = -rr_size.y + cornerRadius - cornerY;
+        n2d = normalize(vec2(sign(coord.x) * dx, cornerY));
+    }
+
+    // Normalized vertical distance from top edge through the widget [0.0 at top, 1.0 at bottom]
+    float distY = max(0.0, coord.y - y_top);
+    float t = clamp(distY / uSize.y, 0.0, 1.0);
+
+    // Circular lens arc decreasing smoothly from top (1.0) to bottom (0.0)
+    float arc = 1.0 - t;
+    float z_normal = sqrt(max(0.0, 1.0 - arc * arc));
+    vec3 n1 = normalize(vec3(n2d * arc, z_normal));
+    float z2_z1 = arc * uDistance;
+
+    // 4. Calculate 3D Refraction using Snell's Law (Original ray-tracing look)
     float refractionStrength = 1.0; 
     vec3 n = normalize(vec3(n1.xy * refractionStrength, -1.0));
     float ior = max(n1.z, 0.01);
@@ -82,11 +86,6 @@ void main() {
     
     // Distortion vector in Screen UV coordinates
     vec2 distortion = wo.xy * z2_z1 / uScreenSize;
-
-    // 5. Suppress downward distortion: only allow upward refraction.
-    //    This removes the bottom-band doubling effect while keeping the top-band look
-    //    across the entire widget surface.
-    distortion.y = min(distortion.y, 0.0);
     
     // UVs for the implicit full-screen texture in BackdropFilter
     vec2 baseUv = fragCoord / uScreenSize;
@@ -108,16 +107,11 @@ void main() {
     
     vec4 m_color = vec4(r, g, b, a);
     
-    // Clean, vibrant color blending + subtle edge specular highlight
+    // Clean, vibrant color blending + subtle edge specular highlight on the top rim
     float g_fBlend = mix(0.0, 1.0, n1.z);
     float highlightIntensity = 0.12;
     float edgeHighlight = (1.0 - g_fBlend) * highlightIntensity;
     m_color.rgb += vec3(edgeHighlight);
-    
-    // Discard pixels outside the widget (local coord out of bounds)
-    if (sdf > 0.0) {
-        m_color.a = 0.0;
-    }
     
     fragColor = m_color;
 }
