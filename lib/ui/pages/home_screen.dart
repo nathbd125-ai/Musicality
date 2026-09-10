@@ -168,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final double bottomPadding = MediaQuery.of(context).viewPadding.bottom;
     final double extraBottom = bottomPadding > 35 ? bottomPadding : 0;
     final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery.of(context).size.width;
 
     final double navBarHeight = 66.0 + bottomPadding;
 
@@ -1077,260 +1078,167 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                         ),
                                                                       ),
 
+                                                                      // --- BOUTON ALÉATOIRE (SHUFFLE) ---
                                                                       AnimatedPositioned(
-                                                                        duration:
-                                                                            transitionDuration,
-                                                                        curve:
-                                                                            transitionCurve,
-                                                                        left:
-                                                                            _isPlayerExpanded
-                                                                            ? 20
-                                                                            : -50,
-                                                                        bottom:
-                                                                            _isPlayerExpanded
-                                                                            ? 95 +
-                                                                                  extraBottom
-                                                                            : (isLiquidGlass
-                                                                                  ? 48
-                                                                                  : navBarHeight +
-                                                                                        48),
-                                                                        width:
-                                                                            _isPlayerExpanded
-                                                                            ? 40
-                                                                            : 30,
-                                                                        height:
-                                                                            _isPlayerExpanded
-                                                                            ? 40
-                                                                            : 30,
+                                                                        key: const ValueKey('ctrl_shuffle'),
+                                                                        duration: transitionDuration,
+                                                                        curve: transitionCurve,
+                                                                        left: _isPlayerExpanded ? 20 : -50,
+                                                                        bottom: _isPlayerExpanded
+                                                                            ? 95 + extraBottom
+                                                                            : (isLiquidGlass ? 48 : navBarHeight + 48),
+                                                                        width: _isPlayerExpanded ? 40 : 30,
+                                                                        height: _isPlayerExpanded ? 40 : 30,
                                                                         child: AnimatedOpacity(
-                                                                          duration: const Duration(
-                                                                            milliseconds:
-                                                                                200,
-                                                                          ),
-                                                                          opacity:
-                                                                              _isPlayerExpanded
-                                                                              ? 1.0
-                                                                              : 0.0,
+                                                                          duration: transitionDuration,
+                                                                          curve: transitionCurve,
+                                                                          opacity: _isPlayerExpanded ? 1.0 : 0.0,
                                                                           child: IgnorePointer(
-                                                                            ignoring:
-                                                                                !_isPlayerExpanded,
-                                                                            child:
-                                                                                StreamBuilder<
-                                                                                  bool
-                                                                                >(
-                                                                                  stream:
-                                                                                      (globalAudioHandler
-                                                                                              as MyAudioHandler)
-                                                                                          .shuffleModeEnabledStream,
-                                                                                  initialData: false,
-                                                                                  builder:
-                                                                                      (
-                                                                                        context,
-                                                                                        snapshot,
-                                                                                      ) {
-                                                                                        final isShuffle =
-                                                                                            snapshot.data ??
-                                                                                            false;
-                                                                                        return HyperOSShuffleButton(
-                                                                                          isShuffle: isShuffle,
-                                                                                          onTap: () {
-                                                                                            (globalAudioHandler
-                                                                                                    as MyAudioHandler)
-                                                                                                .toggleShuffleMode();
-                                                                                          },
-                                                                                          gradientColors: smoothThemeColors,
-                                                                                          size: _isPlayerExpanded
-                                                                                              ? 30
-                                                                                              : 20,
-                                                                                        );
-                                                                                      },
-                                                                                ),
-                                                                          ),
-                                                                        ),
-                                                                      ),
-
-                                                                      AnimatedPositioned(
-                                                                        duration:
-                                                                            transitionDuration,
-                                                                        curve:
-                                                                            transitionCurve,
-                                                                        left: 0,
-                                                                        right:
-                                                                            0,
-                                                                        bottom:
-                                                                            _isPlayerExpanded
-                                                                            ? 85 +
-                                                                                  extraBottom
-                                                                            : (isLiquidGlass
-                                                                                  ? 33
-                                                                                  : navBarHeight +
-                                                                                        33),
-                                                                        height:
-                                                                            60,
-                                                                        child: AnimatedPadding(
-                                                                          duration:
-                                                                              transitionDuration,
-                                                                          curve:
-                                                                              transitionCurve,
-                                                                          padding: EdgeInsets.only(
-                                                                            right:
-                                                                                _isPlayerExpanded
-                                                                                ? 0
-                                                                                : 50,
-                                                                          ),
-                                                                          child: AnimatedAlign(
-                                                                            duration:
-                                                                                transitionDuration,
-                                                                            curve:
-                                                                                transitionCurve,
-                                                                            alignment:
-                                                                                _isPlayerExpanded
-                                                                                ? Alignment.center
-                                                                                : Alignment.centerRight,
-                                                                            child: Row(
-                                                                              mainAxisSize: MainAxisSize.min,
-                                                                              children: [
-                                                                                SizedBox(
-                                                                                  height: 60,
-                                                                                  child: Center(
-                                                                                    child: HyperOSButton(
-                                                                                      onTap: () {
-                                                                                        globalAudioHandler.skipToPrevious();
-                                                                                      },
-                                                                                      child: SmoothIcon(
-                                                                                        icon: CupertinoIcons.backward_fill,
-                                                                                        color: Colors.white,
-                                                                                        size: _isPlayerExpanded
-                                                                                            ? 36
-                                                                                            : 22,
-                                                                                      ),
-                                                                                    ),
-                                                                                  ),
-                                                                                ),
-                                                                                AnimatedContainer(
-                                                                                  duration: transitionDuration,
-                                                                                  curve: transitionCurve,
-                                                                                  width: _isPlayerExpanded
-                                                                                      ? 35
-                                                                                      : 6,
-                                                                                ),
-                                                                                SizedBox(
-                                                                                  height: 60,
-                                                                                  child: Center(
-                                                                                    child: HyperOSButton(
-                                                                                      isPlayPause: true,
-                                                                                      onTap: () {
-                                                                                        if (playing) {
-                                                                                          globalAudioHandler.pause();
-                                                                                        } else {
-                                                                                          globalAudioHandler.play();
-                                                                                        }
-                                                                                      },
-                                                                                      child: SmoothIcon(
-                                                                                        icon: playing
-                                                                                            ? CupertinoIcons.pause_solid
-                                                                                            : CupertinoIcons.play_arrow_solid,
-                                                                                        color: Colors.white,
-                                                                                        size: _isPlayerExpanded
-                                                                                            ? 46
-                                                                                            : 26,
-                                                                                      ),
-                                                                                    ),
-                                                                                  ),
-                                                                                ),
-                                                                                AnimatedContainer(
-                                                                                  duration: transitionDuration,
-                                                                                  curve: transitionCurve,
-                                                                                  width: _isPlayerExpanded
-                                                                                      ? 35
-                                                                                      : 6,
-                                                                                ),
-                                                                                SizedBox(
-                                                                                  height: 60,
-                                                                                  child: Center(
-                                                                                    child: HyperOSButton(
-                                                                                      onTap: () {
-                                                                                        globalAudioHandler.skipToNext();
-                                                                                      },
-                                                                                      child: SmoothIcon(
-                                                                                        icon: CupertinoIcons.forward_fill,
-                                                                                        color: Colors.white,
-                                                                                        size: _isPlayerExpanded
-                                                                                            ? 36
-                                                                                            : 22,
-                                                                                      ),
-                                                                                    ),
-                                                                                  ),
-                                                                                ),
-                                                                              ],
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      ),
-
-                                                                      AnimatedPositioned(
-                                                                        duration:
-                                                                            transitionDuration,
-                                                                        curve:
-                                                                            transitionCurve,
-                                                                        right:
-                                                                            _isPlayerExpanded
-                                                                            ? 20
-                                                                            : 12,
-                                                                        bottom:
-                                                                            _isPlayerExpanded
-                                                                            ? 95 +
-                                                                                  extraBottom
-                                                                            : (isLiquidGlass
-                                                                                  ? 48
-                                                                                  : navBarHeight +
-                                                                                        48),
-                                                                        width:
-                                                                            _isPlayerExpanded
-                                                                            ? 40
-                                                                            : 30,
-                                                                        height:
-                                                                            _isPlayerExpanded
-                                                                            ? 40
-                                                                            : 30,
-                                                                        child:
-                                                                            StreamBuilder<
-                                                                              LoopMode
-                                                                            >(
-                                                                              stream:
-                                                                                  (globalAudioHandler
-                                                                                          as MyAudioHandler)
-                                                                                      .loopModeStream,
-                                                                              initialData: LoopMode.all,
-                                                                              builder:
-                                                                                  (
-                                                                                    context,
-                                                                                    snapshot,
-                                                                                  ) {
-                                                                                    final loopMode =
-                                                                                        snapshot.data ??
-                                                                                        LoopMode.all;
-                                                                                    return HyperOSRepeatButton(
-                                                                                      loopMode: loopMode,
-                                                                                      onTap: () {
-                                                                                        (globalAudioHandler
-                                                                                                as MyAudioHandler)
-                                                                                            .toggleLoopMode();
-                                                                                      },
-                                                                                      gradientColors: smoothThemeColors,
-                                                                                      size: _isPlayerExpanded
-                                                                                          ? 30
-                                                                                          : 20,
-                                                                                    );
+                                                                            ignoring: !_isPlayerExpanded,
+                                                                            child: StreamBuilder<bool>(
+                                                                              stream: (globalAudioHandler as MyAudioHandler)
+                                                                                  .shuffleModeEnabledStream,
+                                                                              initialData: false,
+                                                                              builder: (context, snapshot) {
+                                                                                final isShuffle = snapshot.data ?? false;
+                                                                                return HyperOSShuffleButton(
+                                                                                  isShuffle: isShuffle,
+                                                                                  onTap: () {
+                                                                                    (globalAudioHandler as MyAudioHandler)
+                                                                                        .toggleShuffleMode();
                                                                                   },
+                                                                                  gradientColors: smoothThemeColors,
+                                                                                  size: _isPlayerExpanded ? 30 : 20,
+                                                                                );
+                                                                              },
                                                                             ),
+                                                                          ),
+                                                                        ),
                                                                       ),
 
+                                                                      // --- BOUTON PRÉCÉDENT ---
                                                                       AnimatedPositioned(
-                                                                        duration:
-                                                                            transitionDuration,
-                                                                        curve:
-                                                                            transitionCurve,
+                                                                        key: const ValueKey('ctrl_prev'),
+                                                                        duration: transitionDuration,
+                                                                        curve: transitionCurve,
+                                                                        right: _isPlayerExpanded
+                                                                            ? (screenWidth / 2 + 62)
+                                                                            : 126,
+                                                                        bottom: _isPlayerExpanded
+                                                                            ? 85 + extraBottom
+                                                                            : (isLiquidGlass ? 33 : navBarHeight + 33),
+                                                                        width: _isPlayerExpanded ? 44 : 30,
+                                                                        height: 60,
+                                                                        child: Center(
+                                                                          child: HyperOSButton(
+                                                                            onTap: () {
+                                                                              globalAudioHandler.skipToPrevious();
+                                                                            },
+                                                                            child: SmoothIcon(
+                                                                              icon: CupertinoIcons.backward_fill,
+                                                                              color: Colors.white,
+                                                                              size: _isPlayerExpanded ? 36 : 22,
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ),
+
+                                                                      // --- BOUTON LECTURE / PAUSE ---
+                                                                      AnimatedPositioned(
+                                                                        key: const ValueKey('ctrl_play_pause'),
+                                                                        duration: transitionDuration,
+                                                                        curve: transitionCurve,
+                                                                        right: _isPlayerExpanded
+                                                                            ? (screenWidth / 2 - 27)
+                                                                            : 86,
+                                                                        bottom: _isPlayerExpanded
+                                                                            ? 85 + extraBottom
+                                                                            : (isLiquidGlass ? 33 : navBarHeight + 33),
+                                                                        width: _isPlayerExpanded ? 54 : 34,
+                                                                        height: 60,
+                                                                        child: Center(
+                                                                          child: HyperOSButton(
+                                                                            isPlayPause: true,
+                                                                            onTap: () {
+                                                                              if (playing) {
+                                                                                globalAudioHandler.pause();
+                                                                              } else {
+                                                                                globalAudioHandler.play();
+                                                                              }
+                                                                            },
+                                                                            child: SmoothIcon(
+                                                                              icon: playing
+                                                                                  ? CupertinoIcons.pause_solid
+                                                                                  : CupertinoIcons.play_arrow_solid,
+                                                                              color: Colors.white,
+                                                                              size: _isPlayerExpanded ? 46 : 26,
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ),
+
+                                                                      // --- BOUTON SUIVANT ---
+                                                                      AnimatedPositioned(
+                                                                        key: const ValueKey('ctrl_next'),
+                                                                        duration: transitionDuration,
+                                                                        curve: transitionCurve,
+                                                                        right: _isPlayerExpanded
+                                                                            ? (screenWidth / 2 - 106)
+                                                                            : 50,
+                                                                        bottom: _isPlayerExpanded
+                                                                            ? 85 + extraBottom
+                                                                            : (isLiquidGlass ? 33 : navBarHeight + 33),
+                                                                        width: _isPlayerExpanded ? 44 : 30,
+                                                                        height: 60,
+                                                                        child: Center(
+                                                                          child: HyperOSButton(
+                                                                            onTap: () {
+                                                                              globalAudioHandler.skipToNext();
+                                                                            },
+                                                                            child: SmoothIcon(
+                                                                              icon: CupertinoIcons.forward_fill,
+                                                                              color: Colors.white,
+                                                                              size: _isPlayerExpanded ? 36 : 22,
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ),
+
+                                                                      // --- BOUTON RÉPÉTER (REPEAT) ---
+                                                                      AnimatedPositioned(
+                                                                        key: const ValueKey('ctrl_repeat'),
+                                                                        duration: transitionDuration,
+                                                                        curve: transitionCurve,
+                                                                        right: _isPlayerExpanded ? 20 : 12,
+                                                                        bottom: _isPlayerExpanded
+                                                                            ? 95 + extraBottom
+                                                                            : (isLiquidGlass ? 48 : navBarHeight + 48),
+                                                                        width: _isPlayerExpanded ? 40 : 30,
+                                                                        height: _isPlayerExpanded ? 40 : 30,
+                                                                        child: StreamBuilder<LoopMode>(
+                                                                          stream: (globalAudioHandler as MyAudioHandler)
+                                                                              .loopModeStream,
+                                                                          initialData: LoopMode.all,
+                                                                          builder: (context, snapshot) {
+                                                                            final loopMode = snapshot.data ?? LoopMode.all;
+                                                                            return HyperOSRepeatButton(
+                                                                              loopMode: loopMode,
+                                                                              onTap: () {
+                                                                                (globalAudioHandler as MyAudioHandler)
+                                                                                    .toggleLoopMode();
+                                                                              },
+                                                                              gradientColors: smoothThemeColors,
+                                                                              size: _isPlayerExpanded ? 30 : 20,
+                                                                            );
+                                                                          },
+                                                                        ),
+                                                                      ),
+
+                                                                      // --- SLIDER DE PROGRESSION ---
+                                                                      AnimatedPositioned(
+                                                                        key: const ValueKey('player_slider'),
+                                                                        duration: transitionDuration,
+                                                                        curve: transitionCurve,
                                                                         left:
                                                                             20,
                                                                         right:
