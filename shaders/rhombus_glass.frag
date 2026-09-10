@@ -16,42 +16,41 @@ float SD_RBox(vec2 position, vec2 halfSize, float cornerRadius) {
     return length(max(position, vec2(0.0))) + min(max(position.x, position.y), 0.0) - cornerRadius;
 }
 
-// Deep, silky-smooth Golden Spiral (Vogel) frosted blur + Chromatic Aberration
-vec4 sampleFrostedGlass(vec2 baseUv, vec2 displacement, vec2 screenSize) {
-    vec2 uvG = baseUv + displacement;
-    vec2 uvR = baseUv + displacement * 1.03;
-    vec2 uvB = baseUv + displacement * 0.97;
-
-    // Center tap
-    vec4 color = vec4(
-        texture(uTexture, clamp(uvR, 0.001, 0.999)).r,
-        texture(uTexture, clamp(uvG, 0.001, 0.999)).g,
-        texture(uTexture, clamp(uvB, 0.001, 0.999)).b,
-        texture(uTexture, clamp(uvG, 0.001, 0.999)).a
-    ) * 0.14;
-
-    // Frosted glass blur radius in physical pixels (~8-9 logical px of deep smooth blur)
-    float blurRadius = 24.0;
-    float angle = 0.0;
+// 17-tap deterministic circular Gaussian blur kernel
+// Zero noise, zero grain, zero sizzling (anti-aliased through bilinear texture unit)
+vec4 getCreamyFrostedBlur(vec2 uv, vec2 screenSize) {
+    vec2 px = 1.0 / screenSize;
     
-    // 12-tap golden angle distribution for uniform circular bokeh blur
-    for (int i = 1; i <= 12; i++) {
-        angle += 2.39996323; // Golden angle (137.5 degrees)
-        float r = sqrt(float(i) / 12.0) * blurRadius;
-        vec2 offset = vec2(cos(angle), sin(angle)) * r / screenSize;
-        
-        vec2 sR = clamp(uvR + offset * 1.02, 0.001, 0.999);
-        vec2 sG = clamp(uvG + offset, 0.001, 0.999);
-        vec2 sB = clamp(uvB + offset * 0.98, 0.001, 0.999);
-        
-        float weight = 0.105 - float(i) * 0.0045;
-        color.r += texture(uTexture, sR).r * weight;
-        color.g += texture(uTexture, sG).g * weight;
-        color.b += texture(uTexture, sB).b * weight;
-        color.a += texture(uTexture, sG).a * weight;
-    }
-
-    return color;
+    // Center tap
+    vec4 col = texture(uTexture, uv) * 0.16;
+    
+    // Ring 1 (radius 3.0 px, 4 axial taps)
+    float r1 = 3.0;
+    col += texture(uTexture, uv + vec2( r1,  0.0) * px) * 0.10;
+    col += texture(uTexture, uv + vec2(-r1,  0.0) * px) * 0.10;
+    col += texture(uTexture, uv + vec2( 0.0,  r1) * px) * 0.10;
+    col += texture(uTexture, uv + vec2( 0.0, -r1) * px) * 0.10;
+    
+    // Ring 2 (radius 6.5 px, 4 diagonal taps at 45 degrees)
+    float r2 = 6.5 * 0.7071;
+    col += texture(uTexture, uv + vec2( r2,  r2) * px) * 0.065;
+    col += texture(uTexture, uv + vec2(-r2,  r2) * px) * 0.065;
+    col += texture(uTexture, uv + vec2( r2, -r2) * px) * 0.065;
+    col += texture(uTexture, uv + vec2(-r2, -r2) * px) * 0.065;
+    
+    // Ring 3 (radius 11.0 px, 8 taps for outer bokeh falloff)
+    float r3 = 11.0;
+    float r3d = 11.0 * 0.7071;
+    col += texture(uTexture, uv + vec2( r3,   0.0) * px) * 0.0225;
+    col += texture(uTexture, uv + vec2(-r3,   0.0) * px) * 0.0225;
+    col += texture(uTexture, uv + vec2( 0.0,  r3) * px) * 0.0225;
+    col += texture(uTexture, uv + vec2( 0.0, -r3) * px) * 0.0225;
+    col += texture(uTexture, uv + vec2( r3d,  r3d) * px) * 0.0225;
+    col += texture(uTexture, uv + vec2(-r3d,  r3d) * px) * 0.0225;
+    col += texture(uTexture, uv + vec2( r3d, -r3d) * px) * 0.0225;
+    col += texture(uTexture, uv + vec2(-r3d, -r3d) * px) * 0.0225;
+    
+    return col;
 }
 
 void main() {
@@ -72,8 +71,7 @@ void main() {
         return;
     }
     
-    // 3. Subtle interior zoom (5% magnification for realistic glass lens depth)
-    // Pulls sampling UVs slightly towards the center of the widget
+    // 3. Subtle interior zoom (5% magnification for realistic glass lens thickness)
     vec2 zoomDisplacement = -(coord / uScreenSize) * 0.05;
 
     // 4. 3D Bevel on the curved outer rim
@@ -112,9 +110,17 @@ void main() {
 
     // UV coordinates on the full screen texture
     vec2 baseUv = fragCoord / uScreenSize;
+    vec2 targetUv = clamp(baseUv + totalDisplacement, 0.001, 0.999);
 
-    // Sample texture with deep frosted Vogel blur + chromatic aberration
-    vec4 m_color = sampleFrostedGlass(baseUv, totalDisplacement, uScreenSize);
+    // Sample creamy frosted blur (17-tap deterministic Gaussian kernel: zero sizzling)
+    vec4 m_color = getCreamyFrostedBlur(targetUv, uScreenSize);
+    
+    // Subtle chromatic dispersion exclusively on the 3D rim
+    if (smoothFactor > 0.05) {
+        vec2 caOffset = rimDistortion * 0.15;
+        m_color.r = texture(uTexture, clamp(targetUv + caOffset, 0.001, 0.999)).r;
+        m_color.b = texture(uTexture, clamp(targetUv - caOffset, 0.001, 0.999)).b;
+    }
     
     // Clean edge specular highlight on the 3D rim
     float highlightIntensity = 0.16;
