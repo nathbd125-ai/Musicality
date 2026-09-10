@@ -49,36 +49,48 @@ void main() {
     vec2 rr_size = uSize * 0.5;
     float cornerRadius = min(max(uCornerRadius, 1.0), min(rr_size.x, rr_size.y));
     
-    // 2. SDF for clipping outer bounds (clean rounded box)
+    // 2. SDF for the rounded box (outer clipping)
     float sdf = SD_RBox(coord, rr_size, cornerRadius);
     if (sdf > 0.0) {
         fragColor = vec4(0.0);
         return;
     }
+    
+    // Default flat normal and zero distortion for the center
+    vec3 n1 = vec3(0.0, 0.0, 1.0);
+    float z2_z1 = 0.0;
+    
+    // 3. Compute 3D Normal for the Bevel (Ray-Tracing)
+    // bevelWidth is capped to cornerRadius so it NEVER exceeds the corner radius
+    // (eliminates the 45-degree medial axis seams and side triangle artifacts)
+    float bevelWidth = cornerRadius;
+    
+    if (sdf > -bevelWidth) {
+        vec2 e = vec2(1.0, 0.0);
+        float dx = SD_RBox(coord + e.xy, rr_size, cornerRadius) - SD_RBox(coord - e.xy, rr_size, cornerRadius);
+        float dy = SD_RBox(coord + e.yx, rr_size, cornerRadius) - SD_RBox(coord - e.yx, rr_size, cornerRadius);
+        vec2 n2d = normalize(vec2(dx, dy));
+        if (length(vec2(dx, dy)) == 0.0) n2d = vec2(0.0);
+        
+        // Depth parameter:
+        // x = 0.0 at the inner boundary (sdf = -bevelWidth)
+        // x = R at the outer rim (sdf = 0.0)
+        float R = bevelWidth;
+        float x = sdf + R; 
+        float factor = clamp(x / R, 0.0, 1.0); // 0.0 at center, 1.0 at outer rim
+        
+        // 3D dome / bevel profile
+        float z = sqrt(max(0.0, R * R - x * x));
+        n1 = normalize(vec3(n2d * factor, z / R));
 
-    // 3. Continuous top-to-bottom single glass lens profile
-    //    Analytical top boundary with smooth circular corners (Zero 45° seams or triangle artifacts)
-    float dx = max(0.0, abs(coord.x) - (rr_size.x - cornerRadius));
-    float y_top = -rr_size.y;
-    vec2 n2d = vec2(0.0, 1.0);
-
-    if (dx > 0.0) {
-        float cornerY = sqrt(max(0.0, cornerRadius * cornerRadius - dx * dx));
-        y_top = -rr_size.y + cornerRadius - cornerY;
-        n2d = normalize(vec2(sign(coord.x) * dx, cornerY));
+        // Refraction strength:
+        // Maximum at the outer rim (factor = 1.0) where the glass curves down,
+        // and smoothly drops to EXACTLY ZERO at the center (factor = 0.0).
+        // This ensures the top and bottom bevels smoothly meet at 0 without any cut or line in the middle!
+        z2_z1 = factor * uDistance;
     }
-
-    // Normalized vertical distance from top edge through the widget [0.0 at top, 1.0 at bottom]
-    float distY = max(0.0, coord.y - y_top);
-    float t = clamp(distY / uSize.y, 0.0, 1.0);
-
-    // Circular lens arc decreasing smoothly from top (1.0) to bottom (0.0)
-    float arc = 1.0 - t;
-    float z_normal = sqrt(max(0.0, 1.0 - arc * arc));
-    vec3 n1 = normalize(vec3(n2d * arc, z_normal));
-    float z2_z1 = arc * uDistance;
-
-    // 4. Calculate 3D Refraction using Snell's Law (Original ray-tracing look)
+    
+    // 4. Calculate 3D Refraction using Snell's Law
     float refractionStrength = 1.0; 
     vec3 n = normalize(vec3(n1.xy * refractionStrength, -1.0));
     float ior = max(n1.z, 0.01);
@@ -107,7 +119,7 @@ void main() {
     
     vec4 m_color = vec4(r, g, b, a);
     
-    // Clean, vibrant color blending + subtle edge specular highlight on the top rim
+    // Clean, vibrant color blending + subtle edge specular highlight along the curved glass rims
     float g_fBlend = mix(0.0, 1.0, n1.z);
     float highlightIntensity = 0.12;
     float edgeHighlight = (1.0 - g_fBlend) * highlightIntensity;
