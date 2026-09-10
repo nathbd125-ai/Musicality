@@ -16,12 +16,6 @@ float SD_RBox(vec2 position, vec2 halfSize, float cornerRadius) {
     return length(max(position, vec2(0.0))) + min(max(position.x, position.y), 0.0) - cornerRadius;
 }
 
-// Blend Screen for Specular Highlights on the glass curves
-vec4 BlendScreen(vec4 dst, vec4 src, float opacity) {
-    vec4 screen = vec4(1.0) - (vec4(1.0) - dst) * (vec4(1.0) - src);
-    return mix(dst, screen, opacity);
-}
-
 // Silky-smooth Golden Spiral (Vogel) blur - Zero grid or pixelation artifacts
 vec4 smoothBlur(vec2 uv, vec2 screenSize) {
     vec4 color = texture(uTexture, uv) * 0.16;
@@ -56,14 +50,15 @@ void main() {
         return;
     }
     
-    // Default flat normal and zero distortion for the center
+    // Default flat normal and zero distortion for the clean interior
     vec3 n1 = vec3(0.0, 0.0, 1.0);
     float z2_z1 = 0.0;
+    float smoothFactor = 0.0;
     
-    // 3. Compute 3D Normal for the Bevel (Ray-Tracing)
-    // bevelWidth is capped to cornerRadius so it NEVER exceeds the corner radius
-    // (eliminates the 45-degree medial axis seams and side triangle artifacts)
-    float bevelWidth = cornerRadius;
+    // 3. Bevel concentrated on the rim (e.g. ~12 logical px)
+    // Capped to 35% of half-height and cornerRadius so top and bottom NEVER collide in the middle.
+    // The interior stays at true 1:1 scale (no magnification), and only the outer rim has the 3D glass curve!
+    float bevelWidth = min(rr_size.y * 0.35, min(cornerRadius, 36.0));
     
     if (sdf > -bevelWidth) {
         vec2 e = vec2(1.0, 0.0);
@@ -73,27 +68,26 @@ void main() {
         if (length(vec2(dx, dy)) == 0.0) n2d = vec2(0.0);
         
         // Depth parameter:
-        // x = 0.0 at the inner boundary (sdf = -bevelWidth)
+        // x = 0.0 at the inner flat boundary (sdf = -bevelWidth)
         // x = R at the outer rim (sdf = 0.0)
         float R = bevelWidth;
         float x = sdf + R; 
-        float factor = clamp(x / R, 0.0, 1.0); // 0.0 at center, 1.0 at outer rim
+        float factor = clamp(x / R, 0.0, 1.0);
+        
+        // C1-continuous smoothstep transition: zero slope at inner edge -> no visible crease or seam!
+        smoothFactor = smoothstep(0.0, 1.0, factor);
         
         // 3D dome / bevel profile
-        float z = sqrt(max(0.0, R * R - x * x));
-        n1 = normalize(vec3(n2d * factor, z / R));
+        float z = sqrt(max(0.0, 1.0 - smoothFactor * smoothFactor));
+        n1 = normalize(vec3(n2d * smoothFactor, z));
 
-        // Refraction strength:
-        // Maximum at the outer rim (factor = 1.0) where the glass curves down,
-        // and smoothly drops to EXACTLY ZERO at the center (factor = 0.0).
-        // This ensures the top and bottom bevels smoothly meet at 0 without any cut or line in the middle!
-        z2_z1 = factor * uDistance;
+        // Refraction strength: gentle lens deflection along the curved rim only
+        z2_z1 = smoothFactor * uDistance;
     }
     
-    // 4. Calculate 3D Refraction using Snell's Law
-    float refractionStrength = 1.0; 
-    vec3 n = normalize(vec3(n1.xy * refractionStrength, -1.0));
-    float ior = max(n1.z, 0.01);
+    // 4. Calculate 3D Refraction using Snell's Law with realistic constant glass index (1.0 / 1.33)
+    const float ior = 0.75; 
+    vec3 n = normalize(vec3(n1.xy, -1.0));
     vec3 wo = normalize(refract(vec3(0.0, 0.0, -1.0), n, ior));
     
     // Distortion vector in Screen UV coordinates
@@ -120,9 +114,8 @@ void main() {
     vec4 m_color = vec4(r, g, b, a);
     
     // Clean, vibrant color blending + subtle edge specular highlight along the curved glass rims
-    float g_fBlend = mix(0.0, 1.0, n1.z);
-    float highlightIntensity = 0.12;
-    float edgeHighlight = (1.0 - g_fBlend) * highlightIntensity;
+    float highlightIntensity = 0.15;
+    float edgeHighlight = smoothFactor * highlightIntensity;
     m_color.rgb += vec3(edgeHighlight);
     
     fragColor = m_color;
