@@ -5,6 +5,7 @@ class AGSLRhombusGlass extends StatefulWidget {
   final Widget child;
   final double cornerRadius;
   final double distance;
+  final double blurSigma;
   final bool enabled;
 
   const AGSLRhombusGlass({
@@ -12,6 +13,7 @@ class AGSLRhombusGlass extends StatefulWidget {
     required this.child,
     this.cornerRadius = 40.0,
     this.distance = 150.0,
+    this.blurSigma = 16.0,
     this.enabled = true,
   });
 
@@ -22,13 +24,22 @@ class AGSLRhombusGlass extends StatefulWidget {
 class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
   FragmentProgram? _program;
   Offset _currentOffset = Offset.zero;
+  late ImageFilter _blurFilter;
 
   @override
   void initState() {
     super.initState();
+    _updateBlurFilter();
     if (widget.enabled) {
       _loadShader();
     }
+  }
+
+  void _updateBlurFilter() {
+    _blurFilter = ImageFilter.blur(
+      sigmaX: widget.blurSigma,
+      sigmaY: widget.blurSigma,
+    );
   }
 
   void _updateOffset() {
@@ -47,6 +58,9 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
   @override
   void didUpdateWidget(AGSLRhombusGlass oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.blurSigma != widget.blurSigma) {
+      _updateBlurFilter();
+    }
     if (widget.enabled && !oldWidget.enabled && _program == null) {
       _loadShader();
     }
@@ -78,7 +92,7 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
       return ClipRRect(
         borderRadius: BorderRadius.circular(widget.cornerRadius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 50.0, sigmaY: 50.0),
+          filter: _blurFilter,
           child: widget.child,
         ),
       );
@@ -95,21 +109,26 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
         // Get Device Pixel Ratio because FlutterFragCoord in BackdropFilter is in physical pixels on Impeller
         final dpr = MediaQuery.of(context).devicePixelRatio;
 
-        // Size of the widget
-        shader.setFloat(0, constraints.maxWidth * dpr);
-        shader.setFloat(1, constraints.maxHeight * dpr);
+        // 0, 1: Engine texture size placeholder (overwritten automatically by Flutter's ImageFilter.shader)
+        shader.setFloat(0, 0.0);
+        shader.setFloat(1, 0.0);
 
-        // Corner radius and distance
-        shader.setFloat(2, widget.cornerRadius * dpr);
-        shader.setFloat(3, widget.distance * dpr);
+        // 2, 3: Real size of the widget
+        shader.setFloat(2, constraints.maxWidth * dpr);
+        shader.setFloat(3, constraints.maxHeight * dpr);
 
-        shader.setFloat(4, _currentOffset.dx * dpr);
-        shader.setFloat(5, _currentOffset.dy * dpr);
+        // 4, 5: Corner radius and 3D refraction distance
+        shader.setFloat(4, widget.cornerRadius * dpr);
+        shader.setFloat(5, widget.distance * dpr);
 
-        // Screen size
+        // 6, 7: Widget position on screen (offset)
+        shader.setFloat(6, _currentOffset.dx * dpr);
+        shader.setFloat(7, _currentOffset.dy * dpr);
+
+        // 8, 9: Screen size
         final screenSize = MediaQuery.of(context).size;
-        shader.setFloat(6, screenSize.width * dpr);
-        shader.setFloat(7, screenSize.height * dpr);
+        shader.setFloat(8, screenSize.width * dpr);
+        shader.setFloat(9, screenSize.height * dpr);
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(widget.cornerRadius),

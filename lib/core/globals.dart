@@ -105,8 +105,11 @@ Future<void> initPersistence() async {
   );
   isDownloadHiResNotifier.value = mmkv.decodeBool('isDownloadHiRes');
   isCacheEnabledNotifier.value = mmkv.decodeBool('isCacheEnabled');
-  isLiquidGlassEnabledNotifier.value = false; // mmkv.decodeBool('isLiquidGlassEnabled', defaultValue: true);
+  isLiquidGlassEnabledNotifier.value = mmkv.decodeBool('isLiquidGlassEnabled', defaultValue: true);
   isBatterySaverEnabledNotifier.value = mmkv.decodeBool('isBatterySaverEnabled', defaultValue: false);
+  if (isLiquidGlassEnabledNotifier.value && isBatterySaverEnabledNotifier.value) {
+    isLiquidGlassEnabledNotifier.value = false;
+  }
   final loadedLimit = mmkv.decodeInt('cacheLimit', defaultValue: 100);
   cacheLimitNotifier.value = (loadedLimit == 50 || ![100, 500, 1024, 5120].contains(loadedLimit)) ? 100 : loadedLimit;
 
@@ -134,10 +137,16 @@ Future<void> initPersistence() async {
 
   isLiquidGlassEnabledNotifier.addListener(() {
     mmkv.encodeBool('isLiquidGlassEnabled', isLiquidGlassEnabledNotifier.value);
+    if (isLiquidGlassEnabledNotifier.value && isBatterySaverEnabledNotifier.value) {
+      isBatterySaverEnabledNotifier.value = false;
+    }
   });
 
   isBatterySaverEnabledNotifier.addListener(() {
     mmkv.encodeBool('isBatterySaverEnabled', isBatterySaverEnabledNotifier.value);
+    if (isBatterySaverEnabledNotifier.value && isLiquidGlassEnabledNotifier.value) {
+      isLiquidGlassEnabledNotifier.value = false;
+    }
   });
 
   isCacheEnabledNotifier.addListener(() {

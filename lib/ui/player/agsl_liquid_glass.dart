@@ -25,6 +25,7 @@ class _AGSLLiquidGlassState extends State<AGSLLiquidGlass>
     with SingleTickerProviderStateMixin {
   ui.FragmentProgram? _program;
   late AnimationController _controller;
+  late ui.ImageFilter _blurFilter;
 
   @override
   void initState() {
@@ -33,7 +34,23 @@ class _AGSLLiquidGlassState extends State<AGSLLiquidGlass>
       vsync: this,
       duration: const Duration(seconds: 10),
     )..repeat();
+    _updateBlurFilter();
     _loadShader();
+  }
+
+  @override
+  void didUpdateWidget(AGSLLiquidGlass oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.blurSigma != widget.blurSigma) {
+      _updateBlurFilter();
+    }
+  }
+
+  void _updateBlurFilter() {
+    _blurFilter = ui.ImageFilter.blur(
+      sigmaX: widget.blurSigma,
+      sigmaY: widget.blurSigma,
+    );
   }
 
   @override
@@ -62,50 +79,57 @@ class _AGSLLiquidGlassState extends State<AGSLLiquidGlass>
     if (_program == null || !widget.enabled) {
       return ClipRect(
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(
-            sigmaX: widget.blurSigma,
-            sigmaY: widget.blurSigma,
-          ),
+          filter: _blurFilter,
           child: widget.child,
         ),
       );
     }
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final shader = _program!.fragmentShader();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return AnimatedBuilder(
+          animation: _controller,
+          child: widget.child,
+          builder: (context, cachedChild) {
+            final shader = _program!.fragmentShader();
 
-        // 1) The first uniform is a vec2 for the texture size.
-        // We MUST initialize the float array with at least 2 values to satisfy Flutter's ImageFilter.shader check.
-        shader.setFloat(
-          0,
-          0.0,
-        ); // Will be overwritten by engine with texture width
-        shader.setFloat(
-          1,
-          0.0,
-        ); // Will be overwritten by engine with texture height
+            final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+            final size = renderBox?.size ?? constraints.biggest;
+            Offset offset = Offset.zero;
+            if (renderBox != null && renderBox.attached) {
+              offset = renderBox.localToGlobal(Offset.zero);
+            }
+            final screenSize = MediaQuery.of(context).size;
 
-        // 2) Custom uniforms
-        shader.setFloat(2, widget.distortionStrength);
-        shader.setFloat(3, widget.chromaticAberration);
-        shader.setFloat(4, DateTime.now().millisecondsSinceEpoch / 1000.0);
+            // 1) The first uniform is a vec2 for the texture size.
+            // We MUST initialize the float array with at least 2 values to satisfy Flutter's ImageFilter.shader check.
+            shader.setFloat(0, size.width);
+            shader.setFloat(1, size.height);
 
-        // Compose: First blur the background, then distort it with our shader!
-        // (Or vice-versa, but blurring first usually looks better for liquid glass)
-        final compositeFilter = ui.ImageFilter.compose(
-          outer: ui.ImageFilter.shader(shader),
-          inner: ui.ImageFilter.blur(
-            sigmaX: widget.blurSigma,
-            sigmaY: widget.blurSigma,
-          ),
+            // 2) Custom uniforms
+            shader.setFloat(2, widget.distortionStrength);
+            shader.setFloat(3, widget.chromaticAberration);
+            shader.setFloat(4, _controller.value * 10.0);
+            
+            shader.setFloat(5, offset.dx);
+            shader.setFloat(6, offset.dy);
+            
+            shader.setFloat(7, screenSize.width);
+            shader.setFloat(8, screenSize.height);
+
+            // Compose: First blur the background, then distort it with our shader!
+            // (Or vice-versa, but blurring first usually looks better for liquid glass)
+            final compositeFilter = ui.ImageFilter.compose(
+              outer: ui.ImageFilter.shader(shader),
+              inner: _blurFilter,
+            );
+
+            return ClipRect(
+              child: BackdropFilter(filter: compositeFilter, child: cachedChild),
+            );
+          },
         );
-
-        return ClipRect(
-          child: BackdropFilter(filter: compositeFilter, child: widget.child),
-        );
-      },
+      }
     );
   }
 }

@@ -243,6 +243,33 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
               immediate ? Duration.zero : const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
         );
+      } else if (_scrollController.hasClients) {
+        // Fallback: Si l'item n'est pas dans le viewport (grâce au ListView),
+        // On estime sa position pour s'en rapprocher
+        final estimatedOffset = targetIndex * 50.0;
+        if (immediate) {
+          _scrollController.jumpTo(estimatedOffset);
+        } else {
+          _scrollController.animateTo(
+            estimatedOffset,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOutCubic,
+          );
+        }
+        
+        // Puis on essaie de s'aligner précisément une fois rendu visible
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (!mounted) return;
+          final newContext = _lyricKeys[targetIndex].currentContext;
+          if (newContext != null && newContext.mounted) {
+            Scrollable.ensureVisible(
+              newContext,
+              alignment: 0.28,
+              duration: immediate ? Duration.zero : const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        });
       }
     });
   }
@@ -342,32 +369,30 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
             }
             return false;
           },
-          child: SingleChildScrollView(
+          child: ListView.builder(
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.only(
               top: screenHeight * 0.22,
               bottom: screenHeight * 0.55,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: List.generate(widget.lyrics.length, (index) {
-                final line = widget.lyrics[index];
+            itemCount: widget.lyrics.length,
+            itemBuilder: (context, index) {
+              final line = widget.lyrics[index];
 
-                return KeyedSubtree(
-                  key: _lyricKeys[index],
-                  child: _LyricLineItem(
-                    index: index,
-                    line: line,
-                    activeIndexNotifier: _activeIndexNotifier,
-                    positionNotifier: _positionNotifier,
-                    glowColor: glowColor,
-                    unlitColor: unlitColor,
-                    onTap: () => globalAudioHandler.seek(line.time),
-                  ),
-                );
-              }),
-            ),
+              return KeyedSubtree(
+                key: _lyricKeys[index],
+                child: _LyricLineItem(
+                  index: index,
+                  line: line,
+                  activeIndexNotifier: _activeIndexNotifier,
+                  positionNotifier: _positionNotifier,
+                  glowColor: glowColor,
+                  unlitColor: unlitColor,
+                  onTap: () => globalAudioHandler.seek(line.time),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -380,16 +405,12 @@ List<Shadow> _buildGlowShadows(Color glowColor, double factor) {
   final f = factor.clamp(0.0, 1.0);
   return [
     Shadow(
-      color: Colors.white.withValues(alpha: (f * 0.95).clamp(0.0, 1.0)),
+      color: Colors.white.withValues(alpha: (f * 0.85).clamp(0.0, 1.0)),
       blurRadius: (6.0 * f).clamp(0.1, 6.0),
     ),
     Shadow(
-      color: glowColor.withValues(alpha: (f * 0.85).clamp(0.0, 1.0)),
-      blurRadius: (16.0 * f).clamp(0.1, 16.0),
-    ),
-    Shadow(
-      color: glowColor.withValues(alpha: (f * 0.35).clamp(0.0, 1.0)),
-      blurRadius: (24.0 * f).clamp(0.1, 24.0),
+      color: glowColor.withValues(alpha: (f * 0.7).clamp(0.0, 1.0)),
+      blurRadius: (18.0 * f).clamp(0.1, 18.0),
     ),
   ];
 }

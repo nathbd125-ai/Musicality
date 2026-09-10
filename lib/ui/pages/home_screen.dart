@@ -16,7 +16,6 @@ import 'package:musicality/ui/pages/account_page_view.dart';
 import 'package:musicality/ui/pages/library_page_view.dart';
 import 'package:musicality/ui/pages/all_musics_view.dart';
 import 'package:musicality/ui/pages/artist_page_view.dart';
-import 'package:musicality/ui/player/liquid_glass_container.dart';
 import 'package:musicality/ui/widgets/real_album_blurred_background.dart';
 import 'package:musicality/landscape_player.dart';
 import 'package:musicality/core/my_audio_handler.dart';
@@ -71,6 +70,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _mainPageController = PageController(initialPage: _currentIndex);
     SongDownloadService.scanLocalFiles(globalPlaylist);
     _checkForUpdates();
+    
+    isBatterySaverEnabledNotifier.addListener(_onBatterySaverChanged);
 
     _positionDataStream =
         Rx.combineLatest3<Duration, Duration, Duration?, PositionData>(
@@ -106,6 +107,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  void _onBatterySaverChanged() {
+    if (isBatterySaverEnabledNotifier.value && _isPlayerExpanded) {
+      if (mounted) {
+        setState(() {
+          _isPlayerExpanded = false;
+        });
+      }
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     setState(() {
@@ -115,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    isBatterySaverEnabledNotifier.removeListener(_onBatterySaverChanged);
     WidgetsBinding.instance.removeObserver(this);
     _mainPageController.dispose();
     super.dispose();
@@ -303,9 +315,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                     : Colors.black)),
                                       ];
 
-                            return ValueListenableBuilder<bool>(
-                              valueListenable: isLiquidGlassEnabledNotifier,
-                              builder: (context, isLiquidGlass, _) {
+                            return ListenableBuilder(
+                              listenable: Listenable.merge([
+                                isLiquidGlassEnabledNotifier,
+                                isBatterySaverEnabledNotifier,
+                              ]),
+                              builder: (context, _) {
                                 return TweenAnimationBuilder<double>(
                                   duration: transitionDuration,
                                   curve: transitionCurve,
@@ -402,10 +417,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             isBatterySaverEnabledNotifier,
                                           ]),
                                           builder: (context, _) {
-                                            final isLiquidGlass =
-                                                isLiquidGlassEnabledNotifier.value;
                                             final isBatterySaver =
                                                 isBatterySaverEnabledNotifier.value;
+                                            final isLiquidGlass =
+                                                isLiquidGlassEnabledNotifier.value && !isBatterySaver;
                                             return AnimatedPositioned(
                                               duration: transitionDuration,
                                               curve: transitionCurve,
@@ -519,13 +534,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             return ListenableBuilder(
                                               listenable: Listenable.merge([
                                                 isLiquidGlassEnabledNotifier,
+                                                isBatterySaverEnabledNotifier,
                                                 isDownloadHiResNotifier,
                                                 isDownloadLosslessNotifier,
                                                 SongDownloadService.downloadedSongsNotifier,
                                                 SongDownloadService.downloadingSongsNotifier,
                                               ]),
                                               builder: (context, _) {
-                                                final bool isLiquidGlass = isLiquidGlassEnabledNotifier.value;
+                                                final bool isBatterySaver = isBatterySaverEnabledNotifier.value;
+                                                final bool isLiquidGlass = isLiquidGlassEnabledNotifier.value && !isBatterySaver;
                                                 final bool isDownloaded = SongDownloadService.isDownloaded(safeItem.id);
                                                 final bool isDownloading = SongDownloadService.isDownloading(safeItem.id);
                                                 final bool needsUpgrade = SongDownloadService.checkNeedsUpgrade(safeItem);
@@ -591,10 +608,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                         duration:
                                                             transitionDuration,
                                                         curve: transitionCurve,
-                                                        clipBehavior:
-                                                            isLiquidGlass
-                                                                ? Clip.antiAlias
-                                                                : Clip.none,
+                                                        clipBehavior: Clip.antiAlias,
                                                         decoration: BoxDecoration(
                                                           borderRadius:
                                                               _isPlayerExpanded
@@ -1391,9 +1405,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                             ? Colors.black.withValues(
                                                                                 alpha: 0.1,
                                                                               )
-                                                                            : Colors.black.withValues(
-                                                                                alpha: 0.3,
-                                                                              ),
+                                                                            : (isLiquidGlass
+                                                                                ? Colors.black.withValues(
+                                                                                    alpha: 0.08,
+                                                                                  )
+                                                                                : Colors.black.withValues(
+                                                                                    alpha: 0.3,
+                                                                                  )),
                                                                       ),
                                                                     ),
                                                                   ),
@@ -1411,10 +1429,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             );
                                           },
                                         ),
-                                        ValueListenableBuilder<bool>(
-                                          valueListenable:
-                                              isLiquidGlassEnabledNotifier,
-                                          builder: (context, isLiquidGlass, child) {
+                                        ListenableBuilder(
+                                          listenable: Listenable.merge([
+                                            isLiquidGlassEnabledNotifier,
+                                            isBatterySaverEnabledNotifier,
+                                          ]),
+                                          builder: (context, _) {
+                                            final isBatterySaver = isBatterySaverEnabledNotifier.value;
+                                            final isLiquidGlass = isLiquidGlassEnabledNotifier.value && !isBatterySaver;
                                             return AnimatedPositioned(
                                               key: _bottomBarKey,
                                               duration: transitionDuration,
@@ -1449,10 +1471,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                     child: AnimatedContainer(
                                                       duration:
                                                           transitionDuration,
-                                                      clipBehavior:
-                                                          isLiquidGlass
-                                                              ? Clip.antiAlias
-                                                              : Clip.none,
+                                                      clipBehavior: Clip.antiAlias,
                                                       decoration: BoxDecoration(
                                                         borderRadius:
                                                             isLiquidGlass
@@ -1463,8 +1482,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                       ),
                                                       child: Stack(
                                                         children: [
-                                                          if (isLiquidGlass)
-                                                            Positioned.fill(
+                                                          Positioned.fill(
+                                                            child: AnimatedOpacity(
+                                                              duration: transitionDuration,
+                                                              opacity: isLiquidGlass ? 1.0 : 0.0,
                                                               child: ValueListenableBuilder<bool>(
                                                                 valueListenable:
                                                                     isBatterySaverEnabledNotifier,
@@ -1477,24 +1498,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                         transitionCurve,
                                                                     color:
                                                                         Colors.black.withValues(
-                                                                          alpha: 0.3,
+                                                                          alpha: 0.08,
                                                                         ),
                                                                   );
                                                                 },
                                                               ),
                                                             ),
-                                                          if (isLiquidGlass)
-                                                            Positioned.fill(
-                                                              child: LiquidGlassContainer(
-                                                                duration:
-                                                                    transitionDuration,
-                                                                curve:
-                                                                    transitionCurve,
-                                                                borderRadius: 32,
-                                                                child:
-                                                                    const SizedBox.expand(),
-                                                              ),
-                                                            ),
+                                                          ),
                                                         MusicalityBottomNavBar(
                                                           currentIndex: _currentIndex,
                                                           onTap: (index) {

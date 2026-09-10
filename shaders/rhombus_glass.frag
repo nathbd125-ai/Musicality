@@ -1,10 +1,11 @@
 #include <flutter/runtime_effect.glsl>
 
-uniform vec2 uSize;
-uniform float uCornerRadius;
-uniform float uDistance; // Extent of the 3D refraction (e.g. 100.0)
-uniform vec2 uOffset;
-uniform vec2 uScreenSize;
+uniform vec2 uTextureSize; // Indices 0, 1 (Placeholder automatically overwritten by Flutter engine)
+uniform vec2 uSize;        // Indices 2, 3 (Real widget size: width, height)
+uniform float uCornerRadius; // Index 4
+uniform float uDistance;   // Index 5 (Extent of the 3D refraction)
+uniform vec2 uOffset;      // Indices 6, 7 (Widget screen position offset)
+uniform vec2 uScreenSize;  // Indices 8, 9 (Full screen resolution)
 uniform sampler2D uTexture;
 
 out vec4 fragColor;
@@ -21,17 +22,19 @@ vec4 BlendScreen(vec4 dst, vec4 src, float opacity) {
     return mix(dst, screen, opacity);
 }
 
-// Fast 9-tap blur
-vec4 blur(vec2 uv, vec2 resolution) {
-    vec4 color = vec4(0.0);
-    vec2 off1 = vec2(1.3846153846) / resolution;
-    vec2 off2 = vec2(3.2307692308) / resolution;
-    
-    color += texture(uTexture, uv) * 0.2270270270;
-    color += texture(uTexture, uv + (vec2(1.0, 0.0) * off1)) * 0.3162162162;
-    color += texture(uTexture, uv - (vec2(1.0, 0.0) * off1)) * 0.3162162162;
-    color += texture(uTexture, uv + (vec2(0.0, 1.0) * off1)) * 0.3162162162;
-    color += texture(uTexture, uv - (vec2(0.0, 1.0) * off1)) * 0.3162162162;
+// Silky-smooth Golden Spiral (Vogel) blur - Zero grid or pixelation artifacts
+vec4 smoothBlur(vec2 uv, vec2 screenSize) {
+    vec4 color = texture(uTexture, uv) * 0.16;
+    float radius = 5.0; // Smooth blur radius in physical pixels
+
+    float angle = 0.0;
+    for (int i = 1; i <= 12; i++) {
+        angle += 2.39996323; // Golden angle (137.5 degrees)
+        float r = sqrt(float(i) / 12.0) * radius;
+        vec2 offset = vec2(cos(angle), sin(angle)) * r / screenSize;
+        color += texture(uTexture, uv + offset) * (0.12 - float(i) * 0.006);
+    }
+
     return color;
 }
 
@@ -52,10 +55,10 @@ void main() {
     // Default flat normal and distortion
     vec3 n1 = vec3(0.0, 0.0, 1.0);
     float z2_z1 = 0.0;
-    
+
     // 3. Compute 3D Normal for the Bevel (Ray-Tracing)
     float bevelWidth = min(cornerRadius, min(rr_size.x, rr_size.y));
-    
+
     if (sdf > -bevelWidth && sdf <= 0.0) {
         vec2 e = vec2(1.0, 0.0);
         float dx = SD_RBox(coord + e.xy, rr_size, cornerRadius) - SD_RBox(coord - e.xy, rr_size, cornerRadius);
@@ -63,7 +66,7 @@ void main() {
         vec2 n2d = normalize(vec2(dx, dy));
         if (length(vec2(dx, dy)) == 0.0) n2d = vec2(0.0);
         
-        float x = sdf + bevelWidth; 
+        float x = sdf + bevelWidth;
         float R = bevelWidth;
         float z = sqrt(max(0.0, R*R - x*x));
         n1 = normalize(vec3(n2d * (x / R), z / R));
@@ -76,41 +79,37 @@ void main() {
     float ior = max(n1.z, 0.01);
     vec3 wo = normalize(refract(vec3(0.0, 0.0, -1.0), n, ior));
     
-    // Distortion vector
-    vec2 distortion = wo.xy * z2_z1 / uSize;
+    // Distortion vector in Screen UV coordinates (divide by uScreenSize so X and Y refractions are equal)
+    vec2 distortion = wo.xy * z2_z1 / uScreenSize;
     
     // UVs for the implicit full-screen texture in BackdropFilter
     // fragCoord is ALREADY global, so we just divide by uScreenSize!
-    vec2 uv = fragCoord / uScreenSize;
-    vec2 uvR = uv + distortion * 1.05;
-    vec2 uvG = uv + distortion * 1.00;
-    vec2 uvB = uv + distortion * 0.95;
+    vec2 baseUv = fragCoord / uScreenSize;
+
+    vec2 uvR = baseUv + distortion * 1.05;
+    vec2 uvG = baseUv + distortion * 1.00;
+    vec2 uvB = baseUv + distortion * 0.95;
     
     // Clamp to valid texture bounds
-    uvR = clamp(uvR, 0.0, 1.0);
-    uvG = clamp(uvG, 0.0, 1.0);
-    uvB = clamp(uvB, 0.0, 1.0);
+    uvR = clamp(uvR, 0.001, 0.999);
+    uvG = clamp(uvG, 0.001, 0.999);
+    uvB = clamp(uvB, 0.001, 0.999);
     
-    // Pass uScreenSize for the blur resolution since the implicit texture is full screen
-    float r = blur(uvR, uScreenSize).r;
-    float g = blur(uvG, uScreenSize).g;
-    float b = blur(uvB, uScreenSize).b;
-    float a = blur(uvG, uScreenSize).a;
+    // Sample with multi-tap GLSL blur and chromatic aberration offsets
+    float r = smoothBlur(uvR, uScreenSize).r;
+    float g = smoothBlur(uvG, uScreenSize).g;
+    float b = smoothBlur(uvB, uScreenSize).b;
+    float a = smoothBlur(uvG, uScreenSize).a;
     
     vec4 m_color = vec4(r, g, b, a);
     
-    // Compute blending
+    // Clean, vibrant color blending + subtle edge specular highlight
     float g_fBlend = mix(0.0, 1.0, n1.z);
-    float saturationBoost = mix(1.5, 1.0, g_fBlend);
-    float luma = dot(m_color.rgb, vec3(0.299, 0.587, 0.114));
-    m_color.rgb = mix(vec3(luma), m_color.rgb, saturationBoost);
-    
-    float highlightIntensity = 0.5;
-    m_color = BlendScreen(m_color, vec4(1.0 - g_fBlend), highlightIntensity);
-    m_color.rgb *= mix(1.0, g_fBlend, 0.3);
+    float highlightIntensity = 0.12;
+    float edgeHighlight = (1.0 - g_fBlend) * highlightIntensity;
+    m_color.rgb += vec3(edgeHighlight);
     
     // Discard pixels outside the widget (local coord out of bounds)
-    // Actually we don't need this if ClipRRect handles it, but just in case:
     if (sdf > 0.0) {
         m_color.a = 0.0;
     }
