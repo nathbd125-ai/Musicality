@@ -770,12 +770,16 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
             ),
           ),
 
-          // Top Left: Close Button (croix déplacée à l'opposé pour quitter le mode paysage)
+          // Top Left: Close Button (croix déplacée à l'opposé tout au bord comme la pochette)
           SafeArea(
+            left: false,
+            top: true,
+            right: false,
+            bottom: false,
             child: Align(
               alignment: Alignment.topLeft,
               child: Padding(
-                padding: const EdgeInsets.only(top: 16.0, left: 16.0),
+                padding: const EdgeInsets.only(top: 16.0, left: 20.0),
                 child: SizedBox(
                   height: 36,
                   child: IconButton(
@@ -794,10 +798,14 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
 
           // Top Right: Indicateur dynamique de batterie + Éclair vert si en charge
           SafeArea(
+            left: false,
+            top: true,
+            right: false,
+            bottom: false,
             child: Align(
               alignment: Alignment.topRight,
               child: Padding(
-                padding: const EdgeInsets.only(top: 16.0, right: 16.0),
+                padding: const EdgeInsets.only(top: 16.0, right: 20.0),
                 child: SizedBox(
                   height: 36,
                   child: Builder(

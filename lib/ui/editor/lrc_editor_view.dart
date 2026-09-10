@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:musicality/core/globals.dart';
@@ -117,6 +118,10 @@ class LrcEditorView extends StatefulWidget {
 class _LrcEditorViewState extends State<LrcEditorView> {
   final List<_EditableLyricItem> _items = [];
   final ScrollController _scrollController = ScrollController();
+  List<GlobalKey> _itemKeys = [];
+  int _activeLineIndex = -1;
+  bool _autoScroll = true;
+  DateTime _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   double _globalOffsetSeconds = 0.0;
   bool _isSaving = false;
@@ -132,24 +137,86 @@ class _LrcEditorViewState extends State<LrcEditorView> {
     _initLyricsList();
 
     _positionSub = widget.positionStream.listen((pos) {
-      if (mounted) {
-        setState(() {
-          _currentPosition = pos.position;
-          _totalDuration = pos.duration;
-        });
+      if (!mounted) return;
+      final newIndex = _calculateActiveIndex(pos.position);
+      final indexChanged = newIndex != _activeLineIndex;
+      _activeLineIndex = newIndex;
+
+      setState(() {
+        _currentPosition = pos.position;
+        _totalDuration = pos.duration;
+      });
+
+      if (indexChanged && _autoScroll && _isPlaying && newIndex >= 0) {
+        _scrollToActiveIndex(newIndex);
       }
     });
 
     _playbackSub = globalAudioHandler.playbackState.listen((state) {
       if (mounted) {
+        final wasPlaying = _isPlaying;
         setState(() {
           _isPlaying = state.playing;
         });
+        if (!wasPlaying && state.playing && _autoScroll && _activeLineIndex >= 0) {
+          _scrollToActiveIndex(_activeLineIndex);
+        }
+      }
+    });
+  }
+
+  int _calculateActiveIndex(Duration position) {
+    if (_items.isEmpty) return -1;
+    for (int i = 0; i < _items.length; i++) {
+      if (position >= _items[i].time) {
+        if (i == _items.length - 1 || position < _items[i + 1].time) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  }
+
+  void _scrollToActiveIndex(int index, {bool immediate = false}) {
+    if (index < 0 || index >= _itemKeys.length) return;
+    if (!immediate &&
+        DateTime.now().difference(_lastUserScrollTime).inMilliseconds < 2500) {
+      return;
+    }
+    // Ne pas défiler si un champ de saisie est en train d'être tapé
+    for (final item in _items) {
+      if (item.focusNode.hasFocus) return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _itemKeys[index].currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.32,
+          duration: immediate ? Duration.zero : const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+      } else if (_scrollController.hasClients) {
+        final estimatedOffset = index * 125.0;
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        final target = estimatedOffset.clamp(0.0, maxScroll);
+        if (immediate) {
+          _scrollController.jumpTo(target);
+        } else {
+          _scrollController.animateTo(
+            target,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutCubic,
+          );
+        }
       }
     });
   }
 
   void _initLyricsList() {
+    _items.clear();
     for (final line in widget.initialLyrics) {
       // Ignorer les lignes de fallback
       if (line.text.toLowerCase().contains('paroles indisponibles')) {
@@ -164,6 +231,7 @@ class _LrcEditorViewState extends State<LrcEditorView> {
         ),
       );
     }
+    _itemKeys = List.generate(_items.length, (_) => GlobalKey());
   }
 
   @override
@@ -236,6 +304,11 @@ class _LrcEditorViewState extends State<LrcEditorView> {
     if (!_isPlaying) {
       globalAudioHandler.play();
     }
+    _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
+    final idx = _calculateActiveIndex(safeSeek);
+    if (idx >= 0) {
+      _scrollToActiveIndex(idx);
+    }
   }
 
   void _addNewLine() {
@@ -249,6 +322,7 @@ class _LrcEditorViewState extends State<LrcEditorView> {
       );
       _items.add(newItem);
       _sortItems();
+      _itemKeys = List.generate(_items.length, (_) => GlobalKey());
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -267,11 +341,13 @@ class _LrcEditorViewState extends State<LrcEditorView> {
     setState(() {
       final item = _items.removeAt(index);
       item.dispose();
+      _itemKeys = List.generate(_items.length, (_) => GlobalKey());
     });
   }
 
   void _sortItems() {
     _items.sort((a, b) => a.time.compareTo(b.time));
+    _itemKeys = List.generate(_items.length, (_) => GlobalKey());
   }
 
   Future<void> _saveAndUpload() async {
@@ -447,6 +523,26 @@ class _LrcEditorViewState extends State<LrcEditorView> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: _autoScroll
+                ? 'Défilement automatique activé'
+                : 'Défilement automatique en pause',
+            icon: Icon(
+              _autoScroll
+                  ? CupertinoIcons.arrow_down_circle_fill
+                  : CupertinoIcons.arrow_down_circle,
+              color: _autoScroll ? Colors.cyanAccent : Colors.white38,
+              size: 22,
+            ),
+            onPressed: () {
+              setState(() {
+                _autoScroll = !_autoScroll;
+              });
+              if (_autoScroll && _activeLineIndex >= 0) {
+                _scrollToActiveIndex(_activeLineIndex, immediate: true);
+              }
+            },
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: _isSaving
@@ -610,224 +706,352 @@ class _LrcEditorViewState extends State<LrcEditorView> {
                       ],
                     ),
                   )
-                : ListView.separated(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                    itemCount: _items.length + 1,
-                    separatorBuilder: (context, index) => const Divider(
-                      color: Colors.white10,
-                      height: 16,
-                    ),
-                    itemBuilder: (context, index) {
-                      if (index == _items.length) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          child: OutlinedButton.icon(
-                            onPressed: _addNewLine,
-                            icon: const Icon(CupertinoIcons.add, color: Colors.cyanAccent),
-                            label: const Text(
-                              'Ajouter une ligne à la position actuelle',
-                              style: TextStyle(color: Colors.cyanAccent),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.cyanAccent),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
+                : Stack(
+                    children: [
+                      NotificationListener<UserScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification.direction != ScrollDirection.idle) {
+                            _lastUserScrollTime = DateTime.now();
+                          }
+                          return false;
+                        },
+                        child: ListView.separated(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                          itemCount: _items.length + 1,
+                          separatorBuilder: (context, index) => const Divider(
+                            color: Colors.white10,
+                            height: 16,
                           ),
-                        );
-                      }
-
-                      final item = _items[index];
-                      final isCurrent = _currentPosition >= item.time &&
-                          (index == _items.length - 1 ||
-                              _currentPosition < _items[index + 1].time);
-
-                      return Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isCurrent
-                              ? Colors.purple.withValues(alpha: 0.18)
-                              : Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isCurrent
-                                ? Colors.purpleAccent.withValues(alpha: 0.5)
-                                : Colors.white12,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // En-tête de la ligne (timestamp + actions de calage)
-                            Row(
-                              children: [
-                                // Badge Timestamp
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
+                          itemBuilder: (context, index) {
+                            if (index == _items.length) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                child: OutlinedButton.icon(
+                                  onPressed: _addNewLine,
+                                  icon: const Icon(CupertinoIcons.add, color: Colors.cyanAccent),
+                                  label: const Text(
+                                    'Ajouter une ligne à la position actuelle',
+                                    style: TextStyle(color: Colors.cyanAccent),
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black45,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    VpsSyncService.formatTimestamp(item.time),
-                                    style: TextStyle(
-                                      color: isCurrent
-                                          ? Colors.cyanAccent
-                                          : Colors.white,
-                                      fontFamily: 'monospace',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: Colors.cyanAccent),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                 ),
-                                if (item.words.isNotEmpty) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.purple.withValues(alpha: 0.22),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Colors.purpleAccent.withValues(alpha: 0.4),
-                                        width: 0.5,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          CupertinoIcons.sparkles,
-                                          color: Colors.purpleAccent,
-                                          size: 10,
+                              );
+                            }
+
+                            final item = _items[index];
+                            final isCurrent = index == _activeLineIndex;
+
+                            return Container(
+                              key: (index < _itemKeys.length) ? _itemKeys[index] : null,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                gradient: isCurrent
+                                    ? LinearGradient(
+                                        colors: [
+                                          Colors.purple.withValues(alpha: 0.32),
+                                          Colors.cyanAccent.withValues(alpha: 0.14),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : null,
+                                color: isCurrent
+                                    ? null
+                                    : Colors.white.withValues(alpha: 0.04),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isCurrent
+                                      ? Colors.cyanAccent.withValues(alpha: 0.8)
+                                      : Colors.white12,
+                                  width: isCurrent ? 1.5 : 1.0,
+                                ),
+                                boxShadow: isCurrent
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.cyanAccent.withValues(alpha: 0.18),
+                                          blurRadius: 10,
+                                          spreadRadius: 1,
                                         ),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          '${item.words.length} mots',
-                                          style: const TextStyle(
-                                            color: Colors.purpleAccent,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
+                                      ]
+                                    : null,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // En-tête de la ligne (timestamp + actions de calage)
+                                  Row(
+                                    children: [
+                                      // Badge Timestamp
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isCurrent
+                                              ? Colors.cyanAccent.withValues(alpha: 0.2)
+                                              : Colors.black45,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: isCurrent
+                                              ? Border.all(color: Colors.cyanAccent, width: 0.8)
+                                              : null,
+                                        ),
+                                        child: Text(
+                                          VpsSyncService.formatTimestamp(item.time),
+                                          style: TextStyle(
+                                            color: isCurrent
+                                                ? Colors.cyanAccent
+                                                : Colors.white,
+                                            fontFamily: 'monospace',
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                      if (item.words.isNotEmpty) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.purple.withValues(alpha: 0.22),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(
+                                              color: Colors.purpleAccent.withValues(alpha: 0.4),
+                                              width: 0.5,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                CupertinoIcons.sparkles,
+                                                color: Colors.purpleAccent,
+                                                size: 10,
+                                              ),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                '${item.words.length} mots',
+                                                style: const TextStyle(
+                                                  color: Colors.purpleAccent,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ],
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(width: 8),
+                                      const SizedBox(width: 8),
 
-                                // Bouton TARGET "Caler ici"
-                                Tooltip(
-                                  message: 'Caler sur la position actuelle',
-                                  child: InkWell(
-                                    onTap: () => _syncLineToCurrentPosition(index),
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.purple.shade700,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            CupertinoIcons.scope,
-                                            color: Colors.white,
-                                            size: 14,
-                                          ),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Caler',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
+                                      // Bouton TARGET "Caler ici"
+                                      Tooltip(
+                                        message: 'Caler sur la position actuelle',
+                                        child: InkWell(
+                                          onTap: () => _syncLineToCurrentPosition(index),
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.purple.shade700,
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  CupertinoIcons.scope,
+                                                  color: Colors.white,
+                                                  size: 14,
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  'Caler',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
+                                        ),
                                       ),
+
+                                      const Spacer(),
+
+                                      // Boutons micro-ajustement (-0.1s / +0.1s)
+                                      _MicroAdjustButton(
+                                        label: '-0.1s',
+                                        onTap: () => _adjustLine(index, -100),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      _MicroAdjustButton(
+                                        label: '+0.1s',
+                                        onTap: () => _adjustLine(index, 100),
+                                      ),
+                                      const SizedBox(width: 8),
+
+                                      // Écouter la ligne (Seek -1.5s)
+                                      IconButton(
+                                        icon: const Icon(
+                                          CupertinoIcons.play_circle_fill,
+                                          color: Colors.white70,
+                                          size: 22,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _seekAndPreview(item.time),
+                                      ),
+                                      const SizedBox(width: 8),
+
+                                      // Supprimer la ligne
+                                      IconButton(
+                                        icon: const Icon(
+                                          CupertinoIcons.trash,
+                                          color: Colors.white38,
+                                          size: 18,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _removeLine(index),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 8),
+
+                                  // Champ de texte éditable
+                                  TextField(
+                                    controller: item.controller,
+                                    focusNode: item.focusNode,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: isCurrent ? 16 : 15,
+                                      fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 8,
+                                      ),
+                                      border: InputBorder.none,
+                                      hintText: 'Texte des paroles...',
+                                      hintStyle: TextStyle(color: Colors.white24),
                                     ),
                                   ),
-                                ),
 
-                                const Spacer(),
-
-                                // Boutons micro-ajustement (-0.1s / +0.1s)
-                                _MicroAdjustButton(
-                                  label: '-0.1s',
-                                  onTap: () => _adjustLine(index, -100),
-                                ),
-                                const SizedBox(width: 4),
-                                _MicroAdjustButton(
-                                  label: '+0.1s',
-                                  onTap: () => _adjustLine(index, 100),
-                                ),
-                                const SizedBox(width: 8),
-
-                                // Écouter la ligne (Seek -1.5s)
-                                IconButton(
-                                  icon: const Icon(
-                                    CupertinoIcons.play_circle_fill,
-                                    color: Colors.white70,
-                                    size: 22,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _seekAndPreview(item.time),
-                                ),
-                                const SizedBox(width: 8),
-
-                                // Supprimer la ligne
-                                IconButton(
-                                  icon: const Icon(
-                                    CupertinoIcons.trash,
-                                    color: Colors.white38,
-                                    size: 18,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _removeLine(index),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            // Champ de texte éditable
-                            TextField(
-                              controller: item.controller,
-                              focusNode: item.focusNode,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
+                                  // Affichage temps réel karaoké des mots si présents
+                                  if (item.words.isNotEmpty && isCurrent) ...[
+                                    const SizedBox(height: 6),
+                                    Wrap(
+                                      spacing: 4,
+                                      runSpacing: 4,
+                                      children: item.words.map((w) {
+                                        final bool isPast = _currentPosition >= w.end;
+                                        final bool isActive = _currentPosition >= w.start && _currentPosition < w.end;
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: isActive
+                                                ? Colors.cyanAccent.withValues(alpha: 0.28)
+                                                : (isPast
+                                                    ? Colors.purple.withValues(alpha: 0.22)
+                                                    : Colors.black38),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(
+                                              color: isActive
+                                                  ? Colors.cyanAccent
+                                                  : (isPast
+                                                      ? Colors.purpleAccent.withValues(alpha: 0.6)
+                                                      : Colors.white12),
+                                              width: isActive ? 1.0 : 0.6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            w.text,
+                                            style: TextStyle(
+                                              color: isActive
+                                                  ? Colors.cyanAccent
+                                                  : (isPast ? Colors.white : Colors.white54),
+                                              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ],
+                                ],
                               ),
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 8,
-                                ),
-                                border: InputBorder.none,
-                                hintText: 'Texte des paroles...',
-                                hintStyle: TextStyle(color: Colors.white24),
-                              ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+
+                      // Bouton flottant pour recentrer si l'utilisateur a défilé manuellement
+                      if (_autoScroll &&
+                          _isPlaying &&
+                          _activeLineIndex >= 0 &&
+                          DateTime.now().difference(_lastUserScrollTime).inMilliseconds < 3000)
+                        Positioned(
+                          right: 16,
+                          bottom: 12,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
+                                _scrollToActiveIndex(_activeLineIndex, immediate: true);
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.cyanAccent.shade700,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(CupertinoIcons.location_fill, size: 14, color: Colors.white),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Suivre la lecture',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
           ),
 
