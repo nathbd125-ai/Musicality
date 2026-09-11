@@ -91,9 +91,27 @@ Future<void> main() async {
       if (currentBuild > lastBuild) {
         if (dir.existsSync()) {
           for (var file in dir.listSync().whereType<File>()) {
+            final name = file.path.split(Platform.pathSeparator).last;
             if (file.path.endsWith('.lrc') ||
                 file.path.endsWith('tenebreux_') ||
-                (file.path.endsWith('.jpg') && file.lengthSync() == 0)) {
+                (file.path.endsWith('.jpg') && file.lengthSync() == 0) ||
+                const {
+                  'a_new_kind_of_love_(demo).jpg',
+                  'off_cuts.jpg',
+                  'sunflower.jpg',
+                  'hollywoods_bleeding.jpg',
+                  'i_smoked_away_my_brain_(i\'m_god_x_demons_mashup).jpg',
+                  'dont_be_dumb.jpg',
+                  'levitating.jpg',
+                  'physical.jpg',
+                  'future_nostalgia.jpg',
+                  'magenta_riddim.jpg',
+                  'carte_blanche.jpg',
+                  'spit_in_my_face!.jpg',
+                  'spit_in_my_face.jpg',
+                  'without_me.jpg',
+                  'curtain_call_the_hits.jpg',
+                }.contains(name)) {
               try {
                 file.deleteSync();
               } catch (_) {}

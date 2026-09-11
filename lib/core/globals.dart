@@ -577,6 +577,30 @@ String resolveCoverName({
   if (cleanId == 'all_i_need') {
     return 'in_rainbows';
   }
+  if (cleanId.contains('a_new_kind_of_love')) {
+    return 'off_cuts';
+  }
+  if (cleanId == 'sunflower') {
+    return 'hollywoods_bleeding';
+  }
+  if (cleanId.contains('smoked_away_my_brain')) {
+    return 'dont_be_dumb';
+  }
+  if (cleanId == 'levitating') {
+    return 'future_nostalgia';
+  }
+  if (cleanId == 'physical') {
+    return 'future_nostalgia';
+  }
+  if (cleanId == 'magenta_riddim') {
+    return 'carte_blanche';
+  }
+  if (cleanId.contains('spit_in_my_face')) {
+    return 'spit_in_my_face';
+  }
+  if (cleanId == 'without_me') {
+    return 'curtain_call_the_hits';
+  }
 
   // 2. Priorité au coverName explicite (si renseigné dans musiques.json)
   if (coverName != null && coverName.trim().isNotEmpty) {
