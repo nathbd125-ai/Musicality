@@ -355,8 +355,13 @@ Future<void> initPersistence() async {
           if (playlist.imagePath != null) {
             mmkv.encodeString('playlist_image_${playlist.name}', playlist.imagePath!);
           }
-          final songIds = playlist.songs.map((s) => s.songId).toList();
-          mmkv.encodeString('playlist_content_${playlist.name}', json.encode(songIds));
+          final songIds = playlist.songs.map((s) => normalizeSongId(s.songId)).toList();
+          final existingContent = mmkv.decodeString('playlist_content_${playlist.name}');
+          if (existingContent == null || existingContent == '[]') {
+            if (songIds.isNotEmpty) {
+              mmkv.encodeString('playlist_content_${playlist.name}', json.encode(songIds));
+            }
+          }
         }
       }
       mmkv.encodeString('customPlaylists', json.encode(validPlaylists));

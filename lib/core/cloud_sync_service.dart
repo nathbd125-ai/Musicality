@@ -12,6 +12,15 @@ Future<void> performCloudBackup() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
   try {
+    // SÉCURITÉ ANTI-ÉCRASEMENT : Si l'utilisateur a des playlists nommées mais que localement
+    // elles contiennent TOUTES 0 titre, on ne détruit pas une sauvegarde cloud potentiellement saine
+    final bool localPlaylistsEmpty = customPlaylistsNotifier.value.isNotEmpty &&
+        playlistContentsNotifier.value.values.every((s) => s.isEmpty);
+    if (localPlaylistsEmpty) {
+      debugPrint("⚠️ Sauvegarde cloud ignorée : les playlists locales contiennent 0 titres pour protéger le Cloud");
+      return;
+    }
+
     Map<String, List<String>> firestoreContents = {};
     playlistContentsNotifier.value.forEach((key, value) {
       firestoreContents[key] = value.toList();
@@ -62,14 +71,18 @@ void triggerAutoSync() {
   });
 }
 
-Future<void> performCloudRestore() async {
+Future<void> performCloudRestore({bool force = false}) async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
   try {
     final mmkv = MMKV.defaultMMKV();
     final hasPendingSync = mmkv.decodeBool('pendingCloudSync');
 
-    if (hasPendingSync) {
+    // Si les playlists locales contiennent 0 titres, on priorise TOUJOURS la restauration depuis le Cloud !
+    final bool localPlaylistsEmpty = customPlaylistsNotifier.value.isNotEmpty &&
+        playlistContentsNotifier.value.values.every((s) => s.isEmpty);
+
+    if (!force && hasPendingSync && !localPlaylistsEmpty) {
       debugPrint("Sync pending, pushing local to cloud instead of restoring");
       await performCloudBackup();
       return;
@@ -139,16 +152,20 @@ Future<void> performCloudRestore() async {
         songPlayCountNotifier.value = cleanCounts;
       }
       if (data['playlistImages'] != null) {
-        playlistImagesNotifier.value = Map<String, String>.from(
-          data['playlistImages'],
-        );
+        final pImages = Map<String, String>.from(data['playlistImages']);
+        playlistImagesNotifier.value = pImages;
+        for (var entry in pImages.entries) {
+          mmkv.encodeString('playlist_image_${entry.key}', entry.value);
+        }
       }
 
       if (data['playlistContents'] != null) {
         final Map<String, dynamic> rawContents = data['playlistContents'];
         Map<String, Set<String>> restoredContents = {};
         rawContents.forEach((key, value) {
-          restoredContents[key] = List<String>.from(value).map(normalizeSongId).toSet();
+          final set = List<String>.from(value).map(normalizeSongId).toSet();
+          restoredContents[key] = set;
+          mmkv.encodeString('playlist_content_$key', json.encode(set.toList()));
         });
         playlistContentsNotifier.value = restoredContents;
       }
@@ -188,7 +205,6 @@ Future<void> performCloudRestore() async {
       }
 
       // Force la sauvegarde locale immédiate pour que le téléphone soit à jour
-      final mmkv = MMKV.defaultMMKV();
       mmkv.encodeBool('isCrossfadeEnabled', isCrossfadeEnabledNotifier.value);
       mmkv.encodeInt('crossfadeDuration', crossfadeDurationNotifier.value);
       mmkv.encodeBool(
@@ -219,6 +235,7 @@ Future<void> performCloudRestore() async {
         'songPlayCounts',
         json.encode(songPlayCountNotifier.value),
       );
+      mmkv.encodeBool('pendingCloudSync', false);
 
       debugPrint("☁️ Restauration auto réussie au démarrage");
     }

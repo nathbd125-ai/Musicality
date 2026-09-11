@@ -81,32 +81,6 @@ class ObjectBoxService {
       searchHistoryBox.putMany(entities);
       mmkv.removeValue('searchHistory');
     }
-
-    // Migration Playlists
-    final savedPlaylistsStr = mmkv.decodeString('customPlaylists');
-    if (savedPlaylistsStr != null && playlistBox.isEmpty()) {
-      final oldPlaylists = json.decode(savedPlaylistsStr).cast<String>();
-      for (String pName in oldPlaylists) {
-        final contentStr = mmkv.decodeString('playlist_content_$pName') ?? '[]';
-        final content = json.decode(contentStr).cast<String>();
-        final img = mmkv.decodeString('playlist_image_$pName');
-        
-        final playlist = PlaylistEntity(name: pName, imagePath: img);
-        
-        // Find songs in SongBox
-        for (String songId in content) {
-           final song = songBox.query(SongEntity_.songId.equals(songId)).build().findFirst();
-           if (song != null) {
-             playlist.songs.add(song);
-           }
-        }
-        playlistBox.put(playlist);
-        
-        mmkv.removeValue('playlist_content_$pName');
-        mmkv.removeValue('playlist_image_$pName');
-      }
-      mmkv.removeValue('customPlaylists');
-    }
   }
 }
 
