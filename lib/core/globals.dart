@@ -187,7 +187,9 @@ Future<void> initPersistence() async {
   });
 
   for (var item in globalPlaylist) {
-    final String fileName = Uri.decodeComponent(item.artUri?.pathSegments.last ?? '${getSafeFileName(getBaseId(item.id))}.jpg');
+    final String fileName = (item.artUri != null && item.artUri!.pathSegments.isNotEmpty)
+        ? item.artUri!.pathSegments.last
+        : '${getSafeFileName(getBaseId(item.id))}.jpg';
     final coverFile = File('$globalDocumentPath/$fileName');
     if (!coverFile.existsSync() && item.artUri != null) {
       http

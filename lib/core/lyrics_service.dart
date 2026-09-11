@@ -24,8 +24,16 @@ class LyricsService {
   }
 
   static String getBaseName(String itemId) {
-    final decodedName = Uri.decodeComponent(itemId.split('/').last);
-    return decodedName
+    String fileName;
+    try {
+      final uri = Uri.tryParse(itemId);
+      fileName = (uri != null && uri.pathSegments.isNotEmpty)
+          ? uri.pathSegments.last
+          : itemId.split('/').last;
+    } catch (_) {
+      fileName = itemId.split('/').last;
+    }
+    return fileName
         .replaceAll(RegExp(r'-hires\.(flac|mp3)$'), '')
         .replaceAll(RegExp(r'\.(flac|mp3)$'), '');
   }

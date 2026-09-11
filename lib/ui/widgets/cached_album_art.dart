@@ -18,8 +18,15 @@ bool _checkCoverExists(String fileName, File file) {
   return false;
 }
 
+String _getCoverFileName(MediaItem item) {
+  if (item.artUri != null && item.artUri!.pathSegments.isNotEmpty) {
+    return item.artUri!.pathSegments.last;
+  }
+  return '${getSafeFileName(getBaseId(item.id))}.jpg';
+}
+
 Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
-  final String fileName = Uri.decodeComponent(item.artUri?.pathSegments.last ?? '${getSafeFileName(getBaseId(item.id))}.jpg');
+  final String fileName = _getCoverFileName(item);
   final coverFile = File(
     '$globalDocumentPath/$fileName',
   );
@@ -52,7 +59,7 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
 }
 
 ImageProvider getLocalOrNetworkImageProvider(MediaItem item) {
-  final String fileName = Uri.decodeComponent(item.artUri?.pathSegments.last ?? '${getSafeFileName(getBaseId(item.id))}.jpg');
+  final String fileName = _getCoverFileName(item);
   final coverFile = File(
     '$globalDocumentPath/$fileName',
   );
@@ -69,7 +76,7 @@ ImageProvider getLocalOrNetworkImageProvider(MediaItem item) {
 }
 
 Widget getLocalOrNetworkImageSuperBlurred(MediaItem item) {
-  final String fileName = Uri.decodeComponent(item.artUri?.pathSegments.last ?? '${getSafeFileName(getBaseId(item.id))}.jpg');
+  final String fileName = _getCoverFileName(item);
   final coverFile = File(
     '$globalDocumentPath/$fileName',
   );

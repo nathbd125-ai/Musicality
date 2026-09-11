@@ -28,8 +28,12 @@ Future<void> main() async {
   // 1. Initialisation de Firebase en premier pour activer Crashlytics
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  FlutterError.onError = (details) {
+    debugPrint("FlutterError: ${details.exceptionAsString()}\n${details.stack}");
+    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+  };
   PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint("PlatformDispatcher error: $error\n$stack");
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };
@@ -71,7 +75,11 @@ Future<void> main() async {
   // 2. Exécution de l'application avec le client Cronet optimisé (HTTP/2, HTTP/3, QUIC).
   await http.runWithClient(() async {
     // Initialisation de MMKV
-    await MMKV.initialize(rootDir: dir.path);
+    try {
+      await MMKV.initialize(rootDir: dir.path);
+    } catch (e) {
+      debugPrint("Erreur initialisation MMKV : $e");
+    }
 
     // Vérification de la version pour purger les fichiers .lrc après une MAJ
     try {
@@ -98,18 +106,39 @@ Future<void> main() async {
       debugPrint("Erreur lors de la vérification de la MAJ : $e");
     }
 
-    obx = await ObjectBoxService.create();
+    try {
+      obx = await ObjectBoxService.create();
+    } catch (e, st) {
+      debugPrint("Erreur initialisation ObjectBox : $e\n$st");
+    }
 
-    await fetchMusiques();
+    try {
+      await fetchMusiques();
+    } catch (e, st) {
+      debugPrint("Erreur chargement musiques : $e\n$st");
+    }
 
-    await initPersistence();
-    await clearTemporaryFiles();
+    try {
+      await initPersistence();
+    } catch (e, st) {
+      debugPrint("Erreur initPersistence : $e\n$st");
+    }
+
+    try {
+      await clearTemporaryFiles();
+    } catch (e, st) {
+      debugPrint("Erreur clearTemporaryFiles : $e\n$st");
+    }
 
     // --- NOUVEAUTÉ : ON LANCE LA SYNCHRONISATION AUTOMATIQUE ---
-    initAutoSyncListeners();
-    performCloudRestore().catchError((e) {
-      debugPrint("Erreur cloud restore au démarrage : $e");
-    }); // Télécharge les données si on est déjà connecté en tâche de fond
+    try {
+      initAutoSyncListeners();
+      performCloudRestore().catchError((e) {
+        debugPrint("Erreur cloud restore au démarrage : $e");
+      }); // Télécharge les données si on est déjà connecté en tâche de fond
+    } catch (e) {
+      debugPrint("Erreur init auto sync : $e");
+    }
     // -----------------------------------------------------------
 
     final session = await AudioSession.instance;
