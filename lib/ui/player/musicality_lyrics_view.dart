@@ -39,6 +39,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   Duration _lastKnownPosition = Duration.zero;
   DateTime _lastPositionUpdate = DateTime.now();
   DateTime _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _autoScrollResumeTimer;
   bool _isPlaying = false;
 
   bool _hasNoLyricsCached = true;
@@ -46,6 +47,25 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
   bool get _hasNoLyrics => _hasNoLyricsCached;
   bool get _isUnsyncedLyrics => _isUnsyncedLyricsCached;
+
+  void _onUserScroll(ScrollDirection direction) {
+    if (direction != ScrollDirection.idle) {
+      _lastUserScrollTime = DateTime.now();
+      _autoScrollResumeTimer?.cancel();
+    } else {
+      _lastUserScrollTime = DateTime.now();
+      _autoScrollResumeTimer?.cancel();
+      _autoScrollResumeTimer = Timer(const Duration(milliseconds: 2500), () {
+        if (!mounted || !widget.isExpanded) return;
+        final target = _activeIndexNotifier.value;
+        if (target >= 0) {
+          _scrollToActiveIndex(target);
+        } else if (widget.lyrics.isNotEmpty) {
+          _scrollToTop();
+        }
+      });
+    }
+  }
 
   void _computeLyricsMetadata() {
     if (widget.lyrics.isEmpty) {
@@ -103,6 +123,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     final bool lyricsChanged = oldWidget.lyrics != widget.lyrics;
 
     if (songChanged || lyricsChanged) {
+      _autoScrollResumeTimer?.cancel();
       _computeLyricsMetadata();
       _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
       _activeIndexNotifier.value = -1;
@@ -254,32 +275,48 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
           curve: Curves.easeOutCubic,
         );
       } else if (_scrollController.hasClients) {
-        // Fallback: Si l'item n'est pas dans le viewport (grâce au ListView),
-        // On estime sa position pour s'en rapprocher
-        final estimatedOffset = targetIndex * 50.0;
+        // Fallback: Si l'item n'est pas dans le viewport (grâce au ListView virtualisé),
+        // On estime sa position pour s'en rapprocher en tenant compte du padding supérieur et de la hauteur réelle
+        final screenHeight = MediaQuery.of(context).size.height;
+        final topPadding = screenHeight * 0.22;
+        final targetAlignmentOffset = screenHeight * 0.28;
+        final estimatedOffset = (topPadding + targetIndex * 65.0 - targetAlignmentOffset)
+            .clamp(0.0, _scrollController.position.maxScrollExtent);
+
         if (immediate) {
           _scrollController.jumpTo(estimatedOffset);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || targetIndex != _activeIndexNotifier.value) return;
+            final newContext = _lyricKeys[targetIndex].currentContext;
+            if (newContext != null && newContext.mounted) {
+              Scrollable.ensureVisible(
+                newContext,
+                alignment: 0.28,
+                duration: Duration.zero,
+              );
+            }
+          });
         } else {
           _scrollController.animateTo(
             estimatedOffset,
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeOutCubic,
-          );
+          ).then((_) {
+            if (!mounted || targetIndex != _activeIndexNotifier.value) return;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || targetIndex != _activeIndexNotifier.value) return;
+              final newContext = _lyricKeys[targetIndex].currentContext;
+              if (newContext != null && newContext.mounted) {
+                Scrollable.ensureVisible(
+                  newContext,
+                  alignment: 0.28,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                );
+              }
+            });
+          });
         }
-        
-        // Puis on essaie de s'aligner précisément une fois rendu visible
-        Future.delayed(const Duration(milliseconds: 50), () {
-          if (!mounted) return;
-          final newContext = _lyricKeys[targetIndex].currentContext;
-          if (newContext != null && newContext.mounted) {
-            Scrollable.ensureVisible(
-              newContext,
-              alignment: 0.28,
-              duration: immediate ? Duration.zero : const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
-            );
-          }
-        });
       }
     });
   }
@@ -304,6 +341,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
   @override
   void dispose() {
+    _autoScrollResumeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _positionNotifier.dispose();
@@ -398,9 +436,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
         blendMode: BlendMode.dstIn,
         child: NotificationListener<UserScrollNotification>(
           onNotification: (notification) {
-            if (notification.direction != ScrollDirection.idle) {
-              _lastUserScrollTime = DateTime.now();
-            }
+            _onUserScroll(notification.direction);
             return false;
           },
           child: ListView.builder(
