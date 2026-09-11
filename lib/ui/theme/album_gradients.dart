@@ -20,6 +20,101 @@ List<Color> getAlbumGradientColors(MediaItem item) {
   final titleNorm = normalizeString(item.title);
 
   // 1. EXCEPTIONS TITRES / SINGLES SPÉCIAUX (qui gardent leur gradient spécifique)
+  // Møme - Aloha (feat. Merryn Jeann) (Blanc bleu cyan clair rouge violet bleu)
+  if (titleNorm.contains('aloha') || idStr.contains('aloha')) {
+    return const [
+      Color(0xFFFFFFFF), // Blanc
+      Color(0xFF1E88E5), // Bleu
+      Color(0xFF80DEEA), // Cyan clair
+      Color(0xFFE53935), // Rouge
+      Color(0xFF8E24AA), // Violet
+      Color(0xFF1565C0), // Bleu
+    ];
+  }
+
+  // Alessia Cara - Here (Lucian Remix) (Blanc à noir)
+  if (titleNorm == 'here' ||
+      titleNorm.startsWith('here ') ||
+      titleNorm.contains('here (lucian remix)') ||
+      idStr.contains('here_(lucian_remix)') ||
+      idStr == 'here') {
+    return const [
+      Color(0xFFFFFFFF), // Blanc
+      Color(0xFFCCCCCC), // Gris clair
+      Color(0xFF555555), // Gris anthracite
+      Color(0xFF111111), // Noir
+    ];
+  }
+
+  // Memo Boy & Chakra Efendi - Insomniac (Vert clair à vert à vert foncé)
+  if (titleNorm.contains('insomniac') || idStr.contains('insomniac')) {
+    return const [
+      Color(0xFF81C784), // Vert clair
+      Color(0xFF43A047), // Vert
+      Color(0xFF1B5E20), // Vert foncé
+    ];
+  }
+
+  // Hamza - Life / 1994 (Bleu ciel foncé à bleu ciel clair à rouge rosé à violet clair)
+  if (titleNorm == 'life' ||
+      idStr == 'life' ||
+      titleNorm.startsWith('life ') ||
+      idStr.startsWith('life_') ||
+      (titleNorm.contains('life') && (a.contains('1994') || albumNorm.contains('1994')))) {
+    return const [
+      Color(0xFF0288D1), // Bleu ciel foncé
+      Color(0xFF81D4FA), // Bleu ciel clair
+      Color(0xFFEC407A), // Rouge rosé
+      Color(0xFFCE93D8), // Violet clair
+    ];
+  }
+
+  // Lartiste, Caroliina - Mafiosa (feat. Caroliina) (Rouge à orange à jaune à violet)
+  if (titleNorm.contains('mafiosa') || idStr.contains('mafiosa')) {
+    return const [
+      Color(0xFFE53935), // Rouge
+      Color(0xFFFF9800), // Orange
+      Color(0xFFFFEB3B), // Jaune
+      Color(0xFF8E24AA), // Violet
+    ];
+  }
+
+  // Jeff Daniels Backing Tracks - Shape Of My Heart (Em) No Backing Vocals (Blanc beige à marron orangé à rouge à rouge foncé)
+  if ((titleNorm.contains('shape of my heart') || idStr.contains('shape_of_my_heart')) &&
+      (titleNorm.contains('no backing') ||
+          idStr.contains('no_backing') ||
+          titleNorm.contains('backing track') ||
+          a.contains('backing'))) {
+    return const [
+      Color(0xFFFFF8E7), // Blanc beige
+      Color(0xFFCD6133), // Marron orangé
+      Color(0xFFE53935), // Rouge
+      Color(0xFF8B0000), // Rouge foncé
+    ];
+  }
+
+  // Sting - Shape of My Heart (Noir à jaune)
+  if (titleNorm.contains('shape of my heart') || idStr.contains('shape_of_my_heart')) {
+    return const [
+      Color(0xFF111111), // Noir
+      Color(0xFF423800), // Transition ambrée sombre
+      Color(0xFFFFC107), // Jaune ambré
+      Color(0xFFFFD600), // Jaune éclatant
+    ];
+  }
+
+  // Charli XCX - Track 10 / Pop 2 (Beige à violet clair néon à noir)
+  if (titleNorm == 'track 10' ||
+      idStr == 'track_10' ||
+      titleNorm.contains('track 10') ||
+      idStr.contains('track_10')) {
+    return const [
+      Color(0xFFF7E7CE), // Beige
+      Color(0xFFD946EF), // Violet clair néon
+      Color(0xFF111111), // Noir
+    ];
+  }
+
   // Ariana Grande - 7 Rings (Rose fin pastel/néon sans violet)
   if (titleNorm.contains('7 rings') || idStr.contains('7_rings') || idStr.contains('7 rings')) {
     return const [
