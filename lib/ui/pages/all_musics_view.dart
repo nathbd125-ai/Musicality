@@ -58,12 +58,17 @@ class AllMusicsViewState extends State<AllMusicsView> {
   }
 
   void _updateFilter() {
-    _filteredPlaylist = globalPlaylist.where((item) {
-      final query = normalizeString(_searchQuery);
-      final titleMatch = normalizeString(item.title).contains(query);
-      final artistMatch = normalizeString(item.artist ?? '').contains(query);
-      return titleMatch || artistMatch;
-    }).toList();
+    final cleanQuery = _searchQuery.trim();
+    if (cleanQuery.isEmpty) {
+      _filteredPlaylist = List<MediaItem>.from(globalPlaylist);
+    } else {
+      final query = normalizeString(cleanQuery);
+      _filteredPlaylist = globalPlaylist.where((item) {
+        final titleMatch = normalizeString(item.title).contains(query);
+        final artistMatch = normalizeString(item.artist ?? '').contains(query);
+        return titleMatch || artistMatch;
+      }).toList();
+    }
     _filteredPlaylist.sort(
       (a, b) => normalizeString(a.title).compareTo(normalizeString(b.title)),
     );

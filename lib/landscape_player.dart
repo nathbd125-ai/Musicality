@@ -298,7 +298,12 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      child: Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
@@ -785,7 +790,10 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      Navigator.pop(context);
+                    },
                     icon: const Icon(CupertinoIcons.clear),
                     color: Colors.white70,
                     iconSize: 22,
@@ -854,8 +862,9 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 /// Widget affichant une icône de batterie personnalisée avec remplissage proportionnel dynamique

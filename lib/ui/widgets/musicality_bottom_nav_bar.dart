@@ -9,11 +9,25 @@ class MusicalityBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
+  static final Stream<User?> _authStateStream =
+      FirebaseAuth.instance.authStateChanges();
+  static bool? _cachedGoogleAvatarExists;
+  static String? _lastVerifiedLocalPath;
+  static bool _lastVerifiedLocalExists = false;
+
   const MusicalityBottomNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
   });
+
+  static bool _checkLocalImage(String? path) {
+    if (path == null || path.isEmpty) return false;
+    if (path == _lastVerifiedLocalPath) return _lastVerifiedLocalExists;
+    _lastVerifiedLocalPath = path;
+    _lastVerifiedLocalExists = File(path).existsSync();
+    return _lastVerifiedLocalExists;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +42,7 @@ class MusicalityBottomNavBar extends StatelessWidget {
             highlightColor: Colors.transparent,
           ),
           child: StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
+            stream: _authStateStream,
             builder: (context, authSnapshot) {
               final user = authSnapshot.data;
 
@@ -36,23 +50,21 @@ class MusicalityBottomNavBar extends StatelessWidget {
                 valueListenable: userProfileImageNotifier,
                 builder: (context, localImagePath, _) {
                   // Logique de l'icône (Locale > Google > Défaut)
-                  final hasLocalImage =
-                      localImagePath != null &&
-                      localImagePath.isNotEmpty &&
-                      File(localImagePath).existsSync();
+                  final hasLocalImage = _checkLocalImage(localImagePath);
                   final hasGoogleImage =
                       user != null && user.photoURL != null;
 
                   final cachedGoogleAvatar = File(
                     '$globalDocumentPath/cached_google_avatar.jpg',
                   );
-                  final hasCachedGoogle = cachedGoogleAvatar.existsSync();
+                  final hasCachedGoogle = _cachedGoogleAvatarExists ??=
+                      cachedGoogleAvatar.existsSync();
 
                   Widget accountIcon;
                   if (hasLocalImage) {
                     accountIcon = ClipOval(
                       child: Image.file(
-                        File(localImagePath),
+                        File(localImagePath!),
                         width: 24,
                         height: 24,
                         fit: BoxFit.cover,

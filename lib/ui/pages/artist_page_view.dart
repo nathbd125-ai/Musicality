@@ -28,6 +28,10 @@ class ArtistPageViewState extends State<ArtistPageView> {
   late ScrollController _scrollController;
   bool _isScrolled = false;
 
+  int _lastPlaylistLength = -1;
+  Map<String, MediaItem> _cachedArtistSampleMap = {};
+  List<String> _cachedAllArtists = [];
+
   bool get isSearching =>
       _searchQuery.trim().isNotEmpty || _searchController.text.trim().isNotEmpty;
 
@@ -48,6 +52,24 @@ class ArtistPageViewState extends State<ArtistPageView> {
     });
   }
 
+  void _ensureArtistCache() {
+    if (_lastPlaylistLength == globalPlaylist.length && _cachedAllArtists.isNotEmpty) {
+      return;
+    }
+    _lastPlaylistLength = globalPlaylist.length;
+    _cachedArtistSampleMap = {};
+    for (final song in globalPlaylist) {
+      final artist = extractPrimaryArtist(song.artist);
+      if (artist.isNotEmpty && artist != 'Inconnu') {
+        _cachedArtistSampleMap.putIfAbsent(artist.toLowerCase(), () => song);
+      }
+    }
+    _cachedAllArtists = _cachedArtistSampleMap.values
+        .map((e) => extractPrimaryArtist(e.artist))
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
   void clearSearch() {
     _searchController.clear();
     _searchFocusNode.unfocus();
@@ -66,17 +88,9 @@ class ArtistPageViewState extends State<ArtistPageView> {
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, MediaItem> artistSampleMap = {};
-    for (final song in globalPlaylist) {
-      final artist = extractPrimaryArtist(song.artist);
-      if (artist.isNotEmpty && artist != 'Inconnu') {
-        artistSampleMap.putIfAbsent(artist.toLowerCase(), () => song);
-      }
-    }
-    final allArtists = artistSampleMap.values
-        .map((e) => extractPrimaryArtist(e.artist))
-        .toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    _ensureArtistCache();
+    final artistSampleMap = _cachedArtistSampleMap;
+    final allArtists = _cachedAllArtists;
 
     List<String> matchingArtists = allArtists;
 
@@ -164,59 +178,61 @@ class ArtistPageViewState extends State<ArtistPageView> {
                                 artist: '',
                               ));
 
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 8,
-                      ),
-                      leading: ClipOval(
-                        child: getLocalOrNetworkImage(
-                          sampleItem,
-                          width: 55,
-                          height: 55,
+                    return RepaintBoundary(
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
                         ),
-                      ),
-                      title: MarqueeWidget(
-                        resetKey: artistName,
-                        child: Text(
-                          artistName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        leading: ClipOval(
+                          child: getLocalOrNetworkImage(
+                            sampleItem,
+                            width: 55,
+                            height: 55,
                           ),
-                          maxLines: 1,
-                          softWrap: false,
                         ),
-                      ),
-                      trailing: const Icon(
-                        CupertinoIcons.chevron_right,
-                        color: Colors.white54,
-                        size: 20,
-                      ),
-                      onTap: () {
-                        if (isHapticFeedbackEnabledNotifier.value) {
-                          HapticFeedback.lightImpact();
-                        }
-                        FocusScope.of(context).unfocus();
-                        Navigator.of(context).push(
-                          PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) =>
-                                ArtistProfileScreen(
-                                  artistName: artistName,
-                                  sampleItem: sampleItem,
-                                  themeColors: widget.dynamicThemeColors,
-                                  currentItem: widget.currentItem,
-                                ),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              );
-                            },
+                        title: MarqueeWidget(
+                          resetKey: artistName,
+                          child: Text(
+                            artistName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            softWrap: false,
                           ),
-                        );
-                      },
+                        ),
+                        trailing: const Icon(
+                          CupertinoIcons.chevron_right,
+                          color: Colors.white54,
+                          size: 20,
+                        ),
+                        onTap: () {
+                          if (isHapticFeedbackEnabledNotifier.value) {
+                            HapticFeedback.lightImpact();
+                          }
+                          FocusScope.of(context).unfocus();
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) =>
+                                  ArtistProfileScreen(
+                                    artistName: artistName,
+                                    sampleItem: sampleItem,
+                                    themeColors: widget.dynamicThemeColors,
+                                    currentItem: widget.currentItem,
+                                  ),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
                     );
                   },
                 ),

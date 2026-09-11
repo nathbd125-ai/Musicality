@@ -41,40 +41,49 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   DateTime _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
   bool _isPlaying = false;
 
-  bool get _hasNoLyrics {
-    if (widget.lyrics.isEmpty) return true;
+  bool _hasNoLyricsCached = true;
+  bool _isUnsyncedLyricsCached = true;
+
+  bool get _hasNoLyrics => _hasNoLyricsCached;
+  bool get _isUnsyncedLyrics => _isUnsyncedLyricsCached;
+
+  void _computeLyricsMetadata() {
+    if (widget.lyrics.isEmpty) {
+      _hasNoLyricsCached = true;
+      _isUnsyncedLyricsCached = true;
+      return;
+    }
     if (widget.lyrics.length == 1) {
       final text = widget.lyrics.first.text.trim().toLowerCase();
       if (text.contains('indisponible') ||
           text.contains('pas de parole') ||
           text.contains('instrumental') ||
           text.isEmpty) {
-        return true;
+        _hasNoLyricsCached = true;
+        _isUnsyncedLyricsCached = true;
+        return;
       }
     }
-    return false;
-  }
-
-  bool get _isUnsyncedLyrics {
-    if (_hasNoLyrics) return true;
-    return widget.lyrics.every((l) => l.time == Duration.zero);
+    _hasNoLyricsCached = false;
+    _isUnsyncedLyricsCached = widget.lyrics.every((l) => l.time == Duration.zero);
   }
 
   @override
   void initState() {
     super.initState();
+    _computeLyricsMetadata();
     WidgetsBinding.instance.addObserver(this);
     _generateKeys();
 
     _ticker = createTicker((_) {
-      if (_isPlaying && widget.isExpanded && !_isUnsyncedLyrics) {
+      if (_isPlaying && widget.isExpanded && !_isUnsyncedLyricsCached) {
         final elapsed = DateTime.now().difference(_lastPositionUpdate);
         final current = _lastKnownPosition + elapsed;
         _positionNotifier.value = current;
         _checkActiveIndex(current);
       }
     });
-    if (widget.isExpanded && !_isUnsyncedLyrics) {
+    if (widget.isExpanded && !_isUnsyncedLyricsCached) {
       _ticker.start();
     }
 
@@ -94,6 +103,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     final bool lyricsChanged = oldWidget.lyrics != widget.lyrics;
 
     if (songChanged || lyricsChanged) {
+      _computeLyricsMetadata();
       _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
       _activeIndexNotifier.value = -1;
       _lastKnownPosition = Duration.zero;
@@ -318,18 +328,42 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       final String message = widget.lyrics.isNotEmpty
           ? widget.lyrics.first.text
           : "Paroles indisponibles pour ce titre";
+      final gradientColors = widget.themeColors.isNotEmpty
+          ? (widget.themeColors.length == 1
+              ? [widget.themeColors.first, widget.themeColors.first]
+              : widget.themeColors)
+          : [Colors.cyanAccent, Colors.blueAccent];
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 40.0),
-          child: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: unlitColor.withValues(alpha: 0.8),
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-              letterSpacing: -0.2,
+          child: ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) {
+              return LinearGradient(
+                colors: gradientColors,
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                stops: getGradientStops(gradientColors.length),
+              ).createShader(
+                Rect.fromLTWH(
+                  0,
+                  0,
+                  bounds.width,
+                  bounds.height,
+                ),
+              );
+            },
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+                letterSpacing: -0.2,
+              ),
             ),
           ),
         ),

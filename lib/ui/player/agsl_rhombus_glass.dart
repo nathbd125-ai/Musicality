@@ -22,7 +22,7 @@ class AGSLRhombusGlass extends StatefulWidget {
 }
 
 class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
-  FragmentProgram? _program;
+  static FragmentProgram? _cachedProgram;
   Offset _currentOffset = Offset.zero;
   late ImageFilter _blurFilter;
 
@@ -61,20 +61,20 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
     if (oldWidget.blurSigma != widget.blurSigma) {
       _updateBlurFilter();
     }
-    if (widget.enabled && !oldWidget.enabled && _program == null) {
+    if (widget.enabled && !oldWidget.enabled && _cachedProgram == null) {
       _loadShader();
     }
   }
 
   Future<void> _loadShader() async {
+    if (_cachedProgram != null) return;
     try {
       final program = await FragmentProgram.fromAsset(
         'shaders/rhombus_glass.frag',
       );
+      _cachedProgram = program;
       if (mounted) {
-        setState(() {
-          _program = program;
-        });
+        setState(() {});
       }
     } catch (e) {
       debugPrint("Erreur lors du chargement de rhombus_glass.frag: $e");
@@ -87,7 +87,8 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
       return widget.child;
     }
 
-    if (_program == null) {
+    final program = _cachedProgram;
+    if (program == null) {
       // Fallback
       return ClipRRect(
         borderRadius: BorderRadius.circular(widget.cornerRadius),
@@ -104,7 +105,7 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
           _updateOffset();
         });
 
-        final shader = _program!.fragmentShader();
+        final shader = program.fragmentShader();
 
         // Get Device Pixel Ratio because FlutterFragCoord in BackdropFilter is in physical pixels on Impeller
         final dpr = MediaQuery.of(context).devicePixelRatio;

@@ -60,7 +60,7 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final trackColors = getAlbumGradientColors(item);
+    final trackColors = isSelected ? getAlbumGradientColors(item) : const <Color>[];
 
     return RepaintBoundary(
       child: Container(
@@ -206,7 +206,6 @@ class SongTile extends StatelessWidget {
                                         alpha: 0.85,
                                       ),
                                       fontSize: 14,
-                                      height: 1.0,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -219,7 +218,6 @@ class SongTile extends StatelessWidget {
                                   style: const TextStyle(
                                     color: Color(0xFF9E9E9E),
                                     fontSize: 14,
-                                    height: 1.0,
                                     fontWeight: FontWeight.normal,
                                   ),
                                 ),

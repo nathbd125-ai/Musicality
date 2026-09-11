@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:rxdart/rxdart.dart';
 import 'package:musicality/core/models.dart';
 import 'package:flutter/services.dart';
@@ -55,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<LyricLine> _currentLyrics = [];
   bool _isLoadingLyrics = false;
   String? _lastSongId;
+  StreamSubscription<MediaItem?>? _mediaItemSub;
 
   List<Color> _dynamicGradientColors = [
     const Color(0xFF9C27B0),
@@ -94,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ).asBroadcastStream();
 
-    globalAudioHandler.mediaItem.listen((item) {
+    _mediaItemSub = globalAudioHandler.mediaItem.listen((item) {
       if (item != null && item.id != _lastSongId) {
         _lastSongId = item.id;
         _fetchLyrics(item);
@@ -126,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _mediaItemSub?.cancel();
     isBatterySaverEnabledNotifier.removeListener(_onBatterySaverChanged);
     WidgetsBinding.instance.removeObserver(this);
     _mainPageController.dispose();
@@ -357,53 +360,57 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                               duration: const Duration(
                                                 milliseconds: 300,
                                               ),
-                                              child: IgnorePointer(
-                                                ignoring: _isPlayerExpanded,
-                                                child: Scaffold(
-                                                  backgroundColor:
-                                                      Colors.transparent,
-                                                  extendBody: true,
-                                                  resizeToAvoidBottomInset:
-                                                      false,
-                                                  body: PageView(
-                                                    controller:
-                                                        _mainPageController,
-                                                    physics:
-                                                        const NeverScrollableScrollPhysics(),
-                                                    children: [
-                                                      SearchPageView(
-                                                        key: _searchKey,
-                                                        currentItem:
-                                                            currentItem,
-                                                        dynamicGradientColors:
-                                                            smoothThemeColors,
-                                                      ),
-                                                      ArtistPageView(
-                                                        key: _artistKey,
-                                                        dynamicThemeColors:
-                                                            smoothThemeColors,
-                                                        currentItem:
-                                                            currentItem,
-                                                      ),
-                                                      AllMusicsView(
-                                                        key: _musicsKey,
-                                                        currentItem:
-                                                            currentItem,
-                                                        dynamicGradientColors:
-                                                            smoothThemeColors,
-                                                      ),
-                                                      LibraryPageView(
-                                                        key: _libraryKey,
-                                                        currentItem:
-                                                            currentItem,
-                                                        dynamicGradientColors:
-                                                            smoothThemeColors,
-                                                      ),
-                                                      AccountPageView(
-                                                        dynamicGradientColors:
-                                                            smoothThemeColors,
-                                                      ),
-                                                    ],
+                                              child: FocusScope(
+                                                canRequestFocus:
+                                                    !_isPlayerExpanded,
+                                                child: IgnorePointer(
+                                                  ignoring: _isPlayerExpanded,
+                                                  child: Scaffold(
+                                                    backgroundColor:
+                                                        Colors.transparent,
+                                                    extendBody: true,
+                                                    resizeToAvoidBottomInset:
+                                                        false,
+                                                    body: PageView(
+                                                      controller:
+                                                          _mainPageController,
+                                                      physics:
+                                                          const NeverScrollableScrollPhysics(),
+                                                      children: [
+                                                        SearchPageView(
+                                                          key: _searchKey,
+                                                          currentItem:
+                                                              currentItem,
+                                                          dynamicGradientColors:
+                                                              smoothThemeColors,
+                                                        ),
+                                                        ArtistPageView(
+                                                          key: _artistKey,
+                                                          dynamicThemeColors:
+                                                              smoothThemeColors,
+                                                          currentItem:
+                                                              currentItem,
+                                                        ),
+                                                        AllMusicsView(
+                                                          key: _musicsKey,
+                                                          currentItem:
+                                                              currentItem,
+                                                          dynamicGradientColors:
+                                                              smoothThemeColors,
+                                                        ),
+                                                        LibraryPageView(
+                                                          key: _libraryKey,
+                                                          currentItem:
+                                                              currentItem,
+                                                          dynamicGradientColors:
+                                                              smoothThemeColors,
+                                                        ),
+                                                        AccountPageView(
+                                                          dynamicGradientColors:
+                                                              smoothThemeColors,
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -706,6 +713,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                           if (isHapticFeedbackEnabledNotifier.value) {
                                                                                             HapticFeedback.lightImpact();
                                                                                           }
+                                                                                          FocusManager.instance.primaryFocus?.unfocus();
                                                                                           Navigator.of(context).push(
                                                                                             MaterialPageRoute(
                                                                                               builder: (context) => LrcEditorView(
@@ -738,6 +746,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                       if (isHapticFeedbackEnabledNotifier.value) {
                                                                                         HapticFeedback.lightImpact();
                                                                                       }
+                                                                                      FocusManager.instance.primaryFocus?.unfocus();
                                                                                       Navigator.of(context).push(
                                                                                         PageRouteBuilder(
                                                                                           pageBuilder: (
@@ -1015,7 +1024,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                                   0.35,
                                                                                                 ),
                                                                                                 fontSize: fontSize,
-                                                                                                height: 1.0,
                                                                                                 fontWeight: FontWeight.w500,
                                                                                               ),
                                                                                             );

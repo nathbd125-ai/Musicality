@@ -151,6 +151,12 @@ class LyricsService {
                     .replaceAll('\u0092', '’');
               }
               if (downloaded.isNotEmpty) {
+                if (baseName.contains('11') &&
+                    downloaded.toLowerCase().contains('puissance')) {
+                  downloaded = "";
+                }
+              }
+              if (downloaded.isNotEmpty) {
                 lyricsContent = downloaded;
                 await localLrc.writeAsString(lyricsContent);
               }

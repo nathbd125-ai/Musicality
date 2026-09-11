@@ -12,7 +12,18 @@ List<double>? getGradientStops(int count) {
   return List<double>.generate(count, (i) => (i * step).clamp(0.0, 1.0));
 }
 
+final Map<String, List<Color>> _albumGradientCache = {};
+
 List<Color> getAlbumGradientColors(MediaItem item) {
+  final cached = _albumGradientCache[item.id];
+  if (cached != null) return cached;
+
+  final colors = _computeAlbumGradientColors(item);
+  _albumGradientCache[item.id] = colors;
+  return colors;
+}
+
+List<Color> _computeAlbumGradientColors(MediaItem item) {
   final artUriStr = item.artUri?.toString().toLowerCase() ?? '';
   final a = getSafeFileName(item.album ?? '');
   final albumNorm = normalizeString(item.album ?? '');

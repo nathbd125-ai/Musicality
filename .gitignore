@@ -9,6 +9,7 @@ __pycache__/
 temp_*
 scratch/
 fix*.py
+.widget_preview/
 
 # IntelliJ related
 *.iml

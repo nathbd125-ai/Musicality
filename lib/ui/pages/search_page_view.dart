@@ -60,11 +60,12 @@ class SearchPageViewState extends State<SearchPageView> {
   }
 
   void _updateFilter() {
-    if (_searchQuery.trim().isEmpty) {
+    final cleanQuery = _searchQuery.trim();
+    if (cleanQuery.isEmpty) {
       _filteredPlaylist = [];
     } else {
+      final query = normalizeString(cleanQuery);
       _filteredPlaylist = globalPlaylist.where((item) {
-        final query = normalizeString(_searchQuery);
         final titleMatch = normalizeString(item.title).contains(query);
         final artistMatch = normalizeString(item.artist ?? '').contains(query);
         return titleMatch || artistMatch;
@@ -290,7 +291,10 @@ class SearchPageViewState extends State<SearchPageView> {
                             }
                           : null,
                       onTap: () {
-                        FocusScope.of(context).unfocus();
+                        _searchFocusNode.unfocus(
+                          disposition: UnfocusDisposition.previouslyFocusedChild,
+                        );
+                        FocusManager.instance.primaryFocus?.unfocus();
 
                         final currentHistory = List<String>.from(
                           searchHistoryNotifier.value,

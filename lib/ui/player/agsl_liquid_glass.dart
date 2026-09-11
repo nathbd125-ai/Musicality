@@ -22,20 +22,35 @@ class AGSLLiquidGlass extends StatefulWidget {
 }
 
 class _AGSLLiquidGlassState extends State<AGSLLiquidGlass>
-    with SingleTickerProviderStateMixin {
-  ui.FragmentProgram? _program;
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  static ui.FragmentProgram? _cachedProgram;
   late AnimationController _controller;
   late ui.ImageFilter _blurFilter;
+  bool _isResumed = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
-    )..repeat();
+    );
+    if (widget.enabled) {
+      _controller.repeat();
+    }
     _updateBlurFilter();
     _loadShader();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isResumed = (state == AppLifecycleState.resumed);
+    if (!_isResumed) {
+      if (_controller.isAnimating) _controller.stop();
+    } else if (widget.enabled) {
+      if (!_controller.isAnimating) _controller.repeat();
+    }
   }
 
   @override
@@ -43,6 +58,13 @@ class _AGSLLiquidGlassState extends State<AGSLLiquidGlass>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.blurSigma != widget.blurSigma) {
       _updateBlurFilter();
+    }
+    if (oldWidget.enabled != widget.enabled) {
+      if (widget.enabled && _isResumed) {
+        if (!_controller.isAnimating) _controller.repeat();
+      } else {
+        if (_controller.isAnimating) _controller.stop();
+      }
     }
   }
 
@@ -55,19 +77,20 @@ class _AGSLLiquidGlassState extends State<AGSLLiquidGlass>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
 
   Future<void> _loadShader() async {
+    if (_cachedProgram != null) return;
     try {
       final program = await ui.FragmentProgram.fromAsset(
         'shaders/liquid_glass.frag',
       );
+      _cachedProgram = program;
       if (mounted) {
-        setState(() {
-          _program = program;
-        });
+        setState(() {});
       }
     } catch (e) {
       debugPrint("Failed to load liquid glass shader: $e");
@@ -76,7 +99,8 @@ class _AGSLLiquidGlassState extends State<AGSLLiquidGlass>
 
   @override
   Widget build(BuildContext context) {
-    if (_program == null || !widget.enabled) {
+    final program = _cachedProgram;
+    if (program == null || !widget.enabled) {
       return ClipRect(
         child: BackdropFilter(
           filter: _blurFilter,
@@ -91,7 +115,7 @@ class _AGSLLiquidGlassState extends State<AGSLLiquidGlass>
           animation: _controller,
           child: widget.child,
           builder: (context, cachedChild) {
-            final shader = _program!.fragmentShader();
+            final shader = program.fragmentShader();
 
             final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
             final size = renderBox?.size ?? constraints.biggest;

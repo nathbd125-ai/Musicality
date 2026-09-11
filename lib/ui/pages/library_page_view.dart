@@ -515,6 +515,7 @@ class LibraryPageViewState extends State<LibraryPageView> {
                     }
 
                     final currentBaseIds = currentSet.map(getBaseId).toSet();
+                    final query = normalizeString(_searchQuery);
 
                     final filteredPlaylist = globalPlaylist.where((item) {
                       final baseId = getBaseId(item.id);
@@ -522,7 +523,7 @@ class LibraryPageViewState extends State<LibraryPageView> {
                           !currentBaseIds.contains(baseId)) {
                         return false;
                       }
-                      final query = normalizeString(_searchQuery);
+                      if (query.isEmpty) return true;
                       final titleMatch = normalizeString(
                         item.title,
                       ).contains(query);
