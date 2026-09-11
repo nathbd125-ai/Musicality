@@ -83,7 +83,9 @@ Future<void> main() async {
       if (currentBuild > lastBuild) {
         if (dir.existsSync()) {
           for (var file in dir.listSync().whereType<File>()) {
-            if (file.path.endsWith('.lrc')) {
+            if (file.path.endsWith('.lrc') ||
+                file.path.endsWith('tenebreux_') ||
+                (file.path.endsWith('.jpg') && file.lengthSync() == 0)) {
               try {
                 file.deleteSync();
               } catch (_) {}

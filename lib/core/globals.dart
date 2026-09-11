@@ -187,7 +187,7 @@ Future<void> initPersistence() async {
   });
 
   for (var item in globalPlaylist) {
-    final String fileName = item.artUri?.pathSegments.last ?? '${getSafeFileName(getBaseId(item.id))}.jpg';
+    final String fileName = Uri.decodeComponent(item.artUri?.pathSegments.last ?? '${getSafeFileName(getBaseId(item.id))}.jpg');
     final coverFile = File('$globalDocumentPath/$fileName');
     if (!coverFile.existsSync() && item.artUri != null) {
       http
@@ -430,11 +430,180 @@ String _extractEnrichedArtist(String rawTitle, String rawArtist) {
   return rawArtist;
 }
 
+String normalizeAlbumName(String id, dynamic rawAlbum) {
+  var albumName = (rawAlbum ?? 'Inconnu').toString();
+  final lowerId = id.toLowerCase();
+  final lowerAlbum = albumName.toLowerCase();
+
+  if (lowerId.contains("can't_feel_my_face") || lowerId.contains('cant_feel_my_face')) {
+    if (lowerAlbum.contains('now that')) {
+      return 'Beauty Behind the Madness';
+    }
+  } else if (lowerId.contains('despacito')) {
+    if (lowerAlbum.contains('summer')) {
+      return 'VIDA';
+    }
+  } else if (lowerId.contains('shy')) {
+    if (lowerAlbum.contains('rmf')) {
+      return 'The Wrong Kind of War';
+    }
+  } else if (lowerId.contains('friday')) {
+    if (lowerAlbum.contains('now that')) {
+      return 'Friday (Dopamine re-edit)';
+    }
+  } else if (lowerId.contains('gypsy_woman')) {
+    if (lowerAlbum.contains('firstclass')) {
+      return 'Surprise';
+    }
+  } else if (lowerId.contains('my_salsa')) {
+    if (lowerAlbum.contains('nrj')) {
+      return 'Monsieur (Mood Edition)';
+    }
+  } else if (lowerId.contains('mi_gente')) {
+    if (lowerAlbum.contains('now that')) {
+      return 'Vibras';
+    }
+  } else if (lowerId.contains('no_lie')) {
+    if (lowerAlbum.contains('now that')) {
+      return 'Mad Love The Prequel';
+    }
+  } else if (lowerId.contains('lucie_from_paris')) {
+    if (lowerAlbum.contains('inconnu')) {
+      return 'Lucie from Paris';
+    }
+  } else if (lowerId.contains('lean_on')) {
+    if (lowerAlbum.contains('now that')) {
+      return 'Peace Is the Mission';
+    }
+  } else if (lowerId == 'solo' || lowerId == 'rockabye') {
+    if (lowerAlbum.contains('now that') || lowerAlbum.contains('summer party')) {
+      return 'What Is Love?';
+    }
+  } else if (lowerId == 'tuesday') {
+    if (lowerAlbum.contains('bravo')) {
+      return 'Tuesday';
+    }
+  }
+  return albumName;
+}
+
+String resolveCoverName({
+  required String id,
+  required String albumName,
+  String? coverName,
+}) {
+  final cleanId = id.toLowerCase().trim();
+  final cleanAlbum = albumName.toLowerCase().trim();
+
+  // 1. Dérogations spécifiques (priorités albums et singles ciblés)
+  if (cleanId == 'zoo' || cleanId == 'charge') {
+    return 'or_noir';
+  }
+  if (cleanId == 'pa_pa_paw') {
+    return 'beyah';
+  }
+  if (cleanId == 'nouvelles' || coverName == '2069') {
+    return "2069'";
+  }
+  // Gambi - LA VIE EST BELLE (priorité au JPG d'album spécifique sur le VPS)
+  if (cleanId == 'popopop' || cleanId == 'puff_puff_puff' || cleanId == 'he_oh') {
+    return 'la_vie_est_belle';
+  }
+  if (cleanId.contains("can't_feel_my_face") || cleanId.contains('cant_feel_my_face')) {
+    return 'beauty_behind_the_madness';
+  }
+  if (cleanId == 'charger' || cleanAlbum.contains('franchement')) {
+    return 'franchement';
+  }
+  if (cleanId == 'rockabye' || cleanId == 'solo') {
+    return 'what_is_love';
+  }
+  if (cleanId.contains('despacito') || cleanAlbum.contains('we love summer') || cleanAlbum.contains('we_love_summer')) {
+    return 'vida';
+  }
+  if (cleanId.contains('shy') || cleanAlbum.contains('rmf')) {
+    return 'the_wrong_kind_of_war';
+  }
+  if (cleanId.contains('drop_it_like') || cleanId.contains('masterpiece') || cleanAlbum.contains('masterpiece')) {
+    return 'rg_the_masterpiece';
+  }
+  if (cleanId.contains('falling_down') || cleanAlbum.contains('sober')) {
+    return 'come_over_when_youre_sober_pt_2';
+  }
+  if (cleanId.contains('friday')) {
+    return 'friday';
+  }
+  if (cleanId.contains('gypsy_woman') || cleanAlbum.contains('firstclass')) {
+    return 'surprise';
+  }
+  if (cleanId.contains('my_salsa') || cleanAlbum.contains('nrj')) {
+    return 'my_salsa';
+  }
+  if (cleanId.contains('mi_gente')) {
+    return 'vibras';
+  }
+  if (cleanId.contains('no_lie')) {
+    return 'mad_love_the_prequel';
+  }
+  if (cleanId.contains('lucie_from_paris')) {
+    return 'lucie_from_paris';
+  }
+  if (cleanId.contains('lean_on')) {
+    return 'peace_is_the_mission';
+  }
+  if (cleanId.contains('pour_deux_ames_solitaires') && cleanId.contains('1')) {
+    return 'pour_deux_ames_solitaires_part_1';
+  }
+  if (cleanId.contains('pour_deux_ames_solitaires') && cleanId.contains('2')) {
+    return 'pour_deux_ames_solitaires_part_2';
+  }
+  if (cleanId == 'tuesday') {
+    return 'tuesday';
+  }
+  if (cleanId.contains('swimming_pools') || cleanAlbum.contains('maad')) {
+    return 'good_kid_maad_city';
+  }
+  if (cleanId == 'you_know_you_like_it' || cleanId == 'let_me_love_you') {
+    return 'encore';
+  }
+  if (cleanId == 'luz_de_luna') {
+    return 'dans_la_legende';
+  }
+  if (cleanId.contains('smells_like_teen_spirit')) {
+    return 'nevermind';
+  }
+  if (cleanId == 'all_i_need') {
+    return 'in_rainbows';
+  }
+
+  // 2. Priorité au coverName explicite (si renseigné dans musiques.json)
+  if (coverName != null && coverName.trim().isNotEmpty) {
+    return coverName.trim();
+  }
+
+  // 3. Priorité au JPG d'album spécifique si l'album est valide
+  if (albumName.trim().isNotEmpty && cleanAlbum != 'inconnu') {
+    return getSafeFileName(albumName);
+  }
+
+  // 4. Fallback sur le safe file name de l'id
+  return getSafeFileName(id);
+}
+
+String buildArtUriString(String imageName) {
+  final safeUrlName = imageName.replaceAll('#', '%23');
+  return '${ApiConfig.baseUrl}/$safeUrlName.jpg';
+}
+
+Uri buildArtUri(String imageName) {
+  return Uri.parse(buildArtUriString(imageName));
+}
+
 void _parseMusiquesFromJson(List<dynamic> data) {
   globalPlaylist.clear();
   for (var jsonItem in data) {
     final id = jsonItem['id'] as String;
-    var albumName = jsonItem['album'] ?? 'Inconnu';
+    var albumName = normalizeAlbumName(id, jsonItem['album']);
     var rawTitle = jsonItem['title'] ?? id;
     if (id.toLowerCase() == 'afro_trap,_part.7_(la_puissance)') {
       rawTitle = "Afro Trap Part. 7 (La Puissance)";
@@ -446,113 +615,18 @@ void _parseMusiquesFromJson(List<dynamic> data) {
       rawArtist = 'Odetari & Cade Clair';
     }
 
-    if (id.toLowerCase().contains("can't_feel_my_face") || id.toLowerCase().contains('cant_feel_my_face')) {
-      if (albumName.toString().toLowerCase().contains('now that')) {
-        albumName = 'Beauty Behind the Madness';
-      }
-    } else if (id.toLowerCase().contains('despacito')) {
-      if (albumName.toString().toLowerCase().contains('summer')) {
-        albumName = 'VIDA';
-      }
-    } else if (id.toLowerCase().contains('shy')) {
-      if (albumName.toString().toLowerCase().contains('rmf')) {
-        albumName = 'The Wrong Kind of War';
-      }
-    } else if (id.toLowerCase().contains('friday')) {
-      if (albumName.toString().toLowerCase().contains('now that')) {
-        albumName = 'Friday (Dopamine re-edit)';
-      }
-    } else if (id.toLowerCase().contains('gypsy_woman')) {
-      if (albumName.toString().toLowerCase().contains('firstclass')) {
-        albumName = 'Surprise';
-      }
-    } else if (id.toLowerCase().contains('my_salsa')) {
-      if (albumName.toString().toLowerCase().contains('nrj')) {
-        albumName = 'Monsieur (Mood Edition)';
-      }
-    } else if (id.toLowerCase().contains('mi_gente')) {
-      if (albumName.toString().toLowerCase().contains('now that')) {
-        albumName = 'Vibras';
-      }
-    } else if (id.toLowerCase().contains('no_lie')) {
-      if (albumName.toString().toLowerCase().contains('now that')) {
-        albumName = 'Mad Love The Prequel';
-      }
-    } else if (id.toLowerCase().contains('lucie_from_paris')) {
-      if (albumName.toString().toLowerCase().contains('inconnu')) {
-        albumName = 'Lucie from Paris';
-      }
-    } else if (id.toLowerCase().contains('lean_on')) {
-      if (albumName.toString().toLowerCase().contains('now that')) {
-        albumName = 'Peace Is the Mission';
-      }
-    } else if (id.toLowerCase() == 'solo' || id.toLowerCase() == 'rockabye') {
-      if (albumName.toString().toLowerCase().contains('now that') ||
-          albumName.toString().toLowerCase().contains('summer party')) {
-        albumName = 'What Is Love?';
-      }
-    } else if (id.toLowerCase() == 'tuesday') {
-      if (albumName.toString().toLowerCase().contains('bravo')) {
-        albumName = 'Tuesday';
-      }
-    }
-
-    String safeImageName = jsonItem['coverName'] != null
-        ? jsonItem['coverName'] as String
-        : getSafeFileName(albumName);
-
-    if (id.toLowerCase() == 'zoo' || id.toLowerCase() == 'charge') {
-      safeImageName = 'or_noir';
-    } else if (id.toLowerCase() == 'pa_pa_paw') {
-      safeImageName = 'beyah';
-    } else if (id.toLowerCase() == 'nouvelles' || safeImageName == '2069') {
-      safeImageName = "2069'";
-    } else if (id.toLowerCase().contains("can't_feel_my_face") || id.toLowerCase().contains('cant_feel_my_face')) {
-      safeImageName = 'beauty_behind_the_madness';
-    } else if (id.toLowerCase() == 'charger' || safeImageName.contains('franchement')) {
-      safeImageName = 'franchement';
-    } else if (id.toLowerCase() == 'rockabye') {
-      safeImageName = 'what_is_love';
-    } else if (id.toLowerCase().contains('despacito') || safeImageName.contains('we_love_summer')) {
-      safeImageName = 'vida';
-    } else if (id.toLowerCase().contains('shy') || safeImageName.contains('rmf')) {
-      safeImageName = 'the_wrong_kind_of_war';
-    } else if (id.toLowerCase().contains('drop_it_like') || id.toLowerCase().contains('masterpiece') || safeImageName.contains('masterpiece')) {
-      safeImageName = 'rg_the_masterpiece';
-    } else if (id.toLowerCase().contains('falling_down') || safeImageName.contains('sober')) {
-      safeImageName = 'come_over_when_youre_sober_pt_2';
-    } else if (id.toLowerCase().contains('friday') || safeImageName.contains('friday')) {
-      safeImageName = 'friday';
-    } else if (id.toLowerCase().contains('gypsy_woman') || safeImageName.contains('firstclass')) {
-      safeImageName = 'surprise';
-    } else if (id.toLowerCase().contains('my_salsa') || safeImageName.contains('nrj')) {
-      safeImageName = 'my_salsa';
-    } else if (id.toLowerCase().contains('mi_gente')) {
-      safeImageName = 'vibras';
-    } else if (id.toLowerCase().contains('no_lie')) {
-      safeImageName = 'mad_love_the_prequel';
-    } else if (id.toLowerCase().contains('lucie_from_paris')) {
-      safeImageName = 'lucie_from_paris';
-    } else if (id.toLowerCase().contains('lean_on')) {
-      safeImageName = 'peace_is_the_mission';
-    } else if (id.toLowerCase().contains('pour_deux_ames_solitaires') && id.contains('1')) {
-      safeImageName = 'pour_deux_ames_solitaires_part_1';
-    } else if (id.toLowerCase().contains('pour_deux_ames_solitaires') && id.contains('2')) {
-      safeImageName = 'pour_deux_ames_solitaires_part_2';
-    } else if (id.toLowerCase() == 'solo') {
-      safeImageName = 'what_is_love';
-    } else if (id.toLowerCase() == 'tuesday') {
-      safeImageName = 'tuesday';
-    } else if (id.toLowerCase().contains('swimming_pools') || safeImageName.contains('maad')) {
-      safeImageName = 'good_kid_maad_city';
-    }
+    final safeImageName = resolveCoverName(
+      id: id,
+      albumName: albumName,
+      coverName: jsonItem['coverName'] as String?,
+    );
 
     final mediaItem = MediaItem(
       id: '${ApiConfig.baseUrl}/$id.flac',
       album: albumName,
       title: cleanTitle(rawTitle),
       artist: _extractEnrichedArtist(rawTitle, rawArtist),
-      artUri: Uri.parse('${ApiConfig.baseUrl}/$safeImageName.jpg'),
+      artUri: buildArtUri(safeImageName),
       duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
       extras: {
         'hasFlac': jsonItem['hasFlac'] ?? true,
@@ -577,11 +651,11 @@ Future<void> fetchMusiques() async {
       final List<SongEntity> entities = [];
       for (var jsonItem in data) {
         final id = jsonItem['id'] as String;
-        var albumName = jsonItem['album'] ?? 'Inconnu';
+        var albumName = normalizeAlbumName(id, jsonItem['album']);
         var rawTitle = jsonItem['title'] ?? id;
-    if (id.toLowerCase() == 'afro_trap,_part.7_(la_puissance)') {
-      rawTitle = "Afro Trap Part. 7 (La Puissance)";
-    }
+        if (id.toLowerCase() == 'afro_trap,_part.7_(la_puissance)') {
+          rawTitle = "Afro Trap Part. 7 (La Puissance)";
+        }
         var rawArtist = jsonItem['artist'] ?? 'Inconnu';
         if (id.toLowerCase().contains('my_salsa')) {
           rawArtist = 'Franglish & Tory Lanez';
@@ -589,113 +663,18 @@ Future<void> fetchMusiques() async {
           rawArtist = 'Odetari & Cade Clair';
         }
 
-        if (id.toLowerCase().contains("can't_feel_my_face") || id.toLowerCase().contains('cant_feel_my_face')) {
-          if (albumName.toString().toLowerCase().contains('now that')) {
-            albumName = 'Beauty Behind the Madness';
-          }
-        } else if (id.toLowerCase().contains('despacito')) {
-          if (albumName.toString().toLowerCase().contains('summer')) {
-            albumName = 'VIDA';
-          }
-        } else if (id.toLowerCase().contains('shy')) {
-          if (albumName.toString().toLowerCase().contains('rmf')) {
-            albumName = 'The Wrong Kind of War';
-          }
-        } else if (id.toLowerCase().contains('friday')) {
-          if (albumName.toString().toLowerCase().contains('now that')) {
-            albumName = 'Friday (Dopamine re-edit)';
-          }
-        } else if (id.toLowerCase().contains('gypsy_woman')) {
-          if (albumName.toString().toLowerCase().contains('firstclass')) {
-            albumName = 'Surprise';
-          }
-        } else if (id.toLowerCase().contains('my_salsa')) {
-          if (albumName.toString().toLowerCase().contains('nrj')) {
-            albumName = 'Monsieur (Mood Edition)';
-          }
-        } else if (id.toLowerCase().contains('mi_gente')) {
-          if (albumName.toString().toLowerCase().contains('now that')) {
-            albumName = 'Vibras';
-          }
-        } else if (id.toLowerCase().contains('no_lie')) {
-          if (albumName.toString().toLowerCase().contains('now that')) {
-            albumName = 'Mad Love The Prequel';
-          }
-        } else if (id.toLowerCase().contains('lucie_from_paris')) {
-          if (albumName.toString().toLowerCase().contains('inconnu')) {
-            albumName = 'Lucie from Paris';
-          }
-        } else if (id.toLowerCase().contains('lean_on')) {
-          if (albumName.toString().toLowerCase().contains('now that')) {
-            albumName = 'Peace Is the Mission';
-          }
-        } else if (id.toLowerCase() == 'solo' || id.toLowerCase() == 'rockabye') {
-          if (albumName.toString().toLowerCase().contains('now that') ||
-              albumName.toString().toLowerCase().contains('summer party')) {
-            albumName = 'What Is Love?';
-          }
-        } else if (id.toLowerCase() == 'tuesday') {
-          if (albumName.toString().toLowerCase().contains('bravo')) {
-            albumName = 'Tuesday';
-          }
-        }
-
-        String safeImageName = jsonItem['coverName'] != null
-            ? jsonItem['coverName'] as String
-            : getSafeFileName(albumName);
-
-        if (id.toLowerCase() == 'zoo' || id.toLowerCase() == 'charge') {
-          safeImageName = 'or_noir';
-        } else if (id.toLowerCase() == 'pa_pa_paw') {
-          safeImageName = 'beyah';
-        } else if (id.toLowerCase() == 'nouvelles' || safeImageName == '2069') {
-          safeImageName = "2069'";
-        } else if (id.toLowerCase().contains("can't_feel_my_face") || id.toLowerCase().contains('cant_feel_my_face')) {
-          safeImageName = 'beauty_behind_the_madness';
-        } else if (id.toLowerCase() == 'charger' || safeImageName.contains('franchement')) {
-          safeImageName = 'franchement';
-        } else if (id.toLowerCase() == 'rockabye') {
-          safeImageName = 'what_is_love';
-        } else if (id.toLowerCase().contains('despacito') || safeImageName.contains('we_love_summer')) {
-          safeImageName = 'vida';
-        } else if (id.toLowerCase().contains('shy') || safeImageName.contains('rmf')) {
-          safeImageName = 'the_wrong_kind_of_war';
-        } else if (id.toLowerCase().contains('drop_it_like') || id.toLowerCase().contains('masterpiece') || safeImageName.contains('masterpiece')) {
-          safeImageName = 'rg_the_masterpiece';
-        } else if (id.toLowerCase().contains('falling_down') || safeImageName.contains('sober')) {
-          safeImageName = 'come_over_when_youre_sober_pt_2';
-        } else if (id.toLowerCase().contains('friday') || safeImageName.contains('friday')) {
-          safeImageName = 'friday';
-        } else if (id.toLowerCase().contains('gypsy_woman') || safeImageName.contains('firstclass')) {
-          safeImageName = 'surprise';
-        } else if (id.toLowerCase().contains('my_salsa') || safeImageName.contains('nrj')) {
-          safeImageName = 'my_salsa';
-        } else if (id.toLowerCase().contains('mi_gente')) {
-          safeImageName = 'vibras';
-        } else if (id.toLowerCase().contains('no_lie')) {
-          safeImageName = 'mad_love_the_prequel';
-        } else if (id.toLowerCase().contains('lucie_from_paris')) {
-          safeImageName = 'lucie_from_paris';
-        } else if (id.toLowerCase().contains('lean_on')) {
-          safeImageName = 'peace_is_the_mission';
-        } else if (id.toLowerCase().contains('pour_deux_ames_solitaires') && id.contains('1')) {
-          safeImageName = 'pour_deux_ames_solitaires_part_1';
-        } else if (id.toLowerCase().contains('pour_deux_ames_solitaires') && id.contains('2')) {
-          safeImageName = 'pour_deux_ames_solitaires_part_2';
-        } else if (id.toLowerCase() == 'solo') {
-          safeImageName = 'what_is_love';
-        } else if (id.toLowerCase() == 'tuesday') {
-          safeImageName = 'tuesday';
-        } else if (id.toLowerCase().contains('swimming_pools') || safeImageName.contains('maad')) {
-          safeImageName = 'good_kid_maad_city';
-        }
+        final safeImageName = resolveCoverName(
+          id: id,
+          albumName: albumName,
+          coverName: jsonItem['coverName'] as String?,
+        );
         
         entities.add(SongEntity(
           songId: id,
           title: rawTitle,
           artist: _extractEnrichedArtist(rawTitle, rawArtist),
           album: albumName,
-          artUri: '${ApiConfig.baseUrl}/$safeImageName.jpg',
+          artUri: buildArtUriString(safeImageName),
           durationSeconds: jsonItem['durationSeconds'] ?? 0,
           hasFlac: jsonItem['hasFlac'] ?? true,
           hasHiRes: jsonItem['hasHiRes'] ?? false,
@@ -721,13 +700,7 @@ Future<void> fetchMusiques() async {
     if (cachedSongs.isNotEmpty) {
       globalPlaylist.clear();
       for (var entity in cachedSongs) {
-        var album = entity.album;
-        if (entity.songId.toLowerCase().contains("can't_feel_my_face") ||
-            entity.songId.toLowerCase().contains('cant_feel_my_face')) {
-          if (album.toLowerCase().contains('now that')) {
-            album = 'Beauty Behind the Madness';
-          }
-        }
+        var album = normalizeAlbumName(entity.songId, entity.album);
         final mediaItem = MediaItem(
           id: '${ApiConfig.baseUrl}/${entity.songId}.flac',
           album: album,
