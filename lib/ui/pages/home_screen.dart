@@ -1361,35 +1361,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           builder: (context, _) {
                                             final isBatterySaver = isBatterySaverEnabledNotifier.value;
                                             final isLiquidGlass = isLiquidGlassEnabledNotifier.value && !isBatterySaver;
-                                            final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 80;
-                                            final shouldHideBar = _isPlayerExpanded || isKeyboardOpen;
 
                                             return AnimatedPositioned(
                                               key: _bottomBarKey,
                                               duration: transitionDuration,
                                               curve: transitionCurve,
                                               bottom: isLiquidGlass
-                                                  ? (shouldHideBar
-                                                        ? -navBarHeight - 60
+                                                  ? (_isPlayerExpanded
+                                                        ? -navBarHeight
                                                         : 12 + bottomPadding)
-                                                  : (shouldHideBar ? -navBarHeight - 60 : 0),
+                                                  : 0,
                                               left: isLiquidGlass ? 12 : 0,
                                               right: isLiquidGlass ? 12 : 0,
                                               height: isLiquidGlass
                                                   ? 58.0
                                                   : navBarHeight,
                                               child: AnimatedOpacity(
-                                                duration: shouldHideBar
+                                                duration: _isPlayerExpanded
                                                     ? const Duration(milliseconds: 180)
                                                     : const Duration(milliseconds: 250),
-                                                curve: shouldHideBar
+                                                curve: _isPlayerExpanded
                                                     ? Curves.easeOut
                                                     : Curves.easeIn,
-                                                opacity: shouldHideBar
+                                                opacity: _isPlayerExpanded
                                                     ? 0.0
                                                     : 1.0,
                                                 child: IgnorePointer(
-                                                  ignoring: shouldHideBar,
+                                                  ignoring: _isPlayerExpanded,
                                                   child: AGSLRhombusGlass(
                                                     enabled:
                                                         isLiquidGlass &&

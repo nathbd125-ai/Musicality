@@ -31,15 +31,16 @@ class MusicalityBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
     return Align(
-      alignment: Alignment.topCenter,
-      child: MediaQuery.removeViewInsets(
-        context: context,
-        removeBottom: true,
-        child: MediaQuery.removePadding(
-          context: context,
-          removeBottom: true,
-          child: Theme(
+      alignment: Alignment.center,
+      child: MediaQuery(
+        data: mediaQuery.copyWith(
+          padding: EdgeInsets.zero,
+          viewPadding: EdgeInsets.zero,
+          viewInsets: EdgeInsets.zero,
+        ),
+        child: Theme(
             data: Theme.of(context).copyWith(
               splashColor: Colors.transparent,
               highlightColor: Colors.transparent,
@@ -159,7 +160,6 @@ class MusicalityBottomNavBar extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
