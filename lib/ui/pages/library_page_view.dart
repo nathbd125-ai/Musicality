@@ -806,10 +806,6 @@ class _PlaylistBigPlayButtonState extends State<_PlaylistBigPlayButton>
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = widget.gradientColors.isNotEmpty
-        ? widget.gradientColors.first
-        : const Color(0xFF7C4DFF);
-
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapDown: (_) => _controller.animateTo(0.88, curve: Curves.easeInOut),
@@ -837,13 +833,6 @@ class _PlaylistBigPlayButtonState extends State<_PlaylistBigPlayButton>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: primaryColor.withValues(alpha: 0.35),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
           ),
           child: Center(
             child: AnimatedSwitcher(
