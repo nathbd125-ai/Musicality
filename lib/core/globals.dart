@@ -11,6 +11,7 @@ import 'package:musicality/core/objectbox_service.dart';
 import 'package:musicality/core/my_audio_handler.dart';
 import 'package:musicality/core/string_utils.dart';
 import 'package:musicality/core/cloud_sync_service.dart';
+import 'package:musicality/core/song_download_service.dart';
 import 'package:musicality/objectbox.g.dart';
 
 export 'package:musicality/core/string_utils.dart';
@@ -50,6 +51,7 @@ final ValueNotifier<List<String>> searchHistoryNotifier =
     ValueNotifier<List<String>>([]);
 final ValueNotifier<Map<String, int>> songPlayCountNotifier =
     ValueNotifier<Map<String, int>>({});
+final ValueNotifier<int> songsVersionNotifier = ValueNotifier<int>(0);
 
 // GESTION COMPTE & PARAMÈTRES
 final ValueNotifier<String?> userProfileImageNotifier = ValueNotifier<String?>(
@@ -111,7 +113,7 @@ Future<void> initPersistence() async {
     isLiquidGlassEnabledNotifier.value = false;
   }
   final loadedLimit = mmkv.decodeInt('cacheLimit', defaultValue: 100);
-  cacheLimitNotifier.value = (loadedLimit == 50 || ![100, 500, 1024, 5120].contains(loadedLimit)) ? 100 : loadedLimit;
+  cacheLimitNotifier.value = (loadedLimit == 50 || ![100, 500, 1024, 5120, 10240].contains(loadedLimit)) ? 100 : loadedLimit;
 
   isLosslessNotifier.addListener(() {
     mmkv.encodeBool('isLossless', isLosslessNotifier.value);
@@ -186,24 +188,27 @@ Future<void> initPersistence() async {
     }
   });
 
-  for (var item in globalPlaylist) {
-    final String fileName = (item.artUri != null && item.artUri!.pathSegments.isNotEmpty)
-        ? item.artUri!.pathSegments.last
-        : '${getSafeFileName(getBaseId(item.id))}.jpg';
-    final coverFile = File('$globalDocumentPath/$fileName');
-    if (!coverFile.existsSync() && item.artUri != null) {
-      http
-          .get(item.artUri!)
-          .then((response) {
-            if (response.statusCode == 200) {
-              coverFile.writeAsBytesSync(response.bodyBytes);
-            }
-          })
-          .catchError((e) {
-            debugPrint("Erreur téléchargement cover : $e");
-          });
+  // Téléchargement différé des pochettes manquantes en arrière-plan sans ralentir le démarrage
+  Future.delayed(const Duration(seconds: 3), () {
+    for (var item in globalPlaylist) {
+      final String fileName = (item.artUri != null && item.artUri!.pathSegments.isNotEmpty)
+          ? item.artUri!.pathSegments.last
+          : '${getSafeFileName(getBaseId(item.id))}.jpg';
+      final coverFile = File('$globalDocumentPath/$fileName');
+      if (!coverFile.existsSync() && item.artUri != null) {
+        http
+            .get(item.artUri!)
+            .then((response) {
+              if (response.statusCode == 200) {
+                coverFile.writeAsBytesSync(response.bodyBytes);
+              }
+            })
+            .catchError((e) {
+              debugPrint("Erreur téléchargement cover : $e");
+            });
+      }
     }
-  }
+  });
 
   obx.migrateFromMMKV(mmkv);
 
@@ -669,6 +674,38 @@ void _parseMusiquesFromJson(List<dynamic> data) {
   }
 }
 
+void loadMusiquesFromCache() {
+  try {
+    final cachedSongs = obx.songBox.getAll();
+    if (cachedSongs.isNotEmpty) {
+      globalPlaylist.clear();
+      for (var entity in cachedSongs) {
+        var album = normalizeAlbumName(entity.songId, entity.album);
+        final mediaItem = MediaItem(
+          id: '${ApiConfig.baseUrl}/${entity.songId}.flac',
+          album: album,
+          title: cleanTitle(entity.title),
+          artist: _extractEnrichedArtist(entity.title, entity.artist),
+          artUri: entity.artUri != null ? Uri.parse(entity.artUri!) : null,
+          duration: Duration(seconds: entity.durationSeconds),
+          extras: {
+            'hasFlac': entity.hasFlac,
+            'hasHiRes': entity.hasHiRes,
+          },
+        );
+        
+        globalPlaylist.add(mediaItem);
+      }
+      songsVersionNotifier.value++;
+      debugPrint('Musiques chargées depuis le CACHE LOCAL (ObjectBox) : ${globalPlaylist.length}');
+    } else {
+      debugPrint('Aucun cache local disponible pour les musiques.');
+    }
+  } catch (e) {
+    debugPrint("Erreur lors de la lecture du cache ObjectBox : $e");
+  }
+}
+
 Future<void> fetchMusiques() async {
   try {
     final response = await http
@@ -717,6 +754,8 @@ Future<void> fetchMusiques() async {
       obx.songBox.putMany(entities);
 
       _parseMusiquesFromJson(data);
+      SongDownloadService.scanLocalFiles(globalPlaylist);
+      songsVersionNotifier.value++;
       debugPrint('Musiques chargées avec succès : ${globalPlaylist.length}');
     } else {
       throw Exception(
@@ -725,31 +764,8 @@ Future<void> fetchMusiques() async {
     }
   } catch (e) {
     debugPrint('Erreur HTTP, tentative de lecture depuis le cache ObjectBox : $e');
-    
-    // Lecture depuis ObjectBox
-    final cachedSongs = obx.songBox.getAll();
-    if (cachedSongs.isNotEmpty) {
-      globalPlaylist.clear();
-      for (var entity in cachedSongs) {
-        var album = normalizeAlbumName(entity.songId, entity.album);
-        final mediaItem = MediaItem(
-          id: '${ApiConfig.baseUrl}/${entity.songId}.flac',
-          album: album,
-          title: cleanTitle(entity.title),
-          artist: _extractEnrichedArtist(entity.title, entity.artist),
-          artUri: entity.artUri != null ? Uri.parse(entity.artUri!) : null,
-          duration: Duration(seconds: entity.durationSeconds),
-          extras: {
-            'hasFlac': entity.hasFlac,
-            'hasHiRes': entity.hasHiRes,
-          },
-        );
-        
-        globalPlaylist.add(mediaItem);
-      }
-      debugPrint('Musiques chargées depuis le CACHE LOCAL (ObjectBox) : ${globalPlaylist.length}');
-    } else {
-      debugPrint('Aucun cache local disponible pour les musiques.');
+    if (globalPlaylist.isEmpty) {
+      loadMusiquesFromCache();
     }
   }
 }

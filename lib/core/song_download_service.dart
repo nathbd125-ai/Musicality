@@ -22,7 +22,7 @@ class SongDownloadService {
     if (!isDownloaded(item.id)) return false;
 
     final docPath = globalDocumentPath;
-    final safeName = item.id.split('/').last.replaceAll('.flac', '');
+    final safeName = item.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
     final localHiRes = File('$docPath/$safeName-hires.flac');
     final localFlac = File('$docPath/$safeName.flac');
     final localMp3 = File('$docPath/$safeName.mp3');
@@ -55,7 +55,7 @@ class SongDownloadService {
   /// Renvoie le chemin d'accès local du fichier audio s'il est téléchargé, ou une chaîne vide.
   static String getLocalFilePath(MediaItem item) {
     final docPath = globalDocumentPath;
-    final safeName = item.id.split('/').last.replaceAll('.flac', '');
+    final safeName = item.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
     final localHiRes = File('$docPath/$safeName-hires.flac');
     if (localHiRes.existsSync()) return localHiRes.path;
     final localFlac = File('$docPath/$safeName.flac');
@@ -71,7 +71,7 @@ class SongDownloadService {
     final Set<String> localIds = {};
 
     for (var item in playlist) {
-      final safeName = item.id.split('/').last.replaceAll('.flac', '');
+      final safeName = item.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
       final hiResFile = File('${docDir.path}/$safeName-hires.flac');
       final flacFile = File('${docDir.path}/$safeName.flac');
       final mp3File = File('${docDir.path}/$safeName.mp3');
@@ -89,7 +89,7 @@ class SongDownloadService {
   /// Lance le téléchargement, la mise à niveau de qualité ou la suppression d'un titre.
   static Future<void> toggleDownload(MediaItem item) async {
     final docDir = await getApplicationDocumentsDirectory();
-    final safeName = item.id.split('/').last.replaceAll('.flac', '');
+    final safeName = item.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
 
     final localHiRes = File('${docDir.path}/$safeName-hires.flac');
     final localFlac = File('${docDir.path}/$safeName.flac');
@@ -154,12 +154,13 @@ class SongDownloadService {
       downloadingSongsNotifier.value = updatedDownloading;
 
       try {
+        final baseUri = item.id.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
         String downloadUrl;
         File fileToSave;
         File candidateCache;
 
         if (downloadHiRes) {
-          downloadUrl = item.id.replaceAll('.flac', '-hires.flac');
+          downloadUrl = '$baseUri-hires.flac';
           fileToSave = localHiRes;
           candidateCache = cacheHiRes;
           // Si téléchargement en Hi-Res, suppression automatique des caches de qualité inférieure
@@ -174,7 +175,7 @@ class SongDownloadService {
             } catch (_) {}
           }
         } else if (downloadFlac) {
-          downloadUrl = item.id;
+          downloadUrl = '$baseUri.flac';
           fileToSave = localFlac;
           if (cacheHiRes.existsSync()) {
             candidateCache = cacheHiRes;
@@ -189,7 +190,7 @@ class SongDownloadService {
             } catch (_) {}
           }
         } else {
-          downloadUrl = item.id.replaceAll('.flac', '.mp3');
+          downloadUrl = '$baseUri.mp3';
           fileToSave = localMp3;
           candidateCache = cacheMp3;
         }

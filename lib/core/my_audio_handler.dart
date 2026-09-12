@@ -597,7 +597,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   AudioSource _createSource(MediaItem item, {bool isCrossfadeToSameSong = false}) {
-    String safeName = item.id.split('/').last.replaceAll('.flac', '');
+    final baseUri = item.id.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
+    final safeName = baseUri.split('/').last;
     File manualHiRes = File('$globalDocumentPath/$safeName-hires.flac');
     File manualFlac = File('$globalDocumentPath/$safeName.flac');
     File manualMp3 = File('$globalDocumentPath/$safeName.mp3');
@@ -670,7 +671,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         isFlac = true; isHiRes = true; fileOrUrl = cacheHiRes.path;
         try { cacheHiRes.setLastModifiedSync(DateTime.now()); } catch (_) {}
       } else {
-        isFlac = true; isHiRes = true; fileOrUrl = item.id.replaceAll('.flac', '-hires.flac');
+        isFlac = true; isHiRes = true; fileOrUrl = '$baseUri-hires.flac';
         if (useCache) targetCacheFile = cacheHiRes;
       }
     } else if (wantFlac) {
@@ -685,7 +686,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         isFlac = true; isHiRes = false; fileOrUrl = cacheFlac.path;
         try { cacheFlac.setLastModifiedSync(DateTime.now()); } catch (_) {}
       } else {
-        isFlac = true; isHiRes = false; fileOrUrl = item.id;
+        isFlac = true; isHiRes = false; fileOrUrl = '$baseUri.flac';
         if (useCache) targetCacheFile = cacheFlac;
       }
     } else {
@@ -705,7 +706,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         isFlac = false; isHiRes = false; fileOrUrl = cacheMp3.path;
         try { cacheMp3.setLastModifiedSync(DateTime.now()); } catch (_) {}
       } else {
-        isFlac = false; isHiRes = false; fileOrUrl = item.id.replaceAll('.flac', '.mp3');
+        isFlac = false; isHiRes = false; fileOrUrl = '$baseUri.mp3';
         if (useCache) targetCacheFile = cacheMp3;
       }
     }
@@ -721,13 +722,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     if (isValidFile(File(fileOrUrl))) {
       return AudioSource.file(fileOrUrl, tag: newItem);
     } else {
-      String streamUrl = fileOrUrl.startsWith('http') ? fileOrUrl : item.id;
-      if (!wantHiRes && !wantFlac) {
-        streamUrl = streamUrl.replaceAll('.flac', '.mp3');
-      } else if (wantHiRes && hasHiRes) {
-        streamUrl = streamUrl.replaceAll('.flac', '-hires.flac');
-      }
-      final safeUri = Uri.parse(streamUrl.replaceAll('#', '%23'));
+      final safeUri = Uri.parse(fileOrUrl.replaceAll('#', '%23'));
       if (targetCacheFile != null && !isCrossfadeToSameSong) {
         manageCacheSize();
         // ignore: experimental_member_use
@@ -791,24 +786,69 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     final oldIsHiRes = currentItem.extras?['isHiRes'] as bool? ?? false;
 
     final masterIdx = globalPlaylist.indexWhere((e) => e.id == currentItem.id);
-    final newItem = masterIdx != -1 ? globalPlaylist[masterIdx] : currentItem;
-    final newIsFlac = newItem.extras?['isFlac'] as bool? ?? false;
-    final newIsHiRes = newItem.extras?['isHiRes'] as bool? ?? false;
+    final baseItem = masterIdx != -1 ? globalPlaylist[masterIdx] : currentItem;
+
+    final bool hasFlac = baseItem.extras?['hasFlac'] as bool? ?? true;
+    final bool hasHiRes = baseItem.extras?['hasHiRes'] as bool? ?? false;
+
+    final bool targetHiRes = isHiResNotifier.value && hasHiRes;
+    final bool targetFlac = (isLosslessNotifier.value && hasFlac) || targetHiRes;
+
+    final String safeName = baseItem.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
+    final File manualHiRes = File('$globalDocumentPath/$safeName-hires.flac');
+    final File cacheHiRes = File('$globalDocumentPath/cache/$safeName-hires.flac');
+    final File manualFlac = File('$globalDocumentPath/$safeName.flac');
+    final File cacheFlac = File('$globalDocumentPath/cache/$safeName.flac');
+
+    bool isValidFile(File f) {
+      try {
+        return f.existsSync() && f.lengthSync() > 0;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    bool newIsHiRes = false;
+    bool newIsFlac = false;
+
+    if (targetHiRes) {
+      newIsHiRes = true;
+      newIsFlac = true;
+    } else if (targetFlac) {
+      if (isValidFile(manualHiRes) || isValidFile(cacheHiRes)) {
+        newIsHiRes = true;
+        newIsFlac = true;
+      } else {
+        newIsHiRes = false;
+        newIsFlac = true;
+      }
+    } else {
+      if (isValidFile(manualHiRes) || isValidFile(cacheHiRes)) {
+        newIsHiRes = true;
+        newIsFlac = true;
+      } else if (isValidFile(manualFlac) || isValidFile(cacheFlac)) {
+        newIsHiRes = false;
+        newIsFlac = true;
+      } else {
+        newIsHiRes = false;
+        newIsFlac = false;
+      }
+    }
 
     if (oldIsFlac != newIsFlac || oldIsHiRes != newIsHiRes) {
       final currentPos = _activePlayer.position;
       final wasPlaying = _activePlayer.playing;
-      final newSource = _createSource(newItem);
+      final newSource = _createSource(baseItem);
 
       await _activePlayer.setAudioSource(newSource);
-      _loadedSongId = newItem.id;
+      _loadedSongId = baseItem.id;
       await _activePlayer.seek(currentPos);
       if (wasPlaying) _activePlayer.play();
 
+      final updatedItem = mediaItem.value ?? baseItem;
       final currentQueue = List<MediaItem>.from(queue.value);
-      currentQueue[_currentIndex] = newItem;
+      currentQueue[_currentIndex] = updatedItem;
       queue.add(currentQueue);
-      mediaItem.add(newItem);
     }
   }
 

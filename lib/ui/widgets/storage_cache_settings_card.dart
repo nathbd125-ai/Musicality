@@ -146,7 +146,7 @@ class StorageCacheSettingsCard extends StatelessWidget {
                           backgroundColor: Colors.transparent,
                           thumbColor: Colors.white.withValues(alpha: 0.2),
                           groupValue: (cacheLimit == 50 ||
-                                  ![100, 500, 1024, 5120].contains(cacheLimit))
+                                  ![100, 500, 1024, 5120, 10240].contains(cacheLimit))
                               ? 100
                               : cacheLimit,
                           onValueChanged: (int? value) {
@@ -167,10 +167,10 @@ class StorageCacheSettingsCard extends StatelessWidget {
                               child: Text(
                                 "100 Mo",
                                 style: TextStyle(
-                                  color: cacheLimit == 100
-                                      ? Colors.white
-                                      : Colors.white54,
-                                  fontWeight: FontWeight.bold,
+                                    color: cacheLimit == 100
+                                        ? Colors.white
+                                        : Colors.white54,
+                                    fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
@@ -179,10 +179,10 @@ class StorageCacheSettingsCard extends StatelessWidget {
                               child: Text(
                                 "500 Mo",
                                 style: TextStyle(
-                                  color: cacheLimit == 500
-                                      ? Colors.white
-                                      : Colors.white54,
-                                  fontWeight: FontWeight.bold,
+                                    color: cacheLimit == 500
+                                        ? Colors.white
+                                        : Colors.white54,
+                                    fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
@@ -191,10 +191,10 @@ class StorageCacheSettingsCard extends StatelessWidget {
                               child: Text(
                                 "1 Go",
                                 style: TextStyle(
-                                  color: cacheLimit == 1024
-                                      ? Colors.white
-                                      : Colors.white54,
-                                  fontWeight: FontWeight.bold,
+                                    color: cacheLimit == 1024
+                                        ? Colors.white
+                                        : Colors.white54,
+                                    fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
@@ -203,10 +203,22 @@ class StorageCacheSettingsCard extends StatelessWidget {
                               child: Text(
                                 "5 Go",
                                 style: TextStyle(
-                                  color: cacheLimit == 5120
-                                      ? Colors.white
-                                      : Colors.white54,
-                                  fontWeight: FontWeight.bold,
+                                    color: cacheLimit == 5120
+                                        ? Colors.white
+                                        : Colors.white54,
+                                    fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            10240: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Text(
+                                "10 Go",
+                                style: TextStyle(
+                                    color: cacheLimit == 10240
+                                        ? Colors.white
+                                        : Colors.white54,
+                                    fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),

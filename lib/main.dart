@@ -126,14 +126,20 @@ Future<void> main() async {
 
     try {
       obx = await ObjectBoxService.create();
+      loadMusiquesFromCache();
     } catch (e, st) {
       debugPrint("Erreur initialisation ObjectBox : $e\n$st");
     }
 
-    try {
-      await fetchMusiques();
-    } catch (e, st) {
-      debugPrint("Erreur chargement musiques : $e\n$st");
+    if (globalPlaylist.isEmpty) {
+      try {
+        await fetchMusiques();
+      } catch (e, st) {
+        debugPrint("Erreur chargement musiques : $e\n$st");
+      }
+    } else {
+      // Synchronisation avec le VPS en arrière-plan sans bloquer l'affichage de l'application
+      unawaited(fetchMusiques());
     }
 
     try {
