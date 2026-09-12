@@ -240,7 +240,7 @@ class ExplorerRecommendationsContent extends StatelessWidget {
       builder: (context, likedSongs, child) {
         final idBase = getBaseId(id);
         final isLiked = likedSongs.contains(id) ||
-            likedSongs.any((e) => getBaseId(e) == idBase);
+            likedSongBaseIdsNotifier.value.contains(idBase);
         return GestureDetector(
           onTap: () {
             if (isHapticFeedbackEnabledNotifier.value) {

@@ -65,20 +65,33 @@ class SongDownloadService {
     return '';
   }
 
+  static final RegExp _audioExtRegex = RegExp(r'(-hires)?\.(flac|mp3)$');
+
   /// Scanne le répertoire local des documents pour identifier les musiques téléchargées.
   static Future<void> scanLocalFiles(List<MediaItem> playlist) async {
+    if (playlist.isEmpty) return;
     final docDir = await getApplicationDocumentsDirectory();
     final Set<String> localIds = {};
 
-    for (var item in playlist) {
-      final safeName = item.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
-      final hiResFile = File('${docDir.path}/$safeName-hires.flac');
-      final flacFile = File('${docDir.path}/$safeName.flac');
-      final mp3File = File('${docDir.path}/$safeName.mp3');
+    final Set<String> existingFiles = {};
+    try {
+      if (await docDir.exists()) {
+        final entities = await docDir.list().toList();
+        for (final entity in entities) {
+          if (entity is File) {
+            existingFiles.add(entity.uri.pathSegments.last);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Erreur scan dossier local: $e");
+    }
 
-      if (hiResFile.existsSync() ||
-          flacFile.existsSync() ||
-          mp3File.existsSync()) {
+    for (var item in playlist) {
+      final safeName = item.id.split('/').last.replaceAll(_audioExtRegex, '');
+      if (existingFiles.contains('$safeName-hires.flac') ||
+          existingFiles.contains('$safeName.flac') ||
+          existingFiles.contains('$safeName.mp3')) {
         localIds.add(item.id);
       }
     }
@@ -89,7 +102,7 @@ class SongDownloadService {
   /// Lance le téléchargement, la mise à niveau de qualité ou la suppression d'un titre.
   static Future<void> toggleDownload(MediaItem item) async {
     final docDir = await getApplicationDocumentsDirectory();
-    final safeName = item.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
+    final safeName = item.id.split('/').last.replaceAll(_audioExtRegex, '');
 
     final localHiRes = File('${docDir.path}/$safeName-hires.flac');
     final localFlac = File('${docDir.path}/$safeName.flac');

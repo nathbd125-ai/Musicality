@@ -1,5 +1,25 @@
 import 'package:musicality/core/api_config.dart';
 
+final RegExp _parenthesesRegex = RegExp(r'\s*\(.*?\)');
+final RegExp _spacesRegex = RegExp(r'\s+');
+final RegExp _dashesRegex = RegExp(r'[\u2010-\u2015\u2212]');
+final RegExp _trimUnderscoresRegex = RegExp(r'^_+|_+$');
+final RegExp _multiUnderscoresRegex = RegExp(r'_+');
+
+final RegExp _featParensRegex = RegExp(r'\s*[(\[]f(?:ea)?t\.?\s+[^)\]]+[)\]]', caseSensitive: false);
+final RegExp _featEndRegex = RegExp(r'\s+f(?:ea)?t\.?\s+.*', caseSensitive: false);
+
+final RegExp _baseIdRegex = RegExp(r'\.flac|\.mp3|\.wav', caseSensitive: false);
+final RegExp _featAmpRegex = RegExp(r'\s+feat\.?\s+', caseSensitive: false);
+final RegExp _tylerRegex = RegExp(r'tyler[\s,&]+the creator', caseSensitive: false);
+final RegExp _artistSeparatorRegex = RegExp(
+  r'\s+&\s+|\s+et\s+|\s+[xX×]\s+|\s+(?:feat\.?|ft\.?|featuring)\s+|\s+(?:with|avec)\s+|[,;/]',
+  caseSensitive: false,
+);
+final RegExp _trimSurroundingQuotesRegex = RegExp(r'^[\(\[\{"\s]+|[\)\]\}"\s]+$');
+final RegExp _extractFeatParensRegex = RegExp(r'\s*[(\[]\s*f(?:ea)?t\.?\s+([^()\]]+)[)\]]', caseSensitive: false);
+final RegExp _extractFeatEndRegex = RegExp(r'\s+f(?:ea)?t\.?\s+(.*)', caseSensitive: false);
+
 String getSafeFileName(String title) {
   final clean = title.toLowerCase().trim();
   if (clean == 'zoo' || clean == 'chargé' || clean == 'charge') {
@@ -63,7 +83,7 @@ String getSafeFileName(String title) {
     return 'good_kid_maad_city';
   }
   return title
-      .replaceAll(RegExp(r'\s*\(.*?\)'), '') // Enlève (The Moonlight Edition), etc.
+      .replaceAll(_parenthesesRegex, '') // Enlève (The Moonlight Edition), etc.
       .replaceAll('.', '')
       .replaceAll('!', '')
       .replaceAll('?', '')
@@ -72,27 +92,27 @@ String getSafeFileName(String title) {
       .replaceAll('’', '')
       .toLowerCase()
       .trim()
-      .replaceAll(RegExp(r'\s+'), '_')
+      .replaceAll(_spacesRegex, '_')
       .replaceAll('é', 'e')
       .replaceAll('è', 'e')
       .replaceAll('ê', 'e')
       .replaceAll('à', 'a')
       .replaceAll('ğ', 'g')
       .replaceAll('Ğ', 'g')
-      .replaceAll(RegExp(r'[\u2010-\u2015\u2212]'), '-')
-      .replaceAll(RegExp(r'^_+|_+$'), '')
-      .replaceAll(RegExp(r'_+'), '_');
+      .replaceAll(_dashesRegex, '-')
+      .replaceAll(_trimUnderscoresRegex, '')
+      .replaceAll(_multiUnderscoresRegex, '_');
 }
 
 String cleanTitle(String title) {
   // Enlève "(feat. Artiste)" ou "[ft. Artiste]"
   String cleaned = title.replaceAll(
-    RegExp(r'\s*[(\[]f(?:ea)?t\.?\s+[^)\]]+[)\]]', caseSensitive: false),
+    _featParensRegex,
     '',
   );
   // Enlève " feat. Artiste" (sans parenthèses) à la fin
   cleaned = cleaned.replaceAll(
-    RegExp(r'\s+f(?:ea)?t\.?\s+.*', caseSensitive: false),
+    _featEndRegex,
     '',
   );
   final trimmed = cleaned.trim();
@@ -106,7 +126,7 @@ String getBaseId(String idStr) {
   return idStr
       .split('/')
       .last
-      .replaceAll(RegExp(r'\.flac|\.mp3|\.wav', caseSensitive: false), '');
+      .replaceAll(_baseIdRegex, '');
 }
 
 String normalizeSongId(String rawId) {
@@ -117,7 +137,7 @@ String normalizeSongId(String rawId) {
 String formatArtist(String? artist) {
   if (artist == null || artist.isEmpty) return 'Inconnu';
   return artist.replaceAll(
-    RegExp(r'\s+feat\.?\s+', caseSensitive: false),
+    _featAmpRegex,
     ' & ',
   );
 }
@@ -127,21 +147,16 @@ List<String> extractArtists(String? rawArtist) {
 
   String artist = rawArtist;
   if (artist.toLowerCase().contains('tyler') && artist.toLowerCase().contains('creator')) {
-    artist = artist.replaceAll(RegExp(r'tyler[\s,&]+the creator', caseSensitive: false), 'Tyler The Creator');
+    artist = artist.replaceAll(_tylerRegex, 'Tyler The Creator');
   }
 
   // Regex de séparation multi-artistes (duos, featurings, collaborations) :
-  final separator = RegExp(
-    r'\s+&\s+|\s+et\s+|\s+[xX×]\s+|\s+(?:feat\.?|ft\.?|featuring)\s+|\s+(?:with|avec)\s+|[,;/]',
-    caseSensitive: false,
-  );
-
-  final parts = artist.split(separator);
+  final parts = artist.split(_artistSeparatorRegex);
   final List<String> result = [];
 
   for (var part in parts) {
     var clean = part
-        .replaceAll(RegExp(r'^[\(\[\{"\s]+|[\)\]\}"\s]+$'), '')
+        .replaceAll(_trimSurroundingQuotesRegex, '')
         .trim();
     if (clean.isEmpty) continue;
 
@@ -167,8 +182,8 @@ String extractPrimaryArtist(String? rawArtist) {
 }
 
 String extractEnrichedArtist(String rawTitle, String rawArtist) {
-  final match = RegExp(r'\s*[(\[]\s*f(?:ea)?t\.?\s+([^()\]]+)[)\]]', caseSensitive: false).firstMatch(rawTitle)
-      ?? RegExp(r'\s+f(?:ea)?t\.?\s+(.*)', caseSensitive: false).firstMatch(rawTitle);
+  final match = _extractFeatParensRegex.firstMatch(rawTitle)
+      ?? _extractFeatEndRegex.firstMatch(rawTitle);
   if (match != null) {
     final featArtist = match.group(1)?.trim();
     if (featArtist != null && featArtist.isNotEmpty && !rawArtist.toLowerCase().contains(featArtist.toLowerCase())) {

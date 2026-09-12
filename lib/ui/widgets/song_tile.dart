@@ -278,7 +278,7 @@ class SongTile extends StatelessWidget {
                       builder: (context, likedSongs, child) {
                         final itemBaseId = getBaseId(item.id);
                         final isLiked = likedSongs.contains(item.id) ||
-                            likedSongs.any((id) => getBaseId(id) == itemBaseId);
+                            likedSongBaseIdsNotifier.value.contains(itemBaseId);
                         return GestureDetector(
                           onTap: () {
                             if (isHapticFeedbackEnabledNotifier.value) {

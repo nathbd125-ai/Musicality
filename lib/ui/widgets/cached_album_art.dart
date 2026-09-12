@@ -4,18 +4,23 @@ import 'package:audio_service/audio_service.dart';
 import 'package:musicality/core/globals.dart';
 
 final Set<String> _knownExistingCovers = {};
+final Set<String> _knownMissingCovers = {};
 
 void registerExistingCover(String fileName) {
+  _knownMissingCovers.remove(fileName);
   _knownExistingCovers.add(fileName);
 }
 
 bool _checkCoverExists(String fileName, File file) {
   if (_knownExistingCovers.contains(fileName)) return true;
+  if (_knownMissingCovers.contains(fileName)) return false;
   if (file.existsSync()) {
     _knownExistingCovers.add(fileName);
     return true;
+  } else {
+    _knownMissingCovers.add(fileName);
+    return false;
   }
-  return false;
 }
 
 String _getCoverFileName(MediaItem item) {
@@ -42,6 +47,7 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
       filterQuality: FilterQuality.high,
       errorBuilder: (context, error, stackTrace) {
         _knownExistingCovers.remove(fileName);
+        _knownMissingCovers.add(fileName);
         // En cas de fichier corrompu en cache, on fallback sur le réseau
         return Image.network(item.artUri.toString(), fit: BoxFit.cover);
       },

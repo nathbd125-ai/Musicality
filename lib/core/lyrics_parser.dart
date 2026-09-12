@@ -1,6 +1,77 @@
 import 'package:musicality/core/models.dart';
 
 class LyricsParser {
+  static final RegExp _ttmlPRegExp = RegExp(r'<p\b([^>]*)>(.*?)</p>', dotAll: true);
+  static final RegExp _ttmlSpanRegExp = RegExp(r'<span\b([^>]*)>(.*?)</span>', dotAll: true);
+  static final RegExp _ttmlAttrBegin = RegExp(r'begin="([^"]+)"');
+  static final RegExp _ttmlAttrEnd = RegExp(r'end="([^"]+)"');
+  static final RegExp _htmlTagRegex = RegExp(r'<[^>]+>');
+  static final RegExp _spacesRegex = RegExp(r'\s+');
+  static final RegExp _colonSplitRegex = RegExp(r'[:：]');
+  static final RegExp _dashesTildeRegex = RegExp(r'[-–—|~]');
+
+  static final List<RegExp> _creditPatterns = [
+    RegExp(r'\b(?:written|lyrics?|synced?|sync|timing|composed|arranged|produced|recorded|mixed|mastered)\s*(?:by|\?|\:|\-)', caseSensitive: false),
+    RegExp(r'\b(?:paroles?|auteur|compositeur|chanteur|musique|arrangements?|mixage|enregistrement|studio)\s*(?:par|\:|\-)', caseSensitive: false),
+    RegExp(r'\b(?:letra|compositor|productor)\s*(?:por|\:|\-)', caseSensitive: false),
+    RegExp(r'\b(?:source|karaoke|credits?|traduction|translated)\s*(?:\:|\-)', caseSensitive: false),
+    RegExp(r'\b(?:qq|wechat|telegram|instagram|twitter|tiktok)\s*(?:\:|\-)', caseSensitive: false),
+    RegExp(r'(?:rentanadviser\.com|musixmatch|genius\.com|lrclib|netease|spotify|apple\s*music)', caseSensitive: false),
+    RegExp(r'\b(?:prod|production|producer|beat|beatmaker|instru|instrumental)\s*(?:by|\?|\:|\.|\-)', caseSensitive: false),
+    RegExp(r'\b(?:dsk\s+on\s+the\s+beat|dsk)\b', caseSensitive: false),
+    RegExp(r'(?:作词|作曲|编曲|制作|录音|混音|吉他|贝斯|鼓|和声|母带|发行|企划|统筹)'),
+  ];
+
+  static const String _letters = r'[a-zA-ZáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]';
+  static const String _wordEndingAccents = r'[éÉèÈáÁóÓ]';
+  static const String _internalAccents = r'[çÇñÑêÊëËîÎïÏûÛüÜôÔâÂ]';
+  static const String _allAccents = r'[çÇéÉèÈêÊëËîÎïÏùÙûÛüÜñÑíÍúÚáÁóÓâÂôÔ]';
+  static const String _initialAccents = r'[éÉèÈêÊëË]';
+
+  static final RegExp _invertedPunctuationRegex = RegExp(r'([¡¿])\s+');
+  static final RegExp _laSpacingRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Ll])(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|\s*(<\d+:\d+(?:\.\d+)?>)\s*)([àÀ])(?:\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + _letters + r'+)|(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$))');
+  static final RegExp _dejaVoilaRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])(d[eé]j|voil|del|de[cç]|hol|jusqu)(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|\s*(<\d+:\d+(?:\.\d+)?>)\s*)([àÀ])(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)');
+  static final RegExp _aIsolatedRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([àÀ])\s*(<\d+:\d+(?:\.\d+)?>)?(' + _letters + r'+)');
+  static final RegExp _laQueRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Ll]à)\s*(<\d+:\d+(?:\.\d+)?>)?(' + _letters + r'+)');
+  static final RegExp _ouSpacingRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Oo])(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|\s*(<\d+:\d+(?:\.\d+)?>)\s*)([ùÙ])(?:\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + _letters + r'+)|(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$))');
+  static final RegExp _ouQueRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Oo]ù)\s*(<\d+:\d+(?:\.\d+)?>)?(' + _letters + r'+)');
+  static final RegExp _spanishSuffixesRegex = RegExp(r'(' + _letters + r'+)\s*(<\d+:\d+(?:\.\d+)?>)?\s+(ón|án|én|ás|és|ía|ías|ió)(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)');
+  static final RegExp _spanishGerund1Regex = RegExp(r'(' + _letters + r'+)\s*(<\d+:\d+(?:\.\d+)?>)?\s*([áéíóúÁÉÍÓÚ])\s*(<\d+:\d+(?:\.\d+)?>)?\s*(ndo(?:te|me|se|nos|os|les?|los?|las?)?)(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)');
+  static final RegExp _spanishGerund2Regex = RegExp(r'(' + _letters + r'+[áéíóúÁÉÍÓÚ])\s*(<\d+:\d+(?:\.\d+)?>)?\s+(ndo(?:te|me|se|nos|os|les?|los?|las?)?)(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)');
+  static final RegExp _wordEndingAccentsRegex = RegExp(r'(' + _letters + r'{2,})\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + _wordEndingAccents + r')(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)');
+  static final RegExp _internalAccentsRegex = RegExp(r'(' + _letters + r'+)(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|(<\d+:\d+(?:\.\d+)?>)\s*)(' + _internalAccents + r')(?:\\s*(<\d+:\d+(?:\.\d+)?>)?\s+|\s*(<\d+:\d+(?:\.\d+)?>))(' + _letters + r'+)');
+  static final RegExp _unstickPronouns1Regex = RegExp(r'\b(règlerera|règlera|comme|pour|avec|faire|fait|dis|dit|vois|voit)\s*(<\d+:\d+(?:\.\d+)?>)?\s*ça\b', caseSensitive: false);
+  static final RegExp _unstickPronouns2Regex = RegExp(r'\b(te-tê|te-te|te-té)\s*(<\d+:\d+(?:\.\d+)?>)?\s*(partout)\b', caseSensitive: false);
+  static final RegExp _unstickOuSontRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Oo]ù)\s*(<\d+:\d+(?:\.\d+)?>)?\s*(sont)\b', caseSensitive: false);
+  static final RegExp _unstickLaQueRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Ll]à)\s*(<\d+:\d+(?:\.\d+)?>)?\s*(que)\b', caseSensitive: false);
+  static final RegExp _consonantAccentRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z])(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|(<\d+:\d+(?:\.\d+)?>)\s*)(' + _allAccents + r')\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + _letters + r'{2,})');
+  static final RegExp _initialAccentRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])(' + _initialAccents + r')\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + _letters + r'{2,})');
+
+  static final RegExp _corruptedLesserRegex = RegExp(r'\bl\?s\b', caseSensitive: false);
+  static final RegExp _corruptedFeatRegex = RegExp(r'\bf\?at\b', caseSensitive: false);
+  static final RegExp _corruptedDesRegex = RegExp(r'\bd\?s\b', caseSensitive: false);
+  static final RegExp _corruptedMemeRegex = RegExp(r'\bm\?me\b', caseSensitive: false);
+  static final RegExp _corruptedTresRegex = RegExp(r'\btr\?s\b', caseSensitive: false);
+  static final RegExp _corruptedApresRegex = RegExp(r'\bapr\?s\b', caseSensitive: false);
+  static final RegExp _corruptedDejaRegex = RegExp(r'\bd\?j[àa\?]\b', caseSensitive: false);
+  static final RegExp _corruptedCaRegex = RegExp(r'(^|\s)\?a(?=\s|[.,!?]|$)', caseSensitive: false);
+  static final RegExp _corruptedApostropheRegex = RegExp(r'\b([cdjlmstn]|qu)\?([aeiouyéèêh])', caseSensitive: false);
+  static final RegExp _slangApostropheRegex = RegExp(r"\b(tej|kiff|taff|bénéf|grave)'\s*(<\d+:\d+(?:\.\d+)?>)?\s*(la|le|les|des|un|une|du)\b", caseSensitive: false);
+  static final RegExp _carreVipRegex = RegExp(
+    r'\b(carr[eé\ufffd]|carr\s*(?:<\d+:\d+(?:\.\d+)?>)?\s*[eé\ufffd])\s*(<\d+:\d+(?:\.\d+)?>)?\s*(?:V\s*(?:<\d+:\d+(?:\.\d+)?>)?\s*I\s*(?:<\d+:\d+(?:\.\d+)?>)?\s*P|VIP)\b',
+    caseSensitive: false,
+  );
+  static final RegExp _spanishGerundEncliticRegex = RegExp(r'\b([a-zA-ZáéíóúÁÉÍÓÚ]+[áéíóúÁÉÍÓÚ])\s*(<\d+:\d+(?:\.\d+)?>)?\s*(ndo(?:te|me|se|nos|os|les?|los?|las?)?)\b', caseSensitive: false);
+  static final RegExp _reglerera1Regex = RegExp(r'\br[\ufffdéè\?]glera\s*[\ufffd\?ea]?\s*a\b', caseSensitive: false);
+  static final RegExp _reglerera2Regex = RegExp(r'\br[\ufffdéè\?]glerera\s*[\ufffd\?ea]?\s*a\b', caseSensitive: false);
+  static final RegExp _reglerera3Regex = RegExp(r'\br[\ufffdéè\?]gler(a|era)ça\b', caseSensitive: false);
+  static final RegExp _tetePartoutRegex = RegExp(r'\bte-t[\ufffd\?eéê]partout\b', caseSensitive: false);
+  static final RegExp _teteRegex = RegExp(r'\bte-t[\ufffd\?eé]\b', caseSensitive: false);
+  static final RegExp _corruptedCa2Regex = RegExp(r'(^|\s)[\ufffd\?]a(?=\s|[.,!?]|$)', caseSensitive: false);
+
+  static final RegExp _lrcLineRegex = RegExp(r'^\[(\d+):(\d+)(?:\.(\d+))?\](.*)$');
+  static final RegExp _lrcWordTagRegex = RegExp(r'<(\d+):(\d+)(?:\.(\d+))?>');
+
   static List<LyricLine> parse(String content) {
     if (content.contains('<tt') || content.contains('xmlns:itunes') || content.contains('xmlns="http://www.w3.org/ns/ttml"')) {
       return _parseTtml(content);
@@ -11,10 +82,6 @@ class LyricsParser {
   /// Parser officiel pour les fichiers Apple Music TTML (Timed Text Markup Language)
   static List<LyricLine> _parseTtml(String content) {
     final List<LyricLine> lines = [];
-    final RegExp pRegExp = RegExp(r'<p\b([^>]*)>(.*?)</p>', dotAll: true);
-    final RegExp spanRegExp = RegExp(r'<span\b([^>]*)>(.*?)</span>', dotAll: true);
-    final RegExp attrBegin = RegExp(r'begin="([^"]+)"');
-    final RegExp attrEnd = RegExp(r'end="([^"]+)"');
 
     Duration parseTtmlTime(String timeStr) {
       final clean = timeStr.trim();
@@ -42,28 +109,28 @@ class LyricsParser {
       return Duration.zero;
     }
 
-    final pMatches = pRegExp.allMatches(content);
+    final pMatches = _ttmlPRegExp.allMatches(content);
     for (final pMatch in pMatches) {
       final pAttrs = pMatch.group(1) ?? '';
       final pInner = pMatch.group(2) ?? '';
 
-      final beginMatch = attrBegin.firstMatch(pAttrs);
+      final beginMatch = _ttmlAttrBegin.firstMatch(pAttrs);
       if (beginMatch == null) continue;
       final lineTime = parseTtmlTime(beginMatch.group(1)!);
 
-      final endMatch = attrEnd.firstMatch(pAttrs);
+      final endMatch = _ttmlAttrEnd.firstMatch(pAttrs);
       final lineEndTime = endMatch != null ? parseTtmlTime(endMatch.group(1)!) : null;
 
-      final spanMatches = spanRegExp.allMatches(pInner).toList();
+      final spanMatches = _ttmlSpanRegExp.allMatches(pInner).toList();
       final List<LyricWord> words = [];
 
       for (final sMatch in spanMatches) {
         final sAttrs = sMatch.group(1) ?? '';
-        final sText = sMatch.group(2)?.replaceAll(RegExp(r'<[^>]+>'), '').trim() ?? '';
+        final sText = sMatch.group(2)?.replaceAll(_htmlTagRegex, '').trim() ?? '';
         if (sText.isEmpty) continue;
 
-        final sBeginMatch = attrBegin.firstMatch(sAttrs);
-        final sEndMatch = attrEnd.firstMatch(sAttrs);
+        final sBeginMatch = _ttmlAttrBegin.firstMatch(sAttrs);
+        final sEndMatch = _ttmlAttrEnd.firstMatch(sAttrs);
 
         if (sBeginMatch != null && sEndMatch != null) {
           final wStart = parseTtmlTime(sBeginMatch.group(1)!);
@@ -72,7 +139,7 @@ class LyricsParser {
         }
       }
 
-      final cleanLineText = _fixAccentSpacing(pInner.replaceAll(RegExp(r'<[^>]+>'), '')).trim();
+      final cleanLineText = _fixAccentSpacing(pInner.replaceAll(_htmlTagRegex, '')).trim();
       if (cleanLineText.isNotEmpty && !_isCreditLine(cleanLineText)) {
         lines.add(LyricLine(
           time: lineTime,
@@ -93,27 +160,13 @@ class LyricsParser {
     if (clean.isEmpty) return true;
 
     // 1. Détection des expressions de crédits universelles
-    final creditPatterns = [
-      RegExp(r'\b(?:written|lyrics?|synced?|sync|timing|composed|arranged|produced|recorded|mixed|mastered)\s*(?:by|\?|\:|\-)', caseSensitive: false),
-      RegExp(r'\b(?:paroles?|auteur|compositeur|chanteur|musique|arrangements?|mixage|enregistrement|studio)\s*(?:par|\:|\-)', caseSensitive: false),
-      RegExp(r'\b(?:letra|compositor|productor)\s*(?:por|\:|\-)', caseSensitive: false),
-      RegExp(r'\b(?:source|karaoke|credits?|traduction|translated)\s*(?:\:|\-)', caseSensitive: false),
-      RegExp(r'\b(?:qq|wechat|telegram|instagram|twitter|tiktok)\s*(?:\:|\-)', caseSensitive: false),
-      RegExp(r'(?:rentanadviser\.com|musixmatch|genius\.com|lrclib|netease|spotify|apple\s*music)', caseSensitive: false),
-      // Producteurs / Beatmakers / Tags de prod
-      RegExp(r'\b(?:prod|production|producer|beat|beatmaker|instru|instrumental)\s*(?:by|\?|\:|\.|\-)', caseSensitive: false),
-      RegExp(r'\b(?:dsk\s+on\s+the\s+beat|dsk)\b', caseSensitive: false),
-      // Crédits en chinois fréquents sur NetEase
-      RegExp(r'(?:作词|作曲|编曲|制作|录音|混音|吉他|贝斯|鼓|和声|母带|发行|企划|统筹)'),
-    ];
-
-    for (final pattern in creditPatterns) {
+    for (final pattern in _creditPatterns) {
       if (pattern.hasMatch(clean)) return true;
     }
 
     // 2. Détecte "by quelqu'un", "par: ...", "sync: ..."
     if (clean.startsWith('by ') || clean.startsWith('by: ') || clean.startsWith('par: ') || clean.startsWith('sync: ')) {
-      if (clean.split(RegExp(r'\s+')).length <= 6) {
+      if (clean.split(_spacesRegex).length <= 6) {
         return true;
       }
     }
@@ -122,22 +175,22 @@ class LyricsParser {
     if (lineTime != null && lineTime.inSeconds <= 15) {
       // Préfixes avec deux points (ex: "Auteur : ...", "Artiste : ...", "Titre : ...")
       if (clean.contains(':') || clean.contains('：')) {
-        final prefix = clean.split(RegExp(r'[:：]')).first.trim();
-        if (prefix.split(RegExp(r'\s+')).length <= 3) {
+        final prefix = clean.split(_colonSplitRegex).first.trim();
+        if (prefix.split(_spacesRegex).length <= 3) {
           return true;
         }
       }
 
       // Format titre/artiste avec séparateur (ex: "AFRO TRAP Part.7（La Puissance ）-MHD", "MHD - Afro Trap")
-      if (RegExp(r'[-–—|~]').hasMatch(clean)) {
-        final words = clean.split(RegExp(r'\s+'));
+      if (_dashesTildeRegex.hasMatch(clean)) {
+        final words = clean.split(_spacesRegex);
         if (words.length <= 10) {
           return true;
         }
       }
 
       // En-têtes spécifiques comme "afro trap part. 7" ou "part. 7" sans paroles réelles
-      if (clean.contains('afro trap') && clean.split(RegExp(r'\s+')).length <= 8) {
+      if (clean.contains('afro trap') && clean.split(_spacesRegex).length <= 8) {
         return true;
       }
     }
@@ -147,28 +200,19 @@ class LyricsParser {
 
   
   static String _fixAccentSpacing(String s) {
-    const letters = r'[a-zA-ZáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]';
-    // Accents pouvant terminer un mot (ex: carré, aimé, liberté, papá, corazón)
-    const wordEndingAccents = r'[éÉèÈáÁóÓ]';
-    // Accents strictement internes ne terminant jamais un mot en français/espagnol (ex: français, connaître, tête, fête, bâtard, mañana)
-    const internalAccents = r'[çÇñÑêÊëËîÎïÏûÛüÜôÔâÂ]';
-    const allAccents = r'[çÇéÉèÈêÊëËîÎïÏùÙûÛüÜñÑíÍúÚáÁóÓâÂôÔ]';
-    const initialAccents = r'[éÉèÈêÊëË]';
-
     String old;
     do {
       old = s;
 
       // 1. Ponctuation inversée espagnole : supprime l'espace après ¡ ou ¿
       s = s.replaceAllMapped(
-        RegExp(r'([¡¿])\s+'),
+        _invertedPunctuationRegex,
         (m) => m[1]!,
       );
 
       // 2. 'l à' ou 'L à' -> 'là' ou 'Là' (avec ou sans balises, avec ou sans mot collé après)
-      // Ex: "l à" -> "là", "l <tag>à" -> "l<tag>à", "l <tag>à<tag>que" -> "l<tag>à <tag>que", "làque" -> "là que"
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Ll])(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|\s*(<\d+:\d+(?:\.\d+)?>)\s*)([àÀ])(?:\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + letters + r'+)|(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$))'),
+        _laSpacingRegex,
         (m) {
           final prefix = m[1]!;
           final l = m[2]!;
@@ -185,25 +229,25 @@ class LyricsParser {
 
       // 2b. Mots tronqués connus devant 'à' (déjà, voilà, delà, etc.)
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])(d[eé]j|voil|del|de[cç]|hol|jusqu)(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|\s*(<\d+:\d+(?:\.\d+)?>)\s*)([àÀ])(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)'),
+        _dejaVoilaRegex,
         (m) => '${m[1]}${m[2]}${m[3] ?? m[4] ?? ""}${m[5]}',
       );
 
-      // 2c. 'à' isolé collé au mot suivant avec ou sans balise temporelle (ex: "àla" -> "à la", "à<tag>la" -> "à <tag>la")
+      // 2c. 'à' isolé collé au mot suivant avec ou sans balise temporelle
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([àÀ])\s*(<\d+:\d+(?:\.\d+)?>)?(' + letters + r'+)'),
+        _aIsolatedRegex,
         (m) => '${m[1]}${m[2]} ${m[3] ?? ""}${m[4]}',
       );
 
-      // 2d. 'là' collé au mot suivant sans espace (ex: "làque" -> "là que", "là<tag>que" -> "là <tag>que")
+      // 2d. 'là' collé au mot suivant sans espace
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Ll]à)\s*(<\d+:\d+(?:\.\d+)?>)?(' + letters + r'+)'),
+        _laQueRegex,
         (m) => '${m[1]}${m[2]} ${m[3] ?? ""}${m[4]}',
       );
 
-      // 2e. "O ù" -> "Où", "d'o ù" -> "d'où", avec ou sans mot collé après (ex: "O <tag>ù<tag>sont" -> "O<tag>ù <tag>sont", "Oùsont" -> "Où sont")
+      // 2e. "O ù" -> "Où", "d'o ù" -> "d'où", avec ou sans mot collé après
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Oo])(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|\s*(<\d+:\d+(?:\.\d+)?>)\s*)([ùÙ])(?:\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + letters + r'+)|(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$))'),
+        _ouSpacingRegex,
         (m) {
           final prefix = m[1]!;
           final o = m[2]!;
@@ -218,40 +262,37 @@ class LyricsParser {
         },
       );
 
-      // 2f. 'où' / 'Où' collé au mot suivant sans espace (ex: "Oùsont" -> "Où sont", "oùtu" -> "où tu")
+      // 2f. 'où' / 'Où' collé au mot suivant sans espace
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Oo]ù)\s*(<\d+:\d+(?:\.\d+)?>)?(' + letters + r'+)'),
+        _ouQueRegex,
         (m) => '${m[1]}${m[2]} ${m[3] ?? ""}${m[4]}',
       );
 
-      // 3. Suffixes d'accents espagnols (ex: "coraz ón" -> "corazón", "est ás" -> "estás")
+      // 3. Suffixes d'accents espagnols
       s = s.replaceAllMapped(
-        RegExp(r'(' + letters + r'+)\s*(<\d+:\d+(?:\.\d+)?>)?\s+(ón|án|én|ás|és|ía|ías|ió)(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)'),
+        _spanishSuffixesRegex,
         (m) => '${m[1]}${m[2] ?? ""}${m[3]}',
       );
 
-      // 3b. Gérondifs et enclitiques espagnols (ex: "mirá ndote" -> "mirándote", "mir á ndote" -> "mirándote", "dicié ndote" -> "diciéndote")
+      // 3b. Gérondifs et enclitiques espagnols
       s = s.replaceAllMapped(
-        RegExp(r'(' + letters + r'+)\s*(<\d+:\d+(?:\.\d+)?>)?\s*([áéíóúÁÉÍÓÚ])\s*(<\d+:\d+(?:\.\d+)?>)?\s*(ndo(?:te|me|se|nos|os|les?|los?|las?)?)(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)'),
+        _spanishGerund1Regex,
         (m) => '${m[1]}${m[2] ?? ""}${m[3]}${m[4] ?? ""}${m[5]}',
       );
       s = s.replaceAllMapped(
-        RegExp(r'(' + letters + r'+[áéíóúÁÉÍÓÚ])\s*(<\d+:\d+(?:\.\d+)?>)?\s+(ndo(?:te|me|se|nos|os|les?|los?|las?)?)(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)'),
+        _spanishGerund2Regex,
         (m) => '${m[1]}${m[2] ?? ""}${m[3]}',
       );
 
-      // 4. Accent isolé en FIN de mot (ex: "carr é VIP" -> "carré VIP", "carr <tag>é VIP" -> "carr<tag>é VIP")
-      // IMPORTANT : Ne mange JAMAIS le mot suivant grâce au lookahead positif (espace, balise ou ponctuation)
+      // 4. Accent isolé en FIN de mot
       s = s.replaceAllMapped(
-        RegExp(r'(' + letters + r'{2,})\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + wordEndingAccents + r')(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)'),
+        _wordEndingAccentsRegex,
         (m) => '${m[1]}${m[2] ?? ""}${m[3]}',
       );
 
       // 5. Caractère accentué INTERNE isolé (ç, ñ, ê, ë, î, ï, û, ü, ô, â) entre deux morceaux d'un mot
-      // (ex: "fran ç ais" -> "français", "conna î tre" -> "connaître", "t ê te" -> "tête", "b â tards" -> "bâtards")
-      // IMPORTANT : exige un espace ou balise des DEUX côtés de l'accent pour ne jamais manger les espaces entre mots
       s = s.replaceAllMapped(
-        RegExp(r'(' + letters + r'+)(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|(<\d+:\d+(?:\.\d+)?>)\s*)(' + internalAccents + r')(?:\s*(<\d+:\d+(?:\.\d+)?>)?\s+|\s*(<\d+:\d+(?:\.\d+)?>))(' + letters + r'+)'),
+        _internalAccentsRegex,
         (m) {
           final g1 = m[1]!;
           final tag1 = m[2] ?? m[3] ?? '';
@@ -267,34 +308,33 @@ class LyricsParser {
         },
       );
 
-      // 5b. Décollage des pronoms collés par erreur ("commeça" -> "comme ça", "règlereraça" -> "règlerera ça", "te-têpartout" -> "te-tê partout")
+      // 5b. Décollage des pronoms collés par erreur
       s = s.replaceAllMapped(
-        RegExp(r'\b(règlerera|règlera|comme|pour|avec|faire|fait|dis|dit|vois|voit)\s*(<\d+:\d+(?:\.\d+)?>)?\s*ça\b', caseSensitive: false),
+        _unstickPronouns1Regex,
         (m) => '${m[1]} ${m[2] ?? ""}ça',
       );
       s = s.replaceAllMapped(
-        RegExp(r'\b(te-tê|te-te|te-té)\s*(<\d+:\d+(?:\.\d+)?>)?\s*(partout)\b', caseSensitive: false),
+        _unstickPronouns2Regex,
         (m) => 'te-tê ${m[2] ?? ""}${m[3]}',
       );
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Oo]ù)\s*(<\d+:\d+(?:\.\d+)?>)?\s*(sont)\b', caseSensitive: false),
+        _unstickOuSontRegex,
         (m) => '${m[1]}${m[2]} ${m[3] ?? ""}${m[4]}',
       );
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Ll]à)\s*(<\d+:\d+(?:\.\d+)?>)?\s*(que)\b', caseSensitive: false),
+        _unstickLaQueRegex,
         (m) => '${m[1]}${m[2]} ${m[3] ?? ""}${m[4]}',
       );
 
-      // 7. Consonne isolée devant un accent et la suite du mot (ex: "d é faite" -> "défaite", "d è che" -> "dèche")
-      // IMPORTANT : exige obligatoirement un espace ou balise entre la consonne et l'accent !
+      // 7. Consonne isolée devant un accent et la suite du mot
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z])(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|(<\d+:\d+(?:\.\d+)?>)\s*)(' + allAccents + r')\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + letters + r'{2,})'),
+        _consonantAccentRegex,
         (m) => '${m[1]}${m[2]}${m[3] ?? m[4] ?? ""}${m[5]}${m[6] ?? ""}${m[7]}',
       );
 
-      // 8. Accent isolé en début de mot avant au moins 2 lettres (ex: "é quipe" -> "équipe")
+      // 8. Accent isolé en début de mot avant au moins 2 lettres
       s = s.replaceAllMapped(
-        RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])(' + initialAccents + r')\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + letters + r'{2,})'),
+        _initialAccentRegex,
         (m) => '${m[1]}${m[2]}${m[3] ?? ""}${m[4]}',
       );
     } while (old != s);
@@ -305,48 +345,45 @@ class LyricsParser {
   static String _sanitizeAccents(String text) {
     // 1. Correction des caractères '?' corrompus à l'intérieur des mots (ex: l?s bacs -> les bacs, f?at -> feat)
     text = text
-        .replaceAll(RegExp(r'\bl\?s\b', caseSensitive: false), 'les')
-        .replaceAll(RegExp(r'\bf\?at\b', caseSensitive: false), 'feat')
-        .replaceAll(RegExp(r'\bd\?s\b', caseSensitive: false), 'des')
-        .replaceAll(RegExp(r'\bm\?me\b', caseSensitive: false), 'même')
-        .replaceAll(RegExp(r'\btr\?s\b', caseSensitive: false), 'très')
-        .replaceAll(RegExp(r'\bapr\?s\b', caseSensitive: false), 'après')
-        .replaceAll(RegExp(r'\bd\?j[àa\?]\b', caseSensitive: false), 'déjà')
-        .replaceAll(RegExp(r'(^|\s)\?a(?=\s|[.,!?]|$)', caseSensitive: false), r'$1ça')
+        .replaceAll(_corruptedLesserRegex, 'les')
+        .replaceAll(_corruptedFeatRegex, 'feat')
+        .replaceAll(_corruptedDesRegex, 'des')
+        .replaceAll(_corruptedMemeRegex, 'même')
+        .replaceAll(_corruptedTresRegex, 'très')
+        .replaceAll(_corruptedApresRegex, 'après')
+        .replaceAll(_corruptedDejaRegex, 'déjà')
+        .replaceAll(_corruptedCaRegex, r'$1ça')
         .replaceAllMapped(
-          RegExp(r'\b([cdjlmstn]|qu)\?([aeiouyéèêh])', caseSensitive: false),
+          _corruptedApostropheRegex,
           (m) => "${m[1]}'${m[2]}",
         );
 
     // 2. Séparation des mots d'argot/verlan se terminant par une apostrophe collée à un article (ex: "tej'la" -> "tej' la")
     text = text.replaceAllMapped(
-      RegExp(r"\b(tej|kiff|taff|bénéf|grave)'\s*(<\d+:\d+(?:\.\d+)?>)?\s*(la|le|les|des|un|une|du)\b", caseSensitive: false),
+      _slangApostropheRegex,
       (m) => "${m[1]}' ${m[2] ?? ''}${m[3]}",
     );
 
     // 2c. Séparation de "carré" et "VIP" avec éventuelles balises (ex: "carr <tag>é<tag>V I P" -> "carré <tag>VIP")
     text = text.replaceAllMapped(
-      RegExp(
-        r'\b(carr[eé\ufffd]|carr\s*(?:<\d+:\d+(?:\.\d+)?>)?\s*[eé\ufffd])\s*(<\d+:\d+(?:\.\d+)?>)?\s*(?:V\s*(?:<\d+:\d+(?:\.\d+)?>)?\s*I\s*(?:<\d+:\d+(?:\.\d+)?>)?\s*P|VIP)\b',
-        caseSensitive: false,
-      ),
+      _carreVipRegex,
       (m) => 'carré ${m[2] ?? ""}VIP',
     );
 
     // 2d. Gérondifs espagnols avec pronoms enclitiques (ex: "mirá ndote" -> "mirándote", "mir á ndote" -> "mirándote")
     text = text.replaceAllMapped(
-      RegExp(r'\b([a-zA-ZáéíóúÁÉÍÓÚ]+[áéíóúÁÉÍÓÚ])\s*(<\d+:\d+(?:\.\d+)?>)?\s*(ndo(?:te|me|se|nos|os|les?|los?|las?)?)\b', caseSensitive: false),
+      _spanishGerundEncliticRegex,
       (m) => '${m[1]}${m[2] ?? ""}${m[3]}',
     );
 
     // Remplacement explicite pour les corruptions d'accentuation en français
     text = text
-        .replaceAll(RegExp(r'\br[\ufffdéè\?]glera\s*[\ufffd\?ea]?\s*a\b', caseSensitive: false), 'règlerera ça')
-        .replaceAll(RegExp(r'\br[\ufffdéè\?]glerera\s*[\ufffd\?ea]?\s*a\b', caseSensitive: false), 'règlerera ça')
-        .replaceAll(RegExp(r'\br[\ufffdéè\?]gler(a|era)ça\b', caseSensitive: false), 'règlerera ça')
-        .replaceAll(RegExp(r'\bte-t[\ufffd\?eéê]partout\b', caseSensitive: false), 'te-tê partout')
-        .replaceAll(RegExp(r'\bte-t[\ufffd\?eé]\b', caseSensitive: false), 'te-tê')
-        .replaceAll(RegExp(r'(^|\s)[\ufffd\?]a(?=\s|[.,!?]|$)', caseSensitive: false), r'$1ça');
+        .replaceAll(_reglerera1Regex, 'règlerera ça')
+        .replaceAll(_reglerera2Regex, 'règlerera ça')
+        .replaceAll(_reglerera3Regex, 'règlerera ça')
+        .replaceAll(_tetePartoutRegex, 'te-tê partout')
+        .replaceAll(_teteRegex, 'te-tê')
+        .replaceAll(_corruptedCa2Regex, r'$1ça');
 
     if (!text.contains('\ufffd')) return text;
     return text
@@ -406,8 +443,6 @@ class LyricsParser {
   /// Parser pour fichiers LRC (standard et Enhanced LRC mot par mot <mm:ss.xx>)
   static List<LyricLine> _parseLrc(String lrcContent) {
     final List<LyricLine> parsedLines = [];
-    final RegExp lineRegExp = RegExp(r'^\[(\d+):(\d+)(?:\.(\d+))?\](.*)$');
-    final RegExp wordTagRegExp = RegExp(r'<(\d+):(\d+)(?:\.(\d+))?>');
 
     Duration parseTime(String minStr, String secStr, String? msStr) {
       final min = int.parse(minStr);
@@ -425,7 +460,7 @@ class LyricsParser {
       final trimmed = rawLine.trim();
       if (trimmed.isEmpty) continue;
 
-      final match = lineRegExp.firstMatch(trimmed);
+      final match = _lrcLineRegex.firstMatch(trimmed);
       if (match != null) {
         final lineTime = parseTime(match.group(1)!, match.group(2)!, match.group(3));
         final rawContent = match.group(4)!.trim();
@@ -435,20 +470,20 @@ class LyricsParser {
 
         // Marqueurs mot par mot officiels <mm:ss.xx>
         if (lineContent.contains('<') && lineContent.contains('>')) {
-          final cleanText = lineContent.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+          final cleanText = lineContent.replaceAll(_htmlTagRegex, '').trim();
           if (_isCreditLine(cleanText, lineTime)) continue;
 
           // Découpage par vrais mots (séparés par des espaces) pour ne JAMAIS séparer les accents (ex: "é") ni les syllabes d'un même mot avec des espaces
           final List<LyricWord> words = [];
-          final tokens = lineContent.split(RegExp(r'\s+'));
+          final tokens = lineContent.split(_spacesRegex);
 
           Duration? pendingStart;
           for (final token in tokens) {
             final t = token.trim();
             if (t.isEmpty) continue;
 
-            final matches = wordTagRegExp.allMatches(t).toList();
-            final wordCleanText = t.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+            final matches = _lrcWordTagRegex.allMatches(t).toList();
+            final wordCleanText = t.replaceAll(_htmlTagRegex, '').trim();
 
             if (wordCleanText.isEmpty) {
               if (matches.isNotEmpty) {

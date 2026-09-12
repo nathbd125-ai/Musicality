@@ -12,6 +12,7 @@ import 'package:musicality/core/my_audio_handler.dart';
 import 'package:musicality/core/string_utils.dart';
 import 'package:musicality/core/cloud_sync_service.dart';
 import 'package:musicality/core/song_download_service.dart';
+import 'package:musicality/ui/widgets/cached_album_art.dart';
 import 'package:musicality/objectbox.g.dart';
 
 export 'package:musicality/core/string_utils.dart';
@@ -40,6 +41,8 @@ late String globalDocumentPath;
 
 // GESTIONNAIRES GLOBAUX
 final ValueNotifier<Set<String>> likedSongsNotifier =
+    ValueNotifier<Set<String>>({});
+final ValueNotifier<Set<String>> likedSongBaseIdsNotifier =
     ValueNotifier<Set<String>>({});
 final ValueNotifier<List<String>> customPlaylistsNotifier =
     ValueNotifier<List<String>>([]);
@@ -198,9 +201,10 @@ Future<void> initPersistence() async {
       if (!coverFile.existsSync() && item.artUri != null) {
         http
             .get(item.artUri!)
-            .then((response) {
+            .then((response) async {
               if (response.statusCode == 200) {
-                coverFile.writeAsBytesSync(response.bodyBytes);
+                await coverFile.writeAsBytes(response.bodyBytes);
+                registerExistingCover(fileName);
               }
             })
             .catchError((e) {
@@ -323,11 +327,13 @@ Future<void> initPersistence() async {
   });
 
   likedSongsNotifier.value = migratedLikes;
+  likedSongBaseIdsNotifier.value = migratedLikes.map(getBaseId).toSet();
   if (likesChanged) {
     obx.likedSongBox.removeAll();
     obx.likedSongBox.putMany(migratedLikes.map((id) => LikedSongEntity(songId: id)).toList());
   }
   likedSongsNotifier.addListener(() {
+    likedSongBaseIdsNotifier.value = likedSongsNotifier.value.map(getBaseId).toSet();
     obx.likedSongBox.removeAll();
     obx.likedSongBox.putMany(likedSongsNotifier.value.map((id) => LikedSongEntity(songId: normalizeSongId(id))).toList());
   });

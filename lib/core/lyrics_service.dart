@@ -23,6 +23,9 @@ class LyricsService {
     _lyricsCache.clear();
   }
 
+  static final RegExp _hiresExtRegex = RegExp(r'-hires\.(flac|mp3)$');
+  static final RegExp _audioExtRegex = RegExp(r'\.(flac|mp3)$');
+
   static String getBaseName(String itemId) {
     String fileName;
     try {
@@ -34,8 +37,8 @@ class LyricsService {
       fileName = itemId.split('/').last;
     }
     return fileName
-        .replaceAll(RegExp(r'-hires\.(flac|mp3)$'), '')
-        .replaceAll(RegExp(r'\.(flac|mp3)$'), '');
+        .replaceAll(_hiresExtRegex, '')
+        .replaceAll(_audioExtRegex, '');
   }
 
   static Future<void> updateAndSaveLyrics({
