@@ -724,6 +724,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                                                 mediaItem: safeItem,
                                                                                                 initialLyrics: _currentLyrics,
                                                                                                 positionStream: _positionDataStream,
+                                                                                                themeColors: smoothThemeColors,
                                                                                                 onSaved: () async {
                                                                                                   final reloaded = await LyricsService.fetchLyrics(safeItem);
                                                                                                   if (mounted) {

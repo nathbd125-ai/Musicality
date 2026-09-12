@@ -5,6 +5,7 @@ class HyperOSSlider extends StatefulWidget {
   final Duration duration;
   final Function(Duration) onSeek;
   final List<Color> gradientColors;
+  final bool showMilliseconds;
 
   const HyperOSSlider({
     super.key,
@@ -12,6 +13,7 @@ class HyperOSSlider extends StatefulWidget {
     required this.duration,
     required this.onSeek,
     required this.gradientColors,
+    this.showMilliseconds = false,
   });
 
   @override
@@ -27,7 +29,17 @@ class _HyperOSSliderState extends State<HyperOSSlider> {
       return n.toString().padLeft(2, "0");
     }
 
-    return "${twoDigits(duration.inMinutes.remainder(60))}:${twoDigits(duration.inSeconds.remainder(60))}";
+    final mins = twoDigits(duration.inMinutes.remainder(60));
+    final secs = twoDigits(duration.inSeconds.remainder(60));
+
+    if (widget.showMilliseconds) {
+      final ms = (duration.inMilliseconds.remainder(1000))
+          .toString()
+          .padLeft(3, "0");
+      return "$mins:$secs.$ms";
+    }
+
+    return "$mins:$secs";
   }
 
   @override
@@ -170,11 +182,23 @@ class _HyperOSSliderState extends State<HyperOSSlider> {
             children: [
               Text(
                 _formatDuration(Duration(milliseconds: currentMs.toInt())),
-                style: const TextStyle(color: Colors.grey, fontSize: 11),
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: widget.showMilliseconds ? 11.5 : 11,
+                  fontFamily: widget.showMilliseconds ? 'monospace' : null,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  fontWeight: widget.showMilliseconds ? FontWeight.w600 : FontWeight.normal,
+                ),
               ),
               Text(
                 _formatDuration(widget.duration),
-                style: const TextStyle(color: Colors.grey, fontSize: 11),
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: widget.showMilliseconds ? 11.5 : 11,
+                  fontFamily: widget.showMilliseconds ? 'monospace' : null,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  fontWeight: widget.showMilliseconds ? FontWeight.w600 : FontWeight.normal,
+                ),
               ),
             ],
           ),
