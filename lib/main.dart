@@ -21,9 +21,17 @@ import 'firebase_options.dart';
 
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Force le verrouillage en mode portrait (vertical) par défaut.
+  // Seul le mode horizontal dédié (LandscapeStereoPlayer) bascule en paysage.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   // 1. Initialisation de Firebase en premier pour activer Crashlytics
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

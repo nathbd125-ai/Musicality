@@ -68,6 +68,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     WidgetsBinding.instance.addObserver(this);
     _mainPageController = PageController(initialPage: _currentIndex);
     SongDownloadService.scanLocalFiles(globalPlaylist);

@@ -42,17 +42,53 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="false">
+
+            <layout
+                android:minWidth="340dp"
+                android:minHeight="480dp" />
 
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
+
+            <!-- Samsung One UI MultiWindow: autorise l'écran splité mais interdit la fenêtre pop-up / flottante -->
+            <meta-data
+                android:name="com.samsung.android.sdk.multiwindow.enable"
+                android:value="true" />
+            <meta-data
+                android:name="com.samsung.android.sdk.multiwindow.style"
+                android:value="splitOnly" />
+            <meta-data
+                android:name="com.sec.android.multiwindow.style"
+                android:value="splitOnly" />
+            <meta-data
+                android:name="com.samsung.android.sdk.multiwindow.popupwindow.enable"
+                android:value="false" />
+            <meta-data
+                android:name="com.sec.android.multiwindow.popupwindow.enable"
+                android:value="false" />
+
+            <!-- Xiaomi MIUI / HyperOS: désactive les fenêtres flottantes / pop-up -->
+            <meta-data
+                android:name="miui.support_floating_window"
+                android:value="false" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- Samsung MultiWindow global configuration -->
+        <meta-data
+            android:name="com.samsung.android.sdk.multiwindow.enable"
+            android:value="true" />
+        <meta-data
+            android:name="com.samsung.android.sdk.multiwindow.style"
+            android:value="splitOnly" />
 
         <!-- Active le moteur graphique Impeller (backend Vulkan par défaut sur Android) -->
         <meta-data
