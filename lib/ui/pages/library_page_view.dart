@@ -935,8 +935,8 @@ class _PlaylistShuffleButtonState extends State<_PlaylistShuffleButton>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: widget.isShuffle
-                ? widget.primaryColor.withValues(alpha: 0.20)
-                : Colors.transparent,
+                ? widget.primaryColor.withValues(alpha: 0.22)
+                : Colors.white.withValues(alpha: 0.08),
           ),
           child: Center(
             child: widget.isShuffle
@@ -953,10 +953,10 @@ class _PlaylistShuffleButtonState extends State<_PlaylistShuffleButton>
                       color: Colors.white,
                     ),
                   )
-                : const Icon(
+                : Icon(
                     CupertinoIcons.shuffle,
                     size: 22,
-                    color: Colors.white60,
+                    color: Colors.white.withValues(alpha: 0.70),
                   ),
           ),
         ),
