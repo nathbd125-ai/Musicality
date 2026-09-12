@@ -6,8 +6,10 @@ import 'package:musicality/ui/widgets/custom_search_bar.dart';
 import 'package:musicality/ui/widgets/marquee_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:audio_service/audio_service.dart';
 import 'dart:io';
+import 'dart:math';
 import 'dart:async';
 
 class LibraryPageView extends StatefulWidget {
@@ -586,7 +588,7 @@ class LibraryPageViewState extends State<LibraryPageView> {
 
                     return ListView.builder(
                       controller: _scrollController,
-                      itemCount: filteredPlaylist.length,
+                      itemCount: filteredPlaylist.length + 1,
                       padding: EdgeInsets.only(
                         bottom:
                             MediaQuery.of(context).viewInsets.bottom + 180.0,
@@ -594,7 +596,11 @@ class LibraryPageViewState extends State<LibraryPageView> {
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
                       itemBuilder: (context, index) {
-                        final item = filteredPlaylist[index];
+                        if (index == 0) {
+                          return _buildPlaylistActionBar(filteredPlaylist);
+                        }
+                        final songIndex = index - 1;
+                        final item = filteredPlaylist[songIndex];
                         final isSelected = widget.currentItem?.id == item.id;
 
                         return SongTile(
@@ -602,12 +608,12 @@ class LibraryPageViewState extends State<LibraryPageView> {
                           isSelected: isSelected,
                           activeThemeColors: widget.dynamicGradientColors,
                           heroTag:
-                              'lib_${_activePlaylistName}_${index}_${item.id}',
+                              'lib_${_activePlaylistName}_${songIndex}_${item.id}',
                           onTap: () {
                             FocusScope.of(context).unfocus();
                             (globalAudioHandler as MyAudioHandler).playFromList(
                               filteredPlaylist,
-                              index,
+                              songIndex,
                             );
                           },
                         );
@@ -623,12 +629,337 @@ class LibraryPageViewState extends State<LibraryPageView> {
     );
   }
 
+  Widget _buildPlaylistActionBar(List<MediaItem> filteredPlaylist) {
+    final currentItem = widget.currentItem ?? globalAudioHandler.mediaItem.value;
+    final bool isCurrentInList = currentItem != null &&
+        filteredPlaylist.any(
+          (item) => getBaseId(item.id) == getBaseId(currentItem.id),
+        );
+
+    return StreamBuilder<PlaybackState>(
+      stream: globalAudioHandler.playbackState,
+      builder: (context, snapshot) {
+        final playbackState =
+            snapshot.data ?? globalAudioHandler.playbackState.value;
+        final isPlaying = playbackState.playing && isCurrentInList;
+
+        return StreamBuilder<bool>(
+          stream: (globalAudioHandler as MyAudioHandler).shuffleModeEnabledStream,
+          initialData: (globalAudioHandler is MyAudioHandler)
+              ? (globalAudioHandler as MyAudioHandler).shuffleModeEnabled
+              : false,
+          builder: (context, shuffleSnap) {
+            final isShuffle = shuffleSnap.data ?? false;
+
+            final themeColors = widget.dynamicGradientColors.isNotEmpty
+                ? widget.dynamicGradientColors
+                : const [Color(0xFF7C4DFF), Color(0xFF536DFE)];
+
+            final primaryColor = themeColors.first;
+
+            return Padding(
+              padding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 2,
+                bottom: 10,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    _searchQuery.trim().isEmpty
+                        ? "${filteredPlaylist.length} titre${filteredPlaylist.length > 1 ? 's' : ''}"
+                        : "${filteredPlaylist.length} résultat${filteredPlaylist.length > 1 ? 's' : ''}",
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.65),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _PlaylistShuffleButton(
+                        isShuffle: isShuffle,
+                        primaryColor: primaryColor,
+                        gradientColors: themeColors,
+                        onTap: () async {
+                          final handler = globalAudioHandler as MyAudioHandler;
+                          if (isCurrentInList && playbackState.playing) {
+                            await handler.toggleShuffleMode();
+                          } else {
+                            await handler.setShuffleMode(
+                              AudioServiceShuffleMode.all,
+                            );
+                            if (filteredPlaylist.isNotEmpty) {
+                              final randomIdx =
+                                  Random().nextInt(filteredPlaylist.length);
+                              await handler.playFromList(
+                                filteredPlaylist,
+                                randomIdx,
+                              );
+                            }
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 14),
+                      _PlaylistBigPlayButton(
+                        isPlaying: isPlaying,
+                        gradientColors: themeColors,
+                        onTap: () async {
+                          final handler = globalAudioHandler as MyAudioHandler;
+                          if (isCurrentInList) {
+                            if (playbackState.playing) {
+                              await handler.pause();
+                            } else {
+                              await handler.play();
+                            }
+                          } else {
+                            if (filteredPlaylist.isNotEmpty) {
+                              final startIdx = handler.shuffleModeEnabled
+                                  ? Random().nextInt(filteredPlaylist.length)
+                                  : 0;
+                              await handler.playFromList(
+                                filteredPlaylist,
+                                startIdx,
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PageView(
       controller: _pageController,
       physics: const NeverScrollableScrollPhysics(),
       children: [_buildHub(), _buildList()],
+    );
+  }
+}
+
+class _PlaylistBigPlayButton extends StatefulWidget {
+  final bool isPlaying;
+  final List<Color> gradientColors;
+  final Future<void> Function() onTap;
+
+  const _PlaylistBigPlayButton({
+    required this.isPlaying,
+    required this.gradientColors,
+    required this.onTap,
+  });
+
+  @override
+  State<_PlaylistBigPlayButton> createState() => _PlaylistBigPlayButtonState();
+}
+
+class _PlaylistBigPlayButtonState extends State<_PlaylistBigPlayButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+      lowerBound: 0.88,
+      upperBound: 1.0,
+    )..value = 1.0;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = widget.gradientColors.isNotEmpty
+        ? widget.gradientColors.first
+        : const Color(0xFF7C4DFF);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _controller.animateTo(0.88, curve: Curves.easeInOut),
+      onTapUp: (_) async {
+        _controller.animateTo(1.0, curve: Curves.easeInOut);
+        if (isHapticFeedbackEnabledNotifier.value) {
+          HapticFeedback.mediumImpact();
+        }
+        await widget.onTap();
+      },
+      onTapCancel: () => _controller.animateTo(1.0, curve: Curves.easeInOut),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) => Transform.scale(
+          scale: _controller.value,
+          child: child,
+        ),
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: widget.gradientColors,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withValues(alpha: 0.40),
+                blurRadius: 14,
+                spreadRadius: 1,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              ),
+              child: Padding(
+                padding: EdgeInsets.only(left: widget.isPlaying ? 0.0 : 2.5),
+                child: Icon(
+                  widget.isPlaying
+                      ? CupertinoIcons.pause_solid
+                      : CupertinoIcons.play_arrow_solid,
+                  key: ValueKey<bool>(widget.isPlaying),
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaylistShuffleButton extends StatefulWidget {
+  final bool isShuffle;
+  final Color primaryColor;
+  final List<Color> gradientColors;
+  final Future<void> Function() onTap;
+
+  const _PlaylistShuffleButton({
+    required this.isShuffle,
+    required this.primaryColor,
+    required this.gradientColors,
+    required this.onTap,
+  });
+
+  @override
+  State<_PlaylistShuffleButton> createState() => _PlaylistShuffleButtonState();
+}
+
+class _PlaylistShuffleButtonState extends State<_PlaylistShuffleButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+      lowerBound: 0.88,
+      upperBound: 1.0,
+    )..value = 1.0;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _controller.animateTo(0.88, curve: Curves.easeInOut),
+      onTapUp: (_) async {
+        _controller.animateTo(1.0, curve: Curves.easeInOut);
+        if (isHapticFeedbackEnabledNotifier.value) {
+          HapticFeedback.lightImpact();
+        }
+        await widget.onTap();
+      },
+      onTapCancel: () => _controller.animateTo(1.0, curve: Curves.easeInOut),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) => Transform.scale(
+          scale: _controller.value,
+          child: child,
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: widget.isShuffle
+                ? widget.primaryColor.withValues(alpha: 0.22)
+                : Colors.white.withValues(alpha: 0.08),
+            border: Border.all(
+              color: widget.isShuffle
+                  ? widget.primaryColor.withValues(alpha: 0.65)
+                  : Colors.white.withValues(alpha: 0.12),
+              width: 1.2,
+            ),
+            boxShadow: widget.isShuffle
+                ? [
+                    BoxShadow(
+                      color: widget.primaryColor.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: widget.isShuffle
+                ? ShaderMask(
+                    blendMode: BlendMode.srcIn,
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: widget.gradientColors,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ).createShader(bounds),
+                    child: const Icon(
+                      CupertinoIcons.shuffle,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    CupertinoIcons.shuffle,
+                    size: 20,
+                    color: Colors.white.withValues(alpha: 0.65),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
