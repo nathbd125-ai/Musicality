@@ -14,8 +14,10 @@
         android:version="0x400003"
         android:required="false" />
 
-    <!-- Nécessaire pour url_launcher sur Android 11+ (API 30+) -->
+    <!-- Nécessaire pour url_launcher et synchronisation cross-app (Musicality <-> Musicality Studio) sur Android 11+ -->
     <queries>
+        <package android:name="com.musicality" />
+        <package android:name="com.musicality.studio" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />

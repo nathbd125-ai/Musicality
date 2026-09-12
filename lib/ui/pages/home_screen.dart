@@ -111,6 +111,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
     });
+
+    LyricsService.onLyricsUpdated.addListener(_onLyricsUpdatedFromService);
+  }
+
+  void _onLyricsUpdatedFromService() {
+    if (!mounted) return;
+    final updatedBaseName = LyricsService.onLyricsUpdated.value;
+    if (updatedBaseName == null) return;
+    final currentItem = globalAudioHandler.mediaItem.value;
+    if (currentItem != null) {
+      final currentBaseName = LyricsService.getBaseName(currentItem.id);
+      if (currentBaseName == updatedBaseName) {
+        final cached = LyricsService.getCached(currentItem.id);
+        if (cached != null) {
+          setState(() {
+            _currentLyrics = cached;
+            _isLoadingLyrics = false;
+          });
+        }
+      }
+    }
   }
 
   void _onBatterySaverChanged() {
@@ -132,6 +153,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    LyricsService.onLyricsUpdated.removeListener(_onLyricsUpdatedFromService);
     _mediaItemSub?.cancel();
     isBatterySaverEnabledNotifier.removeListener(_onBatterySaverChanged);
     WidgetsBinding.instance.removeObserver(this);
@@ -146,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _currentLyrics = LyricsService.getCached(songId)!;
         _isLoadingLyrics = false;
       });
+      LyricsService.revalidateLyrics(item);
       return;
     }
     setState(() {

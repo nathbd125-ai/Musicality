@@ -119,6 +119,8 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
         }
       }
     });
+
+    LyricsService.onLyricsUpdated.addListener(_onLyricsUpdatedFromService);
   }
 
   void _onVisualizerTick() {
@@ -177,6 +179,7 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
         });
         _updateActiveIndex(_positionNotifier.value);
       }
+      LyricsService.revalidateLyrics(item);
       return;
     }
     final lyrics = await LyricsService.fetchLyrics(item);
@@ -185,6 +188,25 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
         _currentLyrics = lyrics;
       });
       _updateActiveIndex(_positionNotifier.value);
+    }
+  }
+
+  void _onLyricsUpdatedFromService() {
+    if (!mounted) return;
+    final updatedBaseName = LyricsService.onLyricsUpdated.value;
+    if (updatedBaseName == null) return;
+    final currentItem = _currentItem ?? widget.audioHandler.mediaItem.value;
+    if (currentItem != null) {
+      final currentBaseName = LyricsService.getBaseName(currentItem.id);
+      if (currentBaseName == updatedBaseName) {
+        final cached = LyricsService.getCached(currentItem.id);
+        if (cached != null) {
+          setState(() {
+            _currentLyrics = cached;
+          });
+          _updateActiveIndex(_positionNotifier.value);
+        }
+      }
     }
   }
 
@@ -235,6 +257,7 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
 
   @override
   void dispose() {
+    LyricsService.onLyricsUpdated.removeListener(_onLyricsUpdatedFromService);
     _visualizerController.removeListener(_onVisualizerTick);
     _mediaItemSub?.cancel();
     _positionSub?.cancel();

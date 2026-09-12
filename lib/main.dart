@@ -89,6 +89,9 @@ Future<void> main() async {
       debugPrint("Erreur initialisation MMKV : $e");
     }
 
+    // Initialisation de la synchronisation instantanée cross-app (Musicality <-> Musicality Studio)
+    LyricsService.initCrossAppSync();
+
     // Vérification de la version pour purger les fichiers .lrc après une MAJ
     try {
       final packageInfo = await PackageInfo.fromPlatform();

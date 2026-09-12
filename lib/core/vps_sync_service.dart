@@ -109,6 +109,13 @@ class VpsSyncService {
       await file.writeBytes(bytes);
       await file.close();
 
+      // Supprime l'ancien fichier .ttml sur le VPS si existant pour que le nouveau .lrc soit prioritaire
+      final baseNoExt = cleanBaseName.replaceAll(RegExp(r'\.lrc$'), '');
+      try {
+        await sftp.remove('$_remoteDirectory/$baseNoExt.ttml');
+        debugPrint('Ancien fichier $baseNoExt.ttml supprimé sur le VPS.');
+      } catch (_) {}
+
       debugPrint('Fichier $remotePath remplacé avec succès sur le VPS.');
     } finally {
       client.close();
