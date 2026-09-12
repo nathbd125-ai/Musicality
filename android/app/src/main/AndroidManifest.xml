@@ -75,6 +75,15 @@
             <meta-data
                 android:name="miui.support_floating_window"
                 android:value="false" />
+            <meta-data
+                android:name="com.miui.support_floating_window"
+                android:value="false" />
+            <meta-data
+                android:name="support_floating_window"
+                android:value="false" />
+            <meta-data
+                android:name="miui.freeform"
+                android:value="false" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -89,6 +98,20 @@
         <meta-data
             android:name="com.samsung.android.sdk.multiwindow.style"
             android:value="splitOnly" />
+
+        <!-- Xiaomi MIUI / HyperOS global configuration -->
+        <meta-data
+            android:name="miui.support_floating_window"
+            android:value="false" />
+        <meta-data
+            android:name="com.miui.support_floating_window"
+            android:value="false" />
+        <meta-data
+            android:name="support_floating_window"
+            android:value="false" />
+        <meta-data
+            android:name="miui.freeform"
+            android:value="false" />
 
         <!-- Active le moteur graphique Impeller (backend Vulkan par défaut sur Android) -->
         <meta-data
