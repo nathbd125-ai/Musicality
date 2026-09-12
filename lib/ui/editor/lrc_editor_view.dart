@@ -10,7 +10,6 @@ import 'package:musicality/core/models.dart';
 import 'package:musicality/core/vps_sync_service.dart';
 import 'package:musicality/ui/widgets/hyper_os_button.dart';
 import 'package:musicality/ui/widgets/hyper_os_slider.dart';
-import 'package:musicality/ui/widgets/marquee_widget.dart';
 import 'package:musicality/ui/widgets/real_album_blurred_background.dart';
 import 'package:musicality/ui/widgets/smooth_icon.dart';
 
@@ -592,7 +591,7 @@ class _LrcEditorViewState extends State<LrcEditorView>
             child: Column(
               children: [
                 _buildTopBar(themeColors),
-                _buildHeaderOffsetBar(themeColors),
+                _buildStudioHeaderPanel(themeColors),
                 Expanded(
                   child: _buildLyricsList(glowColor, unlitColor),
                 ),
@@ -654,6 +653,15 @@ class _LrcEditorViewState extends State<LrcEditorView>
           ),
           const Spacer(),
           IconButton(
+            tooltip: 'Ajouter une ligne à la position actuelle',
+            icon: const Icon(
+              CupertinoIcons.plus_circle,
+              color: Colors.cyanAccent,
+              size: 22,
+            ),
+            onPressed: _addNewLine,
+          ),
+          IconButton(
             tooltip: _autoScroll
                 ? 'Défilement automatique activé'
                 : 'Défilement automatique en pause',
@@ -707,133 +715,248 @@ class _LrcEditorViewState extends State<LrcEditorView>
     );
   }
 
-  /// Remplace la pochette de l'album par les outils de calage global rapide (+0.1, +0.5, etc.)
-  Widget _buildHeaderOffsetBar(List<Color> themeColors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // À la place de la pochette 60x60 : Le bloc de boutons d'offset
-          _TopOffsetGrid(
-            onOffset: _applyGlobalOffset,
+  /// Panneau de contrôle et d'informations du Mode Studio occupant tout le haut (sans pochette ni titre)
+  Widget _buildStudioHeaderPanel(List<Color> themeColors) {
+    final baseName = LyricsService.getBaseName(widget.mediaItem.id);
+    final totalWords = _items.fold<int>(0, (sum, i) => sum + i.words.length);
+    final hasActiveLine = _activeLineIndex >= 0 && _activeLineIndex < _items.length;
+    final activeItem = hasActiveLine ? _items[_activeLineIndex] : null;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12, width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 1. Rangée complète des boutons de décalage global
+          Row(
+            children: [
+              _HeaderActionButton(
+                label: '-1.0s',
+                onTap: () => _applyGlobalOffset(-1.0),
+              ),
+              const SizedBox(width: 4),
+              _HeaderActionButton(
+                label: '-0.5s',
+                onTap: () => _applyGlobalOffset(-0.5),
+              ),
+              const SizedBox(width: 4),
+              _HeaderActionButton(
+                label: '-0.1s',
+                onTap: () => _applyGlobalOffset(-0.1),
+              ),
 
-          const SizedBox(width: 14),
+              const SizedBox(width: 6),
 
-          // Titre avec gradient ShaderMask, artiste et décalage global
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                MarqueeWidget(
-                  resetKey: 'studio_title_${widget.mediaItem.id}',
+              // Indicateur de décalage global au centre avec réinitialisation
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _globalOffsetSeconds != 0.0
+                        ? Colors.cyanAccent.withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _globalOffsetSeconds != 0.0
+                          ? Colors.cyanAccent.withValues(alpha: 0.5)
+                          : Colors.white12,
+                      width: 0.8,
+                    ),
+                  ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ShaderMask(
-                        blendMode: BlendMode.srcIn,
-                        shaderCallback: (bounds) {
-                          return LinearGradient(
-                            colors: themeColors,
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ).createShader(
-                            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                          );
-                        },
-                        child: Text(
-                          widget.mediaItem.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          softWrap: false,
+                      Text(
+                        '${_globalOffsetSeconds >= 0 ? '+' : ''}${_globalOffsetSeconds.toStringAsFixed(1)}s',
+                        style: TextStyle(
+                          color: _globalOffsetSeconds != 0.0
+                              ? Colors.cyanAccent
+                              : Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          fontFamily: 'monospace',
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
-                      if (widget.mediaItem.extras?['isFlac'] == true) ...[
+                      if (_globalOffsetSeconds != 0.0) ...[
                         const SizedBox(width: 6),
-                        ShaderMask(
-                          blendMode: BlendMode.srcIn,
-                          shaderCallback: (bounds) {
-                            return LinearGradient(
-                              colors: themeColors,
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ).createShader(bounds);
-                          },
-                          child: Text(
-                            widget.mediaItem.extras?['isHiRes'] == true
-                                ? "• HI-RES"
-                                : "• LOSSLESS",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                              color: Colors.white,
-                            ),
+                        GestureDetector(
+                          onTap: _resetGlobalOffset,
+                          child: const Icon(
+                            CupertinoIcons.arrow_counterclockwise,
+                            color: Colors.orangeAccent,
+                            size: 14,
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  formatArtist(widget.mediaItem.artist),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Color.lerp(
-                      const Color(0xFFCCCCCC),
-                      themeColors.first,
-                      0.35,
-                    ),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
+              ),
+
+              const SizedBox(width: 6),
+
+              _HeaderActionButton(
+                label: '+0.1s',
+                onTap: () => _applyGlobalOffset(0.1),
+              ),
+              const SizedBox(width: 4),
+              _HeaderActionButton(
+                label: '+0.5s',
+                onTap: () => _applyGlobalOffset(0.5),
+              ),
+              const SizedBox(width: 4),
+              _HeaderActionButton(
+                label: '+1.0s',
+                onTap: () => _applyGlobalOffset(1.0),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // 2. Rangée des informations studio & actions sur la ligne active
+          Row(
+            children: [
+              // Infos fichier & statistiques
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Décalage : ',
-                      style: TextStyle(color: Colors.white60, fontSize: 11.5),
-                    ),
-                    Text(
-                      '${_globalOffsetSeconds >= 0 ? '+' : ''}${_globalOffsetSeconds.toStringAsFixed(1)}s',
-                      style: TextStyle(
-                        color: _globalOffsetSeconds != 0.0
-                            ? Colors.cyanAccent
-                            : Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                    if (_globalOffsetSeconds != 0.0) ...[
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: _resetGlobalOffset,
-                        child: const Icon(
-                          CupertinoIcons.arrow_counterclockwise,
-                          color: Colors.orangeAccent,
-                          size: 13,
+                    Row(
+                      children: [
+                        const Icon(
+                          CupertinoIcons.doc_text_fill,
+                          color: Colors.cyanAccent,
+                          size: 12,
                         ),
-                      ),
-                    ],
-                    const SizedBox(width: 8),
-                    Text(
-                      '• ${_items.length} lignes',
-                      style: const TextStyle(color: Colors.white38, fontSize: 11),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '$baseName.lrc',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Text(
+                          '${_items.length} lignes',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '• $totalWords mots synchro',
+                          style: const TextStyle(
+                            color: Colors.purpleAccent,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                        if (hasActiveLine) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.cyanAccent.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Ligne ${_activeLineIndex + 1}/${_items.length}',
+                              style: const TextStyle(
+                                color: Colors.cyanAccent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10.5,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // Outils pour la ligne active (Caler & micro-ajustement)
+              if (hasActiveLine && activeItem != null) ...[
+                Tooltip(
+                  message: 'Caler la ligne active sur la lecture',
+                  child: InkWell(
+                    onTap: () => _syncLineToCurrentPosition(_activeLineIndex),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade700,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.purple.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(CupertinoIcons.scope, color: Colors.white, size: 12),
+                          SizedBox(width: 4),
+                          Text(
+                            'Caler active',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                _MicroAdjustButton(
+                  label: '-0.1',
+                  onTap: () => _adjustLine(_activeLineIndex, -100),
+                ),
+                const SizedBox(width: 3),
+                _MicroAdjustButton(
+                  label: '+0.1',
+                  onTap: () => _adjustLine(_activeLineIndex, 100),
+                ),
               ],
-            ),
+            ],
           ),
         ],
       ),
@@ -1383,78 +1506,11 @@ class _LrcEditorViewState extends State<LrcEditorView>
   }
 }
 
-/// Grille 2x2 des boutons d'offset rapide remplaçant la pochette d'album
-class _TopOffsetGrid extends StatelessWidget {
-  final Function(double) onOffset;
-
-  const _TopOffsetGrid({required this.onOffset});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 120,
-      height: 60,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white24, width: 0.8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _QuickOffsetButton(
-                  label: '-0.5s',
-                  onTap: () => onOffset(-0.5),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: _QuickOffsetButton(
-                  label: '+0.5s',
-                  onTap: () => onOffset(0.5),
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickOffsetButton(
-                  label: '-0.1s',
-                  onTap: () => onOffset(-0.1),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: _QuickOffsetButton(
-                  label: '+0.1s',
-                  onTap: () => onOffset(0.1),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickOffsetButton extends StatelessWidget {
+class _HeaderActionButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _QuickOffsetButton({
+  const _HeaderActionButton({
     required this.label,
     required this.onTap,
   });
@@ -1463,19 +1519,19 @@ class _QuickOffsetButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        height: 23,
-        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(6),
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white12, width: 0.6),
         ),
         child: Text(
           label,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 11,
+            fontSize: 11.5,
             fontWeight: FontWeight.bold,
             fontFamily: 'monospace',
           ),
