@@ -519,27 +519,28 @@ class LibraryPageViewState extends State<LibraryPageView> {
                     final currentBaseIds = currentSet.map(getBaseId).toSet();
                     final query = normalizeString(_searchQuery);
 
-                    final filteredPlaylist = globalPlaylist.where((item) {
+                    final fullPlaylist = globalPlaylist.where((item) {
                       final baseId = getBaseId(item.id);
-                      if (!currentSet.contains(item.id) &&
-                          !currentBaseIds.contains(baseId)) {
-                        return false;
-                      }
-                      if (query.isEmpty) return true;
-                      final titleMatch = normalizeString(
-                        item.title,
-                      ).contains(query);
-                      final artistMatch = normalizeString(
-                        item.artist ?? '',
-                      ).contains(query);
-                      return titleMatch || artistMatch;
+                      return currentSet.contains(item.id) ||
+                          currentBaseIds.contains(baseId);
                     }).toList();
-
-                    filteredPlaylist.sort(
+                    fullPlaylist.sort(
                       (a, b) => normalizeString(
                         a.title,
                       ).compareTo(normalizeString(b.title)),
                     );
+
+                    final filteredPlaylist = query.isEmpty
+                        ? fullPlaylist
+                        : fullPlaylist.where((item) {
+                            final titleMatch = normalizeString(
+                              item.title,
+                            ).contains(query);
+                            final artistMatch = normalizeString(
+                              item.artist ?? '',
+                            ).contains(query);
+                            return titleMatch || artistMatch;
+                          }).toList();
 
                     String emptyText = _searchQuery.isEmpty
                         ? (isLikes
@@ -597,7 +598,10 @@ class LibraryPageViewState extends State<LibraryPageView> {
                           ScrollViewKeyboardDismissBehavior.onDrag,
                       itemBuilder: (context, index) {
                         if (index == 0) {
-                          return _buildPlaylistActionBar(filteredPlaylist);
+                          return _buildPlaylistActionBar(
+                            fullPlaylist,
+                            filteredPlaylist,
+                          );
                         }
                         final songIndex = index - 1;
                         final item = filteredPlaylist[songIndex];
@@ -611,9 +615,13 @@ class LibraryPageViewState extends State<LibraryPageView> {
                               'lib_${_activePlaylistName}_${songIndex}_${item.id}',
                           onTap: () {
                             FocusScope.of(context).unfocus();
+                            final targetIndex = fullPlaylist.indexWhere(
+                              (m) => m.id == item.id,
+                            );
                             (globalAudioHandler as MyAudioHandler).playFromList(
-                              filteredPlaylist,
-                              songIndex,
+                              fullPlaylist,
+                              targetIndex >= 0 ? targetIndex : 0,
+                              contextTag: 'playlist:$_activePlaylistName',
                             );
                           },
                         );
@@ -629,111 +637,118 @@ class LibraryPageViewState extends State<LibraryPageView> {
     );
   }
 
-  Widget _buildPlaylistActionBar(List<MediaItem> filteredPlaylist) {
-    final currentItem = widget.currentItem ?? globalAudioHandler.mediaItem.value;
-    final bool isCurrentInList = currentItem != null &&
-        filteredPlaylist.any(
-          (item) => getBaseId(item.id) == getBaseId(currentItem.id),
-        );
+  Widget _buildPlaylistActionBar(
+    List<MediaItem> fullPlaylist,
+    List<MediaItem> filteredPlaylist,
+  ) {
+    return ValueListenableBuilder<String?>(
+      valueListenable: currentPlaybackContextNotifier,
+      builder: (context, currentContext, _) {
+        final bool isThisPlaylistActive =
+            currentContext == 'playlist:$_activePlaylistName';
 
-    return StreamBuilder<PlaybackState>(
-      stream: globalAudioHandler.playbackState,
-      builder: (context, snapshot) {
-        final playbackState =
-            snapshot.data ?? globalAudioHandler.playbackState.value;
-        final isPlaying = playbackState.playing && isCurrentInList;
+        return StreamBuilder<PlaybackState>(
+          stream: globalAudioHandler.playbackState,
+          builder: (context, snapshot) {
+            final playbackState =
+                snapshot.data ?? globalAudioHandler.playbackState.value;
+            final isPlaying = isThisPlaylistActive && playbackState.playing;
 
-        return StreamBuilder<bool>(
-          stream: (globalAudioHandler as MyAudioHandler).shuffleModeEnabledStream,
-          initialData: (globalAudioHandler is MyAudioHandler)
-              ? (globalAudioHandler as MyAudioHandler).shuffleModeEnabled
-              : false,
-          builder: (context, shuffleSnap) {
-            final isShuffle = shuffleSnap.data ?? false;
+            return StreamBuilder<bool>(
+              stream: (globalAudioHandler as MyAudioHandler).shuffleModeEnabledStream,
+              initialData: (globalAudioHandler is MyAudioHandler)
+                  ? (globalAudioHandler as MyAudioHandler).shuffleModeEnabled
+                  : false,
+              builder: (context, shuffleSnap) {
+                final isShuffle = shuffleSnap.data ?? false;
 
-            final themeColors = widget.dynamicGradientColors.isNotEmpty
-                ? widget.dynamicGradientColors
-                : const [Color(0xFF7C4DFF), Color(0xFF536DFE)];
+                final themeColors = widget.dynamicGradientColors.isNotEmpty
+                    ? widget.dynamicGradientColors
+                    : const [Color(0xFF7C4DFF), Color(0xFF536DFE)];
 
-            final primaryColor = themeColors.first;
+                final primaryColor = themeColors.first;
 
-            return Padding(
-              padding: const EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 2,
-                bottom: 10,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    _searchQuery.trim().isEmpty
-                        ? "${filteredPlaylist.length} titre${filteredPlaylist.length > 1 ? 's' : ''}"
-                        : "${filteredPlaylist.length} résultat${filteredPlaylist.length > 1 ? 's' : ''}",
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.65),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.2,
-                    ),
+                return Padding(
+                  padding: const EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 2,
+                    bottom: 10,
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _PlaylistShuffleButton(
-                        isShuffle: isShuffle,
-                        primaryColor: primaryColor,
-                        gradientColors: themeColors,
-                        onTap: () async {
-                          final handler = globalAudioHandler as MyAudioHandler;
-                          if (isCurrentInList && playbackState.playing) {
-                            await handler.toggleShuffleMode();
-                          } else {
-                            await handler.setShuffleMode(
-                              AudioServiceShuffleMode.all,
-                            );
-                            if (filteredPlaylist.isNotEmpty) {
-                              final randomIdx =
-                                  Random().nextInt(filteredPlaylist.length);
-                              await handler.playFromList(
-                                filteredPlaylist,
-                                randomIdx,
-                              );
-                            }
-                          }
-                        },
+                      Text(
+                        _searchQuery.trim().isEmpty
+                            ? "${filteredPlaylist.length} titre${filteredPlaylist.length > 1 ? 's' : ''}"
+                            : "${filteredPlaylist.length} résultat${filteredPlaylist.length > 1 ? 's' : ''}",
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
                       ),
-                      const SizedBox(width: 14),
-                      _PlaylistBigPlayButton(
-                        isPlaying: isPlaying,
-                        gradientColors: themeColors,
-                        onTap: () async {
-                          final handler = globalAudioHandler as MyAudioHandler;
-                          if (isCurrentInList) {
-                            if (playbackState.playing) {
-                              await handler.pause();
-                            } else {
-                              await handler.play();
-                            }
-                          } else {
-                            if (filteredPlaylist.isNotEmpty) {
-                              final startIdx = handler.shuffleModeEnabled
-                                  ? Random().nextInt(filteredPlaylist.length)
-                                  : 0;
-                              await handler.playFromList(
-                                filteredPlaylist,
-                                startIdx,
-                              );
-                            }
-                          }
-                        },
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _PlaylistShuffleButton(
+                            isShuffle: isShuffle,
+                            primaryColor: primaryColor,
+                            gradientColors: themeColors,
+                            onTap: () async {
+                              final handler = globalAudioHandler as MyAudioHandler;
+                              if (isThisPlaylistActive && playbackState.playing) {
+                                await handler.toggleShuffleMode();
+                              } else {
+                                await handler.setShuffleMode(
+                                  AudioServiceShuffleMode.all,
+                                );
+                                if (fullPlaylist.isNotEmpty) {
+                                  final randomIdx =
+                                      Random().nextInt(fullPlaylist.length);
+                                  await handler.playFromList(
+                                    fullPlaylist,
+                                    randomIdx,
+                                    contextTag: 'playlist:$_activePlaylistName',
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 14),
+                          _PlaylistBigPlayButton(
+                            isPlaying: isPlaying,
+                            gradientColors: themeColors,
+                            onTap: () async {
+                              final handler = globalAudioHandler as MyAudioHandler;
+                              if (isThisPlaylistActive) {
+                                if (playbackState.playing) {
+                                  await handler.pause();
+                                } else {
+                                  await handler.play();
+                                }
+                              } else {
+                                if (fullPlaylist.isNotEmpty) {
+                                  await handler.setShuffleMode(
+                                    AudioServiceShuffleMode.none,
+                                  );
+                                  await handler.playFromList(
+                                    fullPlaylist,
+                                    0,
+                                    contextTag: 'playlist:$_activePlaylistName',
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );

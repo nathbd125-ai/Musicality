@@ -166,6 +166,7 @@ class ExplorerFavoritesContent extends StatelessWidget {
                     (globalAudioHandler as MyAudioHandler).playFromList(
                       topItems,
                       idx,
+                      contextTag: 'explorer',
                     );
                   },
                 );
@@ -486,6 +487,7 @@ class ExplorerRecommendationsContent extends StatelessWidget {
                       (globalAudioHandler as MyAudioHandler).playFromList(
                         globalPlaylist,
                         reco['localIndex'] as int,
+                        contextTag: 'all_musics',
                       );
                       Navigator.pop(context);
                     } else {

@@ -180,8 +180,11 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
                             activeThemeColors: widget.themeColors,
                             heroTag: 'artist_${widget.artistName}_${song.id}',
                             onTap: () {
-                              (globalAudioHandler as MyAudioHandler)
-                                  .playFromList(songsInAlbum, idx);
+                              (globalAudioHandler as MyAudioHandler).playFromList(
+                                songsInAlbum,
+                                idx,
+                                contextTag: 'artist:${widget.artistName}',
+                              );
                             },
                           );
                         }),

@@ -163,9 +163,13 @@ class AllMusicsViewState extends State<AllMusicsView> {
                         heroTag: 'allmusic_${index}_${item.id}',
                         onTap: () {
                           FocusScope.of(context).unfocus();
+                          final fullList = getSortedGlobalPlaylist();
+                          final targetIndex =
+                              fullList.indexWhere((m) => m.id == item.id);
                           (globalAudioHandler as MyAudioHandler).playFromList(
-                            _filteredPlaylist,
-                            index,
+                            fullList,
+                            targetIndex >= 0 ? targetIndex : 0,
+                            contextTag: 'all_musics',
                           );
                         },
                       );

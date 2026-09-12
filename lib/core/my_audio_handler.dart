@@ -754,10 +754,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  Future<void> playFromList(List<MediaItem> newQueue, int startIndex) async {
+  Future<void> playFromList(
+    List<MediaItem> newQueue,
+    int startIndex, {
+    String? contextTag,
+  }) async {
     _isPreparing = true;
     _cancelCrossfade();
     _preloadedIndex = null;
+    currentPlaybackContextNotifier.value = contextTag;
 
     queue.add(newQueue);
     _generateShuffleIndices(newQueue.length);

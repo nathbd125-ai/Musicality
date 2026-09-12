@@ -306,9 +306,13 @@ class SearchPageViewState extends State<SearchPageView> {
                         }
                         searchHistoryNotifier.value = currentHistory;
 
+                        final fullList = getSortedGlobalPlaylist();
+                        final targetIndex =
+                            fullList.indexWhere((m) => m.id == item.id);
                         (globalAudioHandler as MyAudioHandler).playFromList(
-                          displayedList,
-                          index,
+                          fullList,
+                          targetIndex >= 0 ? targetIndex : 0,
+                          contextTag: 'search',
                         );
                       },
                     );

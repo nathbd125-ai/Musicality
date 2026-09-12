@@ -55,6 +55,24 @@ final ValueNotifier<List<String>> searchHistoryNotifier =
 final ValueNotifier<Map<String, int>> songPlayCountNotifier =
     ValueNotifier<Map<String, int>>({});
 final ValueNotifier<int> songsVersionNotifier = ValueNotifier<int>(0);
+final ValueNotifier<String?> currentPlaybackContextNotifier =
+    ValueNotifier<String?>(null);
+
+List<MediaItem>? _cachedSortedGlobalPlaylist;
+int _lastCachedGlobalPlaylistLength = -1;
+
+List<MediaItem> getSortedGlobalPlaylist() {
+  if (_cachedSortedGlobalPlaylist != null &&
+      _lastCachedGlobalPlaylistLength == globalPlaylist.length) {
+    return _cachedSortedGlobalPlaylist!;
+  }
+  final list = List<MediaItem>.from(globalPlaylist);
+  list.sort((a, b) =>
+      normalizeString(a.title).compareTo(normalizeString(b.title)));
+  _cachedSortedGlobalPlaylist = list;
+  _lastCachedGlobalPlaylistLength = globalPlaylist.length;
+  return list;
+}
 
 // GESTION COMPTE & PARAMÈTRES
 final ValueNotifier<String?> userProfileImageNotifier = ValueNotifier<String?>(
