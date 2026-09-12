@@ -660,7 +660,13 @@ class LibraryPageViewState extends State<LibraryPageView> {
                   ? (globalAudioHandler as MyAudioHandler).shuffleModeEnabled
                   : false,
               builder: (context, shuffleSnap) {
-                final isShuffle = shuffleSnap.data ?? false;
+                final liveShuffle = shuffleSnap.data ?? false;
+                final handler = globalAudioHandler as MyAudioHandler;
+                final isShuffle = isThisPlaylistActive
+                    ? liveShuffle
+                    : handler.getShuffleModeForContext(
+                        'playlist:$_activePlaylistName',
+                      );
 
                 final themeColors = widget.dynamicGradientColors.isNotEmpty
                     ? widget.dynamicGradientColors
@@ -702,9 +708,6 @@ class LibraryPageViewState extends State<LibraryPageView> {
                               if (isThisPlaylistActive && playbackState.playing) {
                                 await handler.toggleShuffleMode();
                               } else {
-                                await handler.setShuffleMode(
-                                  AudioServiceShuffleMode.all,
-                                );
                                 if (fullPlaylist.isNotEmpty) {
                                   final randomIdx =
                                       Random().nextInt(fullPlaylist.length);
@@ -712,6 +715,7 @@ class LibraryPageViewState extends State<LibraryPageView> {
                                     fullPlaylist,
                                     randomIdx,
                                     contextTag: 'playlist:$_activePlaylistName',
+                                    forceShuffle: true,
                                   );
                                 }
                               }
@@ -731,13 +735,11 @@ class LibraryPageViewState extends State<LibraryPageView> {
                                 }
                               } else {
                                 if (fullPlaylist.isNotEmpty) {
-                                  await handler.setShuffleMode(
-                                    AudioServiceShuffleMode.none,
-                                  );
                                   await handler.playFromList(
                                     fullPlaylist,
                                     0,
                                     contextTag: 'playlist:$_activePlaylistName',
+                                    forceShuffle: false,
                                   );
                                 }
                               }
@@ -837,10 +839,9 @@ class _PlaylistBigPlayButtonState extends State<_PlaylistBigPlayButton>
             ),
             boxShadow: [
               BoxShadow(
-                color: primaryColor.withValues(alpha: 0.40),
-                blurRadius: 14,
-                spreadRadius: 1,
-                offset: const Offset(0, 4),
+                color: primaryColor.withValues(alpha: 0.35),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -934,23 +935,8 @@ class _PlaylistShuffleButtonState extends State<_PlaylistShuffleButton>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: widget.isShuffle
-                ? widget.primaryColor.withValues(alpha: 0.22)
-                : Colors.white.withValues(alpha: 0.08),
-            border: Border.all(
-              color: widget.isShuffle
-                  ? widget.primaryColor.withValues(alpha: 0.65)
-                  : Colors.white.withValues(alpha: 0.12),
-              width: 1.2,
-            ),
-            boxShadow: widget.isShuffle
-                ? [
-                    BoxShadow(
-                      color: widget.primaryColor.withValues(alpha: 0.35),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
+                ? widget.primaryColor.withValues(alpha: 0.20)
+                : Colors.transparent,
           ),
           child: Center(
             child: widget.isShuffle
@@ -963,14 +949,14 @@ class _PlaylistShuffleButtonState extends State<_PlaylistShuffleButton>
                     ).createShader(bounds),
                     child: const Icon(
                       CupertinoIcons.shuffle,
-                      size: 20,
+                      size: 22,
                       color: Colors.white,
                     ),
                   )
-                : Icon(
+                : const Icon(
                     CupertinoIcons.shuffle,
-                    size: 20,
-                    color: Colors.white.withValues(alpha: 0.65),
+                    size: 22,
+                    color: Colors.white60,
                   ),
           ),
         ),

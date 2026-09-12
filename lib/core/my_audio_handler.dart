@@ -46,6 +46,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   LoopMode _loopMode = LoopMode.all;
   bool _shuffleModeEnabled = false;
   List<int> _shuffledIndices = [];
+  final Map<String, bool> _contextShuffleStates = {};
 
   MyAudioHandler() {
     _activePlayer = _playerA;
@@ -62,6 +63,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         _loopMode = LoopMode.all;
       }
       _shuffleModeEnabled = mmkv.decodeBool('saved_shuffle_mode', defaultValue: false);
+      _contextShuffleStates['all_musics'] = _shuffleModeEnabled;
     } catch (e) {
       debugPrint("Erreur chargement persistance loop/shuffle: $e");
     }
@@ -758,11 +760,22 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     List<MediaItem> newQueue,
     int startIndex, {
     String? contextTag,
+    bool? forceShuffle,
   }) async {
     _isPreparing = true;
     _cancelCrossfade();
     _preloadedIndex = null;
     currentPlaybackContextNotifier.value = contextTag;
+
+    final effectiveCtx = contextTag ?? 'all_musics';
+    if (forceShuffle != null) {
+      _shuffleModeEnabled = forceShuffle;
+      _contextShuffleStates[effectiveCtx] = forceShuffle;
+    } else if (_contextShuffleStates.containsKey(effectiveCtx)) {
+      _shuffleModeEnabled = _contextShuffleStates[effectiveCtx]!;
+    }
+    _shuffleModeController.add(_shuffleModeEnabled);
+    _persistShuffleMode();
 
     queue.add(newQueue);
     _generateShuffleIndices(newQueue.length);
@@ -910,6 +923,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   Future<void> toggleShuffleMode() async {
     _shuffleModeEnabled = !_shuffleModeEnabled;
+    final currentCtx = currentPlaybackContextNotifier.value ?? 'all_musics';
+    _contextShuffleStates[currentCtx] = _shuffleModeEnabled;
     if (_shuffleModeEnabled) {
       _generateShuffleIndices(queue.value.length);
     }
@@ -942,6 +957,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
     _shuffleModeEnabled = (shuffleMode == AudioServiceShuffleMode.all);
+    final currentCtx = currentPlaybackContextNotifier.value ?? 'all_musics';
+    _contextShuffleStates[currentCtx] = _shuffleModeEnabled;
     if (_shuffleModeEnabled) {
       _generateShuffleIndices(queue.value.length);
     }
@@ -949,6 +966,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _shuffleModeController.add(_shuffleModeEnabled);
     _broadcastState();
     _checkNextPreload();
+  }
+
+  bool getShuffleModeForContext(String contextTag) {
+    return _contextShuffleStates[contextTag] ?? false;
   }
 
   Future<void> updateSourceAt(
