@@ -1106,7 +1106,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                             child: StreamBuilder<bool>(
                                                                               stream: (globalAudioHandler as MyAudioHandler)
                                                                                   .shuffleModeEnabledStream,
-                                                                              initialData: false,
+                                                                              initialData: (globalAudioHandler is MyAudioHandler)
+                                                                                  ? (globalAudioHandler as MyAudioHandler).shuffleModeEnabled
+                                                                                  : false,
                                                                               builder: (context, snapshot) {
                                                                                 final isShuffle = snapshot.data ?? false;
                                                                                 return HyperOSShuffleButton(
@@ -1226,7 +1228,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                         child: StreamBuilder<LoopMode>(
                                                                           stream: (globalAudioHandler as MyAudioHandler)
                                                                               .loopModeStream,
-                                                                          initialData: LoopMode.all,
+                                                                            initialData: (globalAudioHandler is MyAudioHandler)
+                                                                                ? (globalAudioHandler as MyAudioHandler).loopMode
+                                                                                : LoopMode.all,
                                                                           builder: (context, snapshot) {
                                                                             final loopMode = snapshot.data ?? LoopMode.all;
                                                                             return HyperOSRepeatButton(

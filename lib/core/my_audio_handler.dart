@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:musicality/core/globals.dart';
 import 'package:flutter/material.dart';
+import 'package:mmkv/mmkv.dart';
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _playerA = AudioPlayer(
@@ -50,6 +51,21 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _activePlayer = _playerA;
     _nextPlayer = _playerB;
 
+    try {
+      final mmkv = MMKV.defaultMMKV();
+      final savedLoop = mmkv.decodeString('saved_loop_mode');
+      if (savedLoop == 'one') {
+        _loopMode = LoopMode.one;
+      } else if (savedLoop == 'off') {
+        _loopMode = LoopMode.off;
+      } else {
+        _loopMode = LoopMode.all;
+      }
+      _shuffleModeEnabled = mmkv.decodeBool('saved_shuffle_mode', defaultValue: false);
+    } catch (e) {
+      debugPrint("Erreur chargement persistance loop/shuffle: $e");
+    }
+
     _initListeners();
     mediaItem.add(null);
 
@@ -72,6 +88,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     _startListeningTimer();
     _initAudioSession();
+    _broadcastState();
   }
 
   bool _playInterrupted = false;
@@ -855,6 +872,23 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Stream<LoopMode> get loopModeStream => _loopModeController.stream;
   Stream<bool> get shuffleModeEnabledStream => _shuffleModeController.stream;
 
+  LoopMode get loopMode => _loopMode;
+  bool get shuffleModeEnabled => _shuffleModeEnabled;
+
+  void _persistLoopMode() {
+    try {
+      final mmkv = MMKV.defaultMMKV();
+      mmkv.encodeString('saved_loop_mode', _loopMode.name);
+    } catch (_) {}
+  }
+
+  void _persistShuffleMode() {
+    try {
+      final mmkv = MMKV.defaultMMKV();
+      mmkv.encodeBool('saved_shuffle_mode', _shuffleModeEnabled);
+    } catch (_) {}
+  }
+
   Future<void> toggleLoopMode() async {
     if (_loopMode == LoopMode.all) {
       _loopMode = LoopMode.one;
@@ -863,6 +897,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     } else {
       _loopMode = LoopMode.all;
     }
+    _persistLoopMode();
     _loopModeController.add(_loopMode);
     _broadcastState();
     _checkNextPreload();
@@ -873,6 +908,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     if (_shuffleModeEnabled) {
       _generateShuffleIndices(queue.value.length);
     }
+    _persistShuffleMode();
     _shuffleModeController.add(_shuffleModeEnabled);
     _broadcastState();
     _checkNextPreload();
@@ -892,6 +928,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         _loopMode = LoopMode.all;
         break;
     }
+    _persistLoopMode();
     _loopModeController.add(_loopMode);
     _broadcastState();
     _checkNextPreload();
@@ -903,6 +940,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     if (_shuffleModeEnabled) {
       _generateShuffleIndices(queue.value.length);
     }
+    _persistShuffleMode();
     _shuffleModeController.add(_shuffleModeEnabled);
     _broadcastState();
     _checkNextPreload();

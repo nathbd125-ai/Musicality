@@ -162,66 +162,34 @@ class StorageCacheSettingsCard extends StatelessWidget {
                             }
                           },
                           children: {
-                            100: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                "100 Mo",
-                                style: TextStyle(
-                                    color: cacheLimit == 100
-                                        ? Colors.white
-                                        : Colors.white54,
-                                    fontWeight: FontWeight.bold,
+                            for (final entry in {
+                              100: "100 Mo",
+                              500: "500 Mo",
+                              1024: "1 Go",
+                              5120: "5 Go",
+                              10240: "10 Go",
+                            }.entries)
+                              entry.key: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 11,
+                                  horizontal: 3,
+                                ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    entry.value,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      color: cacheLimit == entry.key
+                                          ? Colors.white
+                                          : Colors.white54,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                            500: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                "500 Mo",
-                                style: TextStyle(
-                                    color: cacheLimit == 500
-                                        ? Colors.white
-                                        : Colors.white54,
-                                    fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            1024: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                "1 Go",
-                                style: TextStyle(
-                                    color: cacheLimit == 1024
-                                        ? Colors.white
-                                        : Colors.white54,
-                                    fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            5120: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                "5 Go",
-                                style: TextStyle(
-                                    color: cacheLimit == 5120
-                                        ? Colors.white
-                                        : Colors.white54,
-                                    fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            10240: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                "10 Go",
-                                style: TextStyle(
-                                    color: cacheLimit == 10240
-                                        ? Colors.white
-                                        : Colors.white54,
-                                    fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
                           },
                         ),
                       );
