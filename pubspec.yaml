@@ -2,7 +2,7 @@ name: musicality
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 0.9.2-beta+218
+version: 0.9.2-beta+219
 environment:
   sdk: ^3.12.2
 

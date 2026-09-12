@@ -163,7 +163,9 @@ class _LrcEditorViewState extends State<LrcEditorView>
         _currentPosition = current;
         final newIndex = _calculateActiveIndex(current);
         if (newIndex != _activeLineIndex) {
-          _activeLineIndex = newIndex;
+          setState(() {
+            _activeLineIndex = newIndex;
+          });
           if (_autoScroll && newIndex >= 0) {
             _scrollToActiveIndex(newIndex);
           }
@@ -181,10 +183,13 @@ class _LrcEditorViewState extends State<LrcEditorView>
 
       final newIndex = _calculateActiveIndex(pos.position);
       final indexChanged = newIndex != _activeLineIndex;
-      _activeLineIndex = newIndex;
-
-      if (indexChanged && _autoScroll && _isPlaying && newIndex >= 0) {
-        _scrollToActiveIndex(newIndex);
+      if (indexChanged) {
+        setState(() {
+          _activeLineIndex = newIndex;
+        });
+        if (_autoScroll && _isPlaying && newIndex >= 0) {
+          _scrollToActiveIndex(newIndex);
+        }
       }
     });
 
@@ -373,12 +378,18 @@ class _LrcEditorViewState extends State<LrcEditorView>
     _lastKnownPosition = safeSeek;
     _lastPositionUpdate = DateTime.now();
     _positionNotifier.value = safeSeek;
+    _currentPosition = safeSeek;
+    final idx = _calculateActiveIndex(safeSeek);
+    if (idx != _activeLineIndex) {
+      setState(() {
+        _activeLineIndex = idx;
+      });
+    }
     globalAudioHandler.seek(safeSeek);
     if (!_isPlaying) {
       globalAudioHandler.play();
     }
     _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
-    final idx = _calculateActiveIndex(safeSeek);
     if (idx >= 0) {
       _scrollToActiveIndex(idx);
     }
@@ -1124,13 +1135,20 @@ class _LrcEditorViewState extends State<LrcEditorView>
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isCurrent
-            ? Colors.white.withValues(alpha: 0.08)
-            : Colors.transparent,
+        gradient: isCurrent
+            ? LinearGradient(
+                colors: [
+                  Colors.white.withValues(alpha: 0.12),
+                  Colors.white.withValues(alpha: 0.04),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isCurrent
-              ? Colors.cyanAccent.withValues(alpha: 0.5)
+              ? Colors.cyanAccent.withValues(alpha: 0.6)
               : Colors.transparent,
           width: 1.0,
         ),
@@ -1320,38 +1338,96 @@ class _LrcEditorViewState extends State<LrcEditorView>
   ) {
     final text = item.controller.text.isEmpty ? '—' : item.controller.text;
 
-    // Si la ligne possède des mots synchronisés et est en cours de chant
-    if (isCurrent && item.words.isNotEmpty) {
-      return Wrap(
-        spacing: 6.0,
-        runSpacing: 4.0,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: item.words.map((w) {
-          final isActive = _currentPosition >= w.start && _currentPosition < w.end;
-          final isPast = _currentPosition >= w.end;
+    // Si la ligne possède des mots synchronisés
+    if (item.words.isNotEmpty) {
+      if (isCurrent) {
+        return ValueListenableBuilder<Duration>(
+          valueListenable: _positionNotifier,
+          builder: (context, currentPos, _) {
+            return Wrap(
+              spacing: 6.0,
+              runSpacing: 4.0,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: item.words.map((w) {
+                final isPast = currentPos >= w.end;
+                final isSinging = currentPos >= w.start && currentPos < w.end;
 
-          final Color wordColor = isActive
-              ? Colors.white
-              : (isPast
-                  ? Colors.white
-                  : unlitColor.withValues(alpha: 0.5));
+                const textStyle = TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  height: 1.3,
+                );
 
-          final shadows = isActive
-              ? _buildGlowShadows(glowColor, 1.0)
-              : (isPast ? _buildGlowShadows(glowColor, 0.4) : null);
+                if (isPast) {
+                  return Text(
+                    w.text,
+                    style: textStyle.copyWith(
+                      color: Colors.white,
+                      shadows: _buildGlowShadows(glowColor, 0.4),
+                    ),
+                  );
+                }
 
-          return Text(
-            w.text,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: wordColor,
-              shadows: shadows,
-              height: 1.3,
-            ),
-          );
-        }).toList(),
-      );
+                if (!isSinging) {
+                  return Text(
+                    w.text,
+                    style: textStyle.copyWith(
+                      color: unlitColor.withValues(alpha: 0.45),
+                    ),
+                  );
+                }
+
+                // Mot en cours de chant : animation fluide du balayage lumineux (sweep)
+                final elapsed = (currentPos - w.start).inMilliseconds;
+                final dur = (w.end - w.start).inMilliseconds.clamp(1, 5000);
+                final factor = (elapsed / dur).clamp(0.0, 1.0);
+
+                final litWidget = Text(
+                  w.text,
+                  style: textStyle.copyWith(
+                    color: Colors.white,
+                    shadows: _buildGlowShadows(glowColor, 1.0),
+                  ),
+                );
+
+                final unlitWidget = Text(
+                  w.text,
+                  style: textStyle.copyWith(
+                    color: unlitColor.withValues(alpha: 0.45),
+                  ),
+                );
+
+                return Stack(
+                  children: [
+                    unlitWidget,
+                    ClipRect(
+                      clipper: _HorizontalPercentClipper(factor),
+                      child: litWidget,
+                    ),
+                  ],
+                );
+              }).toList(),
+            );
+          },
+        );
+      } else {
+        return Wrap(
+          spacing: 6.0,
+          runSpacing: 4.0,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: item.words.map((w) {
+            return Text(
+              w.text,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: unlitColor.withValues(alpha: 0.45),
+                height: 1.3,
+              ),
+            );
+          }).toList(),
+        );
+      }
     }
 
     // Ligne normale
@@ -1408,6 +1484,13 @@ class _LrcEditorViewState extends State<LrcEditorView>
                   _lastKnownPosition = target;
                   _lastPositionUpdate = DateTime.now();
                   _positionNotifier.value = target;
+                  _currentPosition = target;
+                  final newIndex = _calculateActiveIndex(target);
+                  if (newIndex != _activeLineIndex) {
+                    setState(() {
+                      _activeLineIndex = newIndex;
+                    });
+                  }
                   globalAudioHandler.seek(target);
                 },
               );
@@ -1422,11 +1505,18 @@ class _LrcEditorViewState extends State<LrcEditorView>
               // Recul 3s
               HyperOSButton(
                 onTap: () {
-                  final target = _currentPosition - const Duration(seconds: 3);
+                  final target = _positionNotifier.value - const Duration(seconds: 3);
                   final safeTarget = target.isNegative ? Duration.zero : target;
                   _lastKnownPosition = safeTarget;
                   _lastPositionUpdate = DateTime.now();
                   _positionNotifier.value = safeTarget;
+                  _currentPosition = safeTarget;
+                  final newIndex = _calculateActiveIndex(safeTarget);
+                  if (newIndex != _activeLineIndex) {
+                    setState(() {
+                      _activeLineIndex = newIndex;
+                    });
+                  }
                   globalAudioHandler.seek(safeTarget);
                 },
                 child: const SmoothIcon(
@@ -1574,4 +1664,23 @@ class _MicroAdjustButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HorizontalPercentClipper extends CustomClipper<Rect> {
+  final double factor;
+  const _HorizontalPercentClipper(this.factor);
+
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTWH(
+      0,
+      0,
+      size.width * factor.clamp(0.0, 1.0),
+      size.height,
+    );
+  }
+
+  @override
+  bool shouldReclip(_HorizontalPercentClipper oldClipper) =>
+      oldClipper.factor != factor;
 }
