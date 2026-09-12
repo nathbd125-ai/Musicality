@@ -266,7 +266,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       }
 
       final keyContext = _lyricKeys[targetIndex].currentContext;
-      if (keyContext != null) {
+      if (keyContext != null && keyContext.mounted) {
         Scrollable.ensureVisible(
           keyContext,
           alignment: 0.28,
@@ -441,6 +441,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
           },
           child: ListView.builder(
             controller: _scrollController,
+            cacheExtent: 1600.0,
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.only(
               top: screenHeight * 0.22,

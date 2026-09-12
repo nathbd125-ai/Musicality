@@ -1,14 +1,31 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:musicality/core/globals.dart';
 
 final Set<String> _knownExistingCovers = {};
 final Set<String> _knownMissingCovers = {};
+final Set<String> _pendingCoverDownloads = {};
 
 void registerExistingCover(String fileName) {
   _knownMissingCovers.remove(fileName);
   _knownExistingCovers.add(fileName);
+}
+
+void _triggerBackgroundCoverDownload(MediaItem item, String fileName, File coverFile) {
+  if (item.artUri == null || _pendingCoverDownloads.contains(fileName)) return;
+  _pendingCoverDownloads.add(fileName);
+  http.get(item.artUri!).then((response) async {
+    if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+      await coverFile.writeAsBytes(response.bodyBytes);
+      registerExistingCover(fileName);
+    }
+  }).catchError((e) {
+    debugPrint("Erreur téléchargement cover $fileName : $e");
+  }).whenComplete(() {
+    _pendingCoverDownloads.remove(fileName);
+  });
 }
 
 bool _checkCoverExists(String fileName, File file) {
@@ -48,11 +65,13 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
       errorBuilder: (context, error, stackTrace) {
         _knownExistingCovers.remove(fileName);
         _knownMissingCovers.add(fileName);
-        // En cas de fichier corrompu en cache, on fallback sur le réseau
+        // En cas de fichier corrompu en cache, on fallback sur le réseau et re-téléchargement
+        _triggerBackgroundCoverDownload(item, fileName, coverFile);
         return Image.network(item.artUri.toString(), fit: BoxFit.cover);
       },
     );
   } else {
+    _triggerBackgroundCoverDownload(item, fileName, coverFile);
     return Image.network(
       item.artUri.toString(),
       width: width,
@@ -74,9 +93,11 @@ ImageProvider getLocalOrNetworkImageProvider(MediaItem item) {
       return FileImage(coverFile);
     } catch (e) {
       _knownExistingCovers.remove(fileName);
+      _triggerBackgroundCoverDownload(item, fileName, coverFile);
       return NetworkImage(item.artUri.toString());
     }
   } else {
+    _triggerBackgroundCoverDownload(item, fileName, coverFile);
     return NetworkImage(item.artUri.toString());
   }
 }
@@ -93,10 +114,12 @@ Widget getLocalOrNetworkImageSuperBlurred(MediaItem item) {
       fit: BoxFit.cover,
       filterQuality: FilterQuality.high,
       errorBuilder: (context, error, stackTrace) {
+        _triggerBackgroundCoverDownload(item, fileName, coverFile);
         return Image.network(item.artUri.toString(), fit: BoxFit.cover, cacheWidth: 32);
       },
     );
   } else {
+    _triggerBackgroundCoverDownload(item, fileName, coverFile);
     return Image.network(
       item.artUri.toString(),
       cacheWidth: 32,
