@@ -937,6 +937,12 @@ class _PlaylistShuffleButtonState extends State<_PlaylistShuffleButton>
             color: widget.isShuffle
                 ? widget.primaryColor.withValues(alpha: 0.22)
                 : Colors.white.withValues(alpha: 0.08),
+            border: Border.all(
+              color: widget.isShuffle
+                  ? widget.primaryColor.withValues(alpha: 0.65)
+                  : Colors.white.withValues(alpha: 0.12),
+              width: 1.2,
+            ),
           ),
           child: Center(
             child: widget.isShuffle
