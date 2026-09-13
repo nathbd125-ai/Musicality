@@ -529,6 +529,7 @@ class _SongOptionsOverlayState extends State<SongOptionsOverlay> {
                                 borderRadius: BorderRadius.circular(16),
                                 child: Image.file(
                                   File(_newPlaylistImage!),
+                                  cacheWidth: 300,
                                   fit: BoxFit.cover,
                                 ),
                               )

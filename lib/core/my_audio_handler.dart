@@ -73,6 +73,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     mediaItem.listen((item) {
       if (item != null && item.id != _lastSongId) {
+        _flushPendingArtistListeningTime();
         _lastSongId = item.id;
         _currentSongListeningSeconds = 0;
         _hasScoredCurrentSong = false;
@@ -88,7 +89,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }
     });
 
-    _startListeningTimer();
     _initAudioSession();
     _broadcastState();
   }
@@ -137,7 +137,29 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
   }
 
+  int _pendingArtistSeconds = 0;
+  String? _pendingArtistName;
+
+  void _flushPendingArtistListeningTime() {
+    if (_pendingArtistSeconds <= 0 || _pendingArtistName == null) return;
+    final currentTimes = Map<String, int>.from(
+      artistListeningTimeNotifier.value,
+    );
+    for (var a in extractArtists(_pendingArtistName!)) {
+      currentTimes[a] = (currentTimes[a] ?? 0) + _pendingArtistSeconds;
+    }
+    _pendingArtistSeconds = 0;
+    artistListeningTimeNotifier.value = currentTimes;
+  }
+
+  void _stopListeningTimer() {
+    _flushPendingArtistListeningTime();
+    _listeningTimer?.cancel();
+    _listeningTimer = null;
+  }
+
   void _startListeningTimer() {
+    if (_listeningTimer != null && _listeningTimer!.isActive) return;
     _listeningTimer?.cancel();
     _listeningTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final playing = playbackState.value.playing;
@@ -146,6 +168,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       if (playing && currentItem != null) {
         final currentPositionSecs = _activePlayer.position.inSeconds;
         if (_lastKnownPositionSecs > 10 && currentPositionSecs < 5) {
+          _flushPendingArtistListeningTime();
           _currentSongListeningSeconds = 0;
           _hasScoredCurrentSong = false;
         }
@@ -153,13 +176,16 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         _currentSongListeningSeconds++;
 
         final artist = currentItem.artist ?? 'Inconnu';
-        final currentTimes = Map<String, int>.from(
-          artistListeningTimeNotifier.value,
-        );
-        for (var a in extractArtists(artist)) {
-          currentTimes[a] = (currentTimes[a] ?? 0) + 1;
+        if (_pendingArtistName != null && _pendingArtistName != artist) {
+          _flushPendingArtistListeningTime();
         }
-        artistListeningTimeNotifier.value = currentTimes;
+        _pendingArtistName = artist;
+        _pendingArtistSeconds++;
+
+        // Sauvegarde groupée toutes les 5 secondes pour préserver le CPU et la batterie
+        if (_pendingArtistSeconds >= 5) {
+          _flushPendingArtistListeningTime();
+        }
 
         final durationSecs = currentItem.duration?.inSeconds ?? 0;
         if (durationSecs > 0 && !_hasScoredCurrentSong) {
@@ -178,6 +204,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
         // Vérification de déclenchement du Crossfade
         _checkCrossfadeTrigger();
+      } else {
+        _stopListeningTimer();
       }
     });
   }
@@ -443,6 +471,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     void handlePlayerEvent(AudioPlayer player) {
       player.playerStateStream.listen((state) {
         if (player == _activePlayer) {
+          if (state.playing) {
+            _startListeningTimer();
+          } else {
+            _stopListeningTimer();
+          }
           _broadcastState();
 
           // Passage au morceau suivant uniquement si le morceau s'est réellement terminé
@@ -1081,7 +1114,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _loadedSongId = null;
     await _activePlayer.stop();
     await _nextPlayer.stop();
-    _listeningTimer?.cancel();
+    _stopListeningTimer();
     final session = await AudioSession.instance;
     await session.setActive(false);
     _broadcastState();

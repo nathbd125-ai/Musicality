@@ -71,6 +71,8 @@ class MusicalityBottomNavBar extends StatelessWidget {
                           File(localImagePath!),
                           width: 24,
                           height: 24,
+                          cacheWidth: 72,
+                          cacheHeight: 72,
                           fit: BoxFit.cover,
                         ),
                       );
@@ -80,6 +82,8 @@ class MusicalityBottomNavBar extends StatelessWidget {
                           cachedGoogleAvatar,
                           width: 24,
                           height: 24,
+                          cacheWidth: 72,
+                          cacheHeight: 72,
                           fit: BoxFit.cover,
                         ),
                       );
@@ -89,6 +93,8 @@ class MusicalityBottomNavBar extends StatelessWidget {
                           user.photoURL!,
                           width: 24,
                           height: 24,
+                          cacheWidth: 72,
+                          cacheHeight: 72,
                           fit: BoxFit.cover,
                           errorBuilder:
                               (context, error, stackTrace) => const Icon(

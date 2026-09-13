@@ -103,9 +103,8 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
         _checkActiveIndex(current);
       }
     });
-    if (widget.isExpanded && !_isUnsyncedLyricsCached) {
-      _ticker.start();
-    }
+    _isPlaying = globalAudioHandler.playbackState.value.playing;
+    _updateTickerState();
 
     _listenToPosition();
 
@@ -114,6 +113,21 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
         _scrollController.jumpTo(0.0);
       }
     });
+  }
+
+  void _updateTickerState() {
+    final shouldTick = _isPlaying && widget.isExpanded && !_isUnsyncedLyricsCached;
+    if (shouldTick) {
+      if (!_ticker.isActive) {
+        _ticker.start();
+      } else {
+        _ticker.muted = false;
+      }
+    } else {
+      if (_ticker.isActive) {
+        _ticker.muted = true;
+      }
+    }
   }
 
   @override
@@ -148,20 +162,12 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     }
 
     if (widget.isExpanded != oldWidget.isExpanded || songChanged || lyricsChanged) {
+      _updateTickerState();
       if (widget.isExpanded && !_isUnsyncedLyrics) {
-        if (!_ticker.isActive) {
-          _ticker.start();
-        } else {
-          _ticker.muted = false;
-        }
         if (_activeIndexNotifier.value <= 0) {
           _scrollToTop(immediate: true);
         } else {
           _scrollToActiveIndex(_activeIndexNotifier.value, immediate: true);
-        }
-      } else {
-        if (_ticker.isActive) {
-          _ticker.muted = true;
         }
       }
     }
@@ -177,8 +183,13 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
       _lastKnownPosition = data.position;
       _lastPositionUpdate = DateTime.now();
+      final wasPlaying = _isPlaying;
       _isPlaying = globalAudioHandler.playbackState.value.playing;
       _positionNotifier.value = data.position;
+
+      if (_isPlaying != wasPlaying) {
+        _updateTickerState();
+      }
 
       if (widget.isExpanded) {
         _checkActiveIndex(data.position);
@@ -449,7 +460,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
           },
           child: ListView.builder(
             controller: _scrollController,
-            cacheExtent: 1600.0,
+            scrollCacheExtent: const ScrollCacheExtent.pixels(1600.0),
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.only(
               top: screenHeight * 0.22,

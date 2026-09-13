@@ -121,6 +121,7 @@ void showEditPlaylistDialog({
                                             ),
                                             child: Image.file(
                                               File(imagePath),
+                                              cacheWidth: 300,
                                               fit: BoxFit.cover,
                                             ),
                                           )

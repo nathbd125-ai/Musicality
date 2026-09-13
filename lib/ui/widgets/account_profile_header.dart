@@ -60,16 +60,22 @@ class AccountProfileHeader extends StatelessWidget {
                 if (hasLocalImage) {
                   avatarWidget = Image.file(
                     File(imagePath),
+                    cacheWidth: 330,
+                    cacheHeight: 330,
                     fit: BoxFit.cover,
                   );
                 } else if (hasCachedGoogle) {
                   avatarWidget = Image.file(
                     cachedGoogleAvatar,
+                    cacheWidth: 330,
+                    cacheHeight: 330,
                     fit: BoxFit.cover,
                   );
                 } else if (hasGoogleImage) {
                   avatarWidget = Image.network(
                     user.photoURL!,
+                    cacheWidth: 330,
+                    cacheHeight: 330,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return const Icon(

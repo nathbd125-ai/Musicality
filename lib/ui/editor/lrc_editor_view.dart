@@ -1037,7 +1037,7 @@ class _LrcEditorViewState extends State<LrcEditorView>
             },
             child: ListView.builder(
               controller: _scrollController,
-              cacheExtent: 1400.0,
+              scrollCacheExtent: const ScrollCacheExtent.pixels(1400.0),
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
               itemCount: _items.length + 1,

@@ -109,6 +109,7 @@ void showCreatePlaylistDialog(
                                             ),
                                             child: Image.file(
                                               File(imagePath),
+                                              cacheWidth: 300,
                                               fit: BoxFit.cover,
                                             ),
                                           )

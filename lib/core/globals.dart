@@ -276,14 +276,19 @@ Future<void> initPersistence() async {
   final dbTimes = obx.artistScoreBox.getAll();
   artistListeningTimeNotifier.value = { for (var e in dbTimes) e.artist : e.listeningTimeSeconds };
 
+  final Map<String, int> lastSavedTimes = Map<String, int>.from(artistListeningTimeNotifier.value);
   artistListeningTimeNotifier.addListener(() {
-    for (var entry in artistListeningTimeNotifier.value.entries) {
-      var entity = obx.artistScoreBox.query(ArtistScoreEntity_.artist.equals(entry.key)).build().findFirst();
-      if (entity != null) {
-        entity.listeningTimeSeconds = entry.value;
-        obx.artistScoreBox.put(entity);
-      } else {
-        obx.artistScoreBox.put(ArtistScoreEntity(artist: entry.key, score: 0, listeningTimeSeconds: entry.value));
+    final current = artistListeningTimeNotifier.value;
+    for (var entry in current.entries) {
+      if (lastSavedTimes[entry.key] != entry.value) {
+        lastSavedTimes[entry.key] = entry.value;
+        var entity = obx.artistScoreBox.query(ArtistScoreEntity_.artist.equals(entry.key)).build().findFirst();
+        if (entity != null) {
+          entity.listeningTimeSeconds = entry.value;
+          obx.artistScoreBox.put(entity);
+        } else {
+          obx.artistScoreBox.put(ArtistScoreEntity(artist: entry.key, score: 0, listeningTimeSeconds: entry.value));
+        }
       }
     }
   });
