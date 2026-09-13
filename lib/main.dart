@@ -10,6 +10,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:mmkv/mmkv.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:musicality/core/objectbox_service.dart';
+import 'package:musicality/core/app_config.dart';
 
 import 'dart:io';
 import 'dart:async';
@@ -95,6 +96,7 @@ Future<void> main() async {
     // Mise à jour du numéro de build sans effacer les fichiers locaux (pochettes et paroles)
     try {
       final packageInfo = await PackageInfo.fromPlatform();
+      AppConfig.initFromPackageName(packageInfo.packageName);
       final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
       final mmkv = MMKV.defaultMMKV();
       final lastBuild = mmkv.decodeInt('last_run_build_number');

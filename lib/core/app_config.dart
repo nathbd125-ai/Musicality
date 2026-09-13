@@ -11,5 +11,11 @@ class AppConfig {
     isStudioBuild,
   );
 
-  static bool get isStudioMode => isStudioBuild;
+  static bool get isStudioMode => isStudioModeNotifier.value;
+
+  static void initFromPackageName(String packageName) {
+    // Musicality Studio a pour applicationId "com.musicality.studio" (ou contient ".studio")
+    // Musicality de base a pour applicationId "com.musicality"
+    isStudioModeNotifier.value = packageName.contains('.studio');
+  }
 }
