@@ -536,8 +536,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           ProcessingState.completed: AudioProcessingState.completed,
         }[_activePlayer.processingState]!,
         playing: playing,
-        updatePosition: _activePlayer.position,
-        bufferedPosition: _activePlayer.bufferedPosition,
+        updatePosition: _isPreparing ? Duration.zero : _activePlayer.position,
+        bufferedPosition: _isPreparing ? Duration.zero : _activePlayer.bufferedPosition,
         speed: _activePlayer.speed,
         queueIndex: _currentIndex,
         repeatMode: systemRepeatMode,
@@ -1038,6 +1038,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     final nextIdx = _getNextIndex();
     if (nextIdx != null) {
       _currentIndex = nextIdx;
+      _isPreparing = true;
       if (nextIdx < queue.value.length) {
         mediaItem.add(queue.value[nextIdx]);
       }
@@ -1059,6 +1060,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     final prevIdx = _getPreviousIndex();
     if (prevIdx != null) {
       _currentIndex = prevIdx;
+      _isPreparing = true;
       if (prevIdx < queue.value.length) {
         mediaItem.add(queue.value[prevIdx]);
       }
@@ -1106,6 +1108,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
         _currentIndex = index;
         mediaItem.add(item);
+        _broadcastState();
 
         if (isSameSong) {
           try {

@@ -1096,20 +1096,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                               : 0.0,
                                                                           child: IgnorePointer(
                                                                             ignoring: !_isPlayerExpanded,
-                                                                            child: _isLoadingLyrics
-                                                                                ? const Center(
-                                                                                    child: CircularProgressIndicator(
-                                                                                      color: Colors.white,
+                                                                            child: Stack(
+                                                                              children: [
+                                                                                MusicalityLyricsView(
+                                                                                  key: const ValueKey('lyrics_view'),
+                                                                                  songId: safeItem.id,
+                                                                                  lyrics: _currentLyrics,
+                                                                                  positionStream: _positionDataStream,
+                                                                                  themeColors: smoothThemeColors,
+                                                                                  isExpanded: _isPlayerExpanded,
+                                                                                ),
+                                                                                if (_isLoadingLyrics)
+                                                                                  const Positioned.fill(
+                                                                                    child: Center(
+                                                                                      child: CircularProgressIndicator(
+                                                                                        color: Colors.white,
+                                                                                      ),
                                                                                     ),
-                                                                                  )
-                                                                                : MusicalityLyricsView(
-                                                                                    key: ValueKey(safeItem.id),
-                                                                                    songId: safeItem.id,
-                                                                                    lyrics: _currentLyrics,
-                                                                                    positionStream: _positionDataStream,
-                                                                                    themeColors: smoothThemeColors,
-                                                                                    isExpanded: _isPlayerExpanded,
                                                                                   ),
+                                                                              ],
+                                                                            ),
                                                                           ),
                                                                         ),
                                                                       ),

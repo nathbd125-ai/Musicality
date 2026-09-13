@@ -142,6 +142,11 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       setState(() {});
     }
 
+    if (widget.positionStream != oldWidget.positionStream) {
+      _positionSubscription?.cancel();
+      _listenToPosition();
+    }
+
     if (widget.isExpanded != oldWidget.isExpanded || songChanged || lyricsChanged) {
       if (widget.isExpanded && !_isUnsyncedLyrics) {
         if (!_ticker.isActive) {
@@ -186,7 +191,10 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
     final currentIndex = _activeIndexNotifier.value;
     if (currentIndex == -1) {
-      if (widget.lyrics.isNotEmpty && position < widget.lyrics.first.time) {
+      if (widget.lyrics.isNotEmpty &&
+          (position < widget.lyrics.first.time ||
+           (widget.lyrics.first.time == Duration.zero &&
+            position < const Duration(milliseconds: 250)))) {
         return;
       }
     } else if (currentIndex >= 0 && currentIndex < widget.lyrics.length) {
@@ -217,7 +225,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       _activeIndexNotifier.value = newIndex;
       if (widget.isExpanded) {
         if (newIndex <= 0) {
-          _scrollToTop();
+          _scrollToTop(immediate: true);
         } else {
           _scrollToActiveIndex(newIndex);
         }
@@ -560,6 +568,12 @@ class _LyricLineItemState extends State<_LyricLineItem>
       oldWidget.activeIndexNotifier.removeListener(_onActiveIndexChanged);
       widget.activeIndexNotifier.addListener(_onActiveIndexChanged);
       _onActiveIndexChanged();
+    }
+    if (widget.line != oldWidget.line || widget.index != oldWidget.index) {
+      final bool nowActive = widget.activeIndexNotifier.value == widget.index;
+      _isActive = nowActive;
+      _controller.stop();
+      _controller.value = nowActive ? 1.0 : 0.0;
     }
   }
 
