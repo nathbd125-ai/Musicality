@@ -7,6 +7,7 @@ class AGSLRhombusGlass extends StatefulWidget {
   final double distance;
   final double blurSigma;
   final bool enabled;
+  final Offset? offset;
 
   const AGSLRhombusGlass({
     super.key,
@@ -15,6 +16,7 @@ class AGSLRhombusGlass extends StatefulWidget {
     this.distance = 15.0,
     this.blurSigma = 16.0,
     this.enabled = true,
+    this.offset,
   });
 
   @override
@@ -123,8 +125,9 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
         shader.setFloat(5, widget.distance * dpr);
 
         // 6, 7: Widget position on screen (offset)
-        shader.setFloat(6, _currentOffset.dx * dpr);
-        shader.setFloat(7, _currentOffset.dy * dpr);
+        final effectiveOffset = widget.offset ?? _currentOffset;
+        shader.setFloat(6, effectiveOffset.dx * dpr);
+        shader.setFloat(7, effectiveOffset.dy * dpr);
 
         // 8, 9: Screen size
         final screenSize = MediaQuery.of(context).size;

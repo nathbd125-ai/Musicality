@@ -2,6 +2,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'package:musicality/core/globals.dart';
+import 'package:musicality/ui/player/agsl_rhombus_glass.dart';
 
 class HyperOSSlider extends StatefulWidget {
   final Duration position;
@@ -37,7 +39,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
   void initState() {
     super.initState();
     _pressController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 220),
       reverseDuration: const Duration(milliseconds: 240),
       vsync: this,
     );
@@ -156,8 +158,13 @@ class _HyperOSSliderState extends State<HyperOSSlider>
     required double height,
     required double pressVal,
     required Color primaryColor,
+    required bool isLiquidGlass,
+    required Offset? thumbOffset,
   }) {
     final borderRadius = height / 2;
+    // Hide the white circle as soon as interaction begins
+    final double whiteCircleOpacity =
+        isLiquidGlass ? (1.0 - pressVal * 3.0).clamp(0.0, 1.0) : 1.0;
 
     return SizedBox(
       width: width,
@@ -166,21 +173,21 @@ class _HyperOSSliderState extends State<HyperOSSlider>
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          // Ambient colored glow behind the thumb
-          if (pressVal > 0.05)
+          // Ambient colored glow behind the thumb lens (Liquid Glass mode only)
+          if (isLiquidGlass && pressVal > 0.05)
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(borderRadius),
                   boxShadow: [
                     BoxShadow(
-                      color: primaryColor.withValues(alpha: 0.5 * pressVal),
-                      blurRadius: 18 * pressVal,
+                      color: primaryColor.withValues(alpha: 0.4 * pressVal),
+                      blurRadius: 24 * pressVal,
                       spreadRadius: 2 * pressVal,
                     ),
                     BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.3 * pressVal),
-                      blurRadius: 10 * pressVal,
+                      color: Colors.white.withValues(alpha: 0.2 * pressVal),
+                      blurRadius: 14 * pressVal,
                       spreadRadius: 1 * pressVal,
                     ),
                   ],
@@ -188,56 +195,50 @@ class _HyperOSSliderState extends State<HyperOSSlider>
               ),
             ),
 
-          // Liquid Glass Container with refraction & specular edges
-          GlassContainer(
-            useOwnLayer: true,
-            settings: LiquidGlassSettings(
-              thickness: ui.lerpDouble(12.0, 24.0, pressVal)!,
-              blur: ui.lerpDouble(1.0, 3.5, pressVal)!,
-              refractiveIndex: ui.lerpDouble(1.15, 1.35, pressVal)!,
-              chromaticAberration: ui.lerpDouble(0.005, 0.015, pressVal)!,
-              lightIntensity: ui.lerpDouble(0.6, 1.4, pressVal)!,
-              ambientRim: ui.lerpDouble(0.15, 0.3, pressVal)!,
-              glassColor: Colors.white.withValues(
-                alpha: ui.lerpDouble(0.05, 0.12, pressVal)!,
-              ),
-            ),
-            shape: LiquidRoundedSuperellipse(
-              borderRadius: borderRadius,
-            ),
-            child: Container(
-              width: width,
-              height: height,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(borderRadius),
-                border: Border.all(
-                  color: Colors.white.withValues(
-                    alpha: ui.lerpDouble(0.35, 0.75, pressVal)!,
-                  ),
-                  width: ui.lerpDouble(0.8, 1.2, pressVal)!,
-                ),
-              ),
-              child: Center(
+          // Mini-player's exact shader: AGSLRhombusGlass
+          if (isLiquidGlass && pressVal > 0.01)
+            Positioned.fill(
+              child: AGSLRhombusGlass(
+                enabled: true,
+                cornerRadius: borderRadius,
+                distance: 15.0,
+                blurSigma: 16.0,
+                offset: thumbOffset,
                 child: Container(
-                  width: ui.lerpDouble(10.0, 14.0, pressVal)!,
-                  height: ui.lerpDouble(10.0, 7.0, pressVal)!,
+                  width: width,
+                  height: height,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(
-                      ui.lerpDouble(5.0, 3.5, pressVal)!,
+                    color: Colors.black.withValues(alpha: 0.08 * pressVal),
+                    borderRadius: BorderRadius.circular(borderRadius),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.35 * pressVal),
+                      width: 1.0,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        blurRadius: ui.lerpDouble(6.0, 4.0, pressVal)!,
-                        spreadRadius: ui.lerpDouble(1.0, 0.5, pressVal)!,
-                      ),
-                    ],
                   ),
                 ),
               ),
             ),
-          ),
+
+          // White circle: visible when idle, completely hidden when interacting
+          if (whiteCircleOpacity > 0.0)
+            Opacity(
+              opacity: whiteCircleOpacity,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -294,31 +295,45 @@ class _HyperOSSliderState extends State<HyperOSSlider>
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(vertical: 2),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
                   final activeWidth = width * pct;
 
                   return ListenableBuilder(
-                    listenable: Listenable.merge(
-                        [_pressAnimation, _springController]),
+                    listenable: Listenable.merge([
+                      _pressAnimation,
+                      _springController,
+                      isLiquidGlassEnabledNotifier,
+                      isBatterySaverEnabledNotifier,
+                    ]),
                     builder: (context, _) {
-                      final pressVal = _pressAnimation.value;
+                      final bool isLiquidGlass =
+                          isLiquidGlassEnabledNotifier.value &&
+                              !isBatterySaverEnabledNotifier.value;
+
+                      final pressVal =
+                          isLiquidGlass ? _pressAnimation.value : 0.0;
                       final trackHeight = ui.lerpDouble(4.0, 7.0, pressVal)!;
                       final trackRadius = trackHeight / 2;
 
-                      // Thumb base dimensions (circle 10x10 -> capsule 28x16)
-                      final baseThumbWidth =
-                          ui.lerpDouble(10.0, 28.0, pressVal)!;
-                      final baseThumbHeight =
-                          ui.lerpDouble(10.0, 16.0, pressVal)!;
+                      // Thumb base dimensions:
+                      // In Liquid Glass mode: expands 10x (from 10x10 to 80x40 capsule!)
+                      // Otherwise: remains classic 10x10
+                      final baseThumbWidth = isLiquidGlass
+                          ? ui.lerpDouble(10.0, 80.0, pressVal)!
+                          : 10.0;
+                      final baseThumbHeight = isLiquidGlass
+                          ? ui.lerpDouble(10.0, 40.0, pressVal)!
+                          : 10.0;
 
                       // Dynamic squash & stretch based on spring velocity
                       final double velocity = _springController.velocity.abs();
-                      final double stretchFactor = _isInteracting
-                          ? (velocity * 0.08).clamp(0.0, 0.35)
-                          : 0.0;
+                      final double stretchFactor =
+                          (isLiquidGlass && _isInteracting)
+                              ? (velocity * 0.08).clamp(0.0, 0.35)
+                              : 0.0;
                       final currentThumbWidth =
                           baseThumbWidth * (1.0 + stretchFactor);
                       final currentThumbHeight =
@@ -327,8 +342,25 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                       final thumbLeft = (activeWidth - currentThumbWidth / 2)
                           .clamp(0.0, width - currentThumbWidth);
 
+                      // Calculate global offset for AGSLRhombusGlass shader
+                      const double containerHeight = 44.0;
+                      final RenderBox? sliderBox =
+                          context.findRenderObject() as RenderBox?;
+                      Offset? thumbOffset;
+                      if (sliderBox != null &&
+                          sliderBox.hasSize &&
+                          sliderBox.attached) {
+                        final sliderGlobal = sliderBox.localToGlobal(Offset.zero);
+                        final thumbTop =
+                            (containerHeight - currentThumbHeight) / 2;
+                        thumbOffset = Offset(
+                          sliderGlobal.dx + thumbLeft,
+                          sliderGlobal.dy + thumbTop,
+                        );
+                      }
+
                       return SizedBox(
-                        height: 24,
+                        height: containerHeight,
                         child: Stack(
                           alignment: Alignment.centerLeft,
                           clipBehavior: Clip.none,
@@ -390,7 +422,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                                   ),
                                 ),
                               ),
-                            // Liquid Glass Thumb (Apple Music style)
+                            // Liquid Glass Thumb (Apple Music style / AGSLRhombusGlass)
                             Positioned(
                               left: thumbLeft,
                               child: _buildLiquidGlassThumb(
@@ -398,6 +430,8 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                                 height: currentThumbHeight,
                                 pressVal: pressVal,
                                 primaryColor: primaryColor,
+                                isLiquidGlass: isLiquidGlass,
+                                thumbOffset: thumbOffset,
                               ),
                             ),
                           ],
@@ -443,3 +477,4 @@ class _HyperOSSliderState extends State<HyperOSSlider>
     );
   }
 }
+
