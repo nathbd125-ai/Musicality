@@ -131,7 +131,7 @@ List<Color> _computeAlbumGradientColors(MediaItem item) {
       idStr.contains('nothing_breaks_like_a_heart') ||
       artUriStr.contains('nothing_breaks_like_a_heart')) {
     return const [
-      Color(0xFFEC407A), // Rose
+      Color(0xFFFD9197), // Rose
       Color(0xFFECEFF1), // Gris pétillant
       Color(0xFF1A1C20), // Noir pétillant
     ];

@@ -1,4 +1,5 @@
 import 'package:musicality/ui/widgets/hyper_os_slider.dart';
+import 'package:musicality/ui/widgets/marquee_widget.dart';
 import 'package:musicality/core/models.dart';
 import 'package:musicality/core/globals.dart';
 
@@ -682,23 +683,73 @@ class _LandscapeStereoPlayerState extends State<LandscapeStereoPlayer>
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          song.title,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
+                                        // 1. Titre avec gradient et texte défilant à la limite du slider
+                                        MarqueeWidget(
+                                          resetKey: 'landscape_title_${song.id}',
+                                          child: ShaderMask(
+                                            blendMode: BlendMode.srcIn,
+                                            shaderCallback: (bounds) {
+                                              final colors = _currentThemeColors.length >= 2
+                                                  ? _currentThemeColors
+                                                  : getAlbumGradientColors(song);
+                                              if (bounds.width <= 0 || bounds.height <= 0) {
+                                                return LinearGradient(colors: colors).createShader(bounds);
+                                              }
+                                              return LinearGradient(
+                                                colors: colors,
+                                                begin: Alignment.centerLeft,
+                                                end: Alignment.centerRight,
+                                                stops: getGradientStops(colors.length),
+                                              ).createShader(
+                                                Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                                              );
+                                            },
+                                            child: Text(
+                                              song.title,
+                                              maxLines: 1,
+                                              softWrap: false,
+                                              overflow: TextOverflow.visible,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                        Text(
-                                          song.artist ?? '',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 16,
+                                        const SizedBox(height: 4),
+                                        // 2. Nom d'artiste avec gradient et texte défilant à la limite du slider
+                                        MarqueeWidget(
+                                          resetKey: 'landscape_artist_${song.id}',
+                                          child: ShaderMask(
+                                            blendMode: BlendMode.srcIn,
+                                            shaderCallback: (bounds) {
+                                              final colors = _currentThemeColors.length >= 2
+                                                  ? _currentThemeColors
+                                                  : getAlbumGradientColors(song);
+                                              if (bounds.width <= 0 || bounds.height <= 0) {
+                                                return LinearGradient(colors: colors).createShader(bounds);
+                                              }
+                                              return LinearGradient(
+                                                colors: colors,
+                                                begin: Alignment.centerLeft,
+                                                end: Alignment.centerRight,
+                                                stops: getGradientStops(colors.length),
+                                              ).createShader(
+                                                Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                                              );
+                                            },
+                                            child: Text(
+                                              formatArtist(song.artist),
+                                              maxLines: 1,
+                                              softWrap: false,
+                                              overflow: TextOverflow.visible,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ],
