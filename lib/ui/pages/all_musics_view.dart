@@ -42,6 +42,7 @@ class AllMusicsViewState extends State<AllMusicsView> {
   @override
   void initState() {
     super.initState();
+    songsVersionNotifier.addListener(_onSongsChanged);
     _updateFilter();
     _scrollController = ScrollController();
     _scrollController.addListener(() {
@@ -57,6 +58,14 @@ class AllMusicsViewState extends State<AllMusicsView> {
     });
   }
 
+  void _onSongsChanged() {
+    if (mounted) {
+      setState(() {
+        _updateFilter();
+      });
+    }
+  }
+
   void _updateFilter() {
     final cleanQuery = _searchQuery.trim();
     if (cleanQuery.isEmpty) {
@@ -66,7 +75,8 @@ class AllMusicsViewState extends State<AllMusicsView> {
       _filteredPlaylist = globalPlaylist.where((item) {
         final titleMatch = normalizeString(item.title).contains(query);
         final artistMatch = normalizeString(item.artist ?? '').contains(query);
-        return titleMatch || artistMatch;
+        final albumMatch = normalizeString(item.album ?? '').contains(query);
+        return titleMatch || artistMatch || albumMatch;
       }).toList();
     }
     _filteredPlaylist.sort(
@@ -76,6 +86,7 @@ class AllMusicsViewState extends State<AllMusicsView> {
 
   @override
   void dispose() {
+    songsVersionNotifier.removeListener(_onSongsChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollController.dispose();
@@ -144,36 +155,46 @@ class AllMusicsViewState extends State<AllMusicsView> {
                       ),
                     );
                   },
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    itemCount: _filteredPlaylist.length,
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom + 180.0,
-                    ),
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    itemBuilder: (context, index) {
-                      final item = _filteredPlaylist[index];
-                      final isSelected = widget.currentItem?.id == item.id;
-
-                      return SongTile(
-                        item: item,
-                        isSelected: isSelected,
-                        activeThemeColors: widget.dynamicGradientColors,
-                        heroTag: 'allmusic_${index}_${item.id}',
-                        onTap: () {
-                          FocusScope.of(context).unfocus();
-                          final fullList = getSortedGlobalPlaylist();
-                          final targetIndex =
-                              fullList.indexWhere((m) => m.id == item.id);
-                          (globalAudioHandler as MyAudioHandler).playFromList(
-                            fullList,
-                            targetIndex >= 0 ? targetIndex : 0,
-                            contextTag: 'all_musics',
-                          );
-                        },
-                      );
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      await fetchMusiques();
                     },
+                    color: Colors.white,
+                    backgroundColor: const Color(0xFF1E1E1E),
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      controller: _scrollController,
+                      itemCount: _filteredPlaylist.length,
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom + 180.0,
+                      ),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      itemBuilder: (context, index) {
+                        final item = _filteredPlaylist[index];
+                        final isSelected = widget.currentItem?.id == item.id;
+
+                        return SongTile(
+                          item: item,
+                          isSelected: isSelected,
+                          activeThemeColors: widget.dynamicGradientColors,
+                          heroTag: 'allmusic_${index}_${item.id}',
+                          onTap: () {
+                            FocusScope.of(context).unfocus();
+                            final fullList = getSortedGlobalPlaylist();
+                            final targetIndex =
+                                fullList.indexWhere((m) => m.id == item.id);
+                            (globalAudioHandler as MyAudioHandler).playFromList(
+                              fullList,
+                              targetIndex >= 0 ? targetIndex : 0,
+                              contextTag: 'all_musics',
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
         ),

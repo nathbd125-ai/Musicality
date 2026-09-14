@@ -38,6 +38,7 @@ class ArtistPageViewState extends State<ArtistPageView> {
   @override
   void initState() {
     super.initState();
+    songsVersionNotifier.addListener(_onSongsChanged);
     _scrollController = ScrollController();
     _scrollController.addListener(() {
       if (_scrollController.offset > 5 && !_isScrolled) {
@@ -50,6 +51,15 @@ class ArtistPageViewState extends State<ArtistPageView> {
         });
       }
     });
+  }
+
+  void _onSongsChanged() {
+    if (mounted) {
+      setState(() {
+        _lastPlaylistLength = -1;
+        _ensureArtistCache();
+      });
+    }
   }
 
   void _ensureArtistCache() {
@@ -80,6 +90,7 @@ class ArtistPageViewState extends State<ArtistPageView> {
 
   @override
   void dispose() {
+    songsVersionNotifier.removeListener(_onSongsChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollController.dispose();

@@ -146,9 +146,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final bool isResumed = (state == AppLifecycleState.resumed);
     setState(() {
-      _isAppInForeground = (state == AppLifecycleState.resumed);
+      _isAppInForeground = isResumed;
     });
+    if (isResumed) {
+      fetchMusiques();
+    }
   }
 
   @override

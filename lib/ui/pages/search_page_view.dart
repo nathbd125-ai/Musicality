@@ -45,6 +45,7 @@ class SearchPageViewState extends State<SearchPageView> {
   @override
   void initState() {
     super.initState();
+    songsVersionNotifier.addListener(_onSongsChanged);
     _scrollController = ScrollController();
     _scrollController.addListener(() {
       if (_scrollController.offset > 5 && !_isScrolled) {
@@ -59,6 +60,14 @@ class SearchPageViewState extends State<SearchPageView> {
     });
   }
 
+  void _onSongsChanged() {
+    if (mounted) {
+      setState(() {
+        _updateFilter();
+      });
+    }
+  }
+
   void _updateFilter() {
     final cleanQuery = _searchQuery.trim();
     if (cleanQuery.isEmpty) {
@@ -68,7 +77,8 @@ class SearchPageViewState extends State<SearchPageView> {
       _filteredPlaylist = globalPlaylist.where((item) {
         final titleMatch = normalizeString(item.title).contains(query);
         final artistMatch = normalizeString(item.artist ?? '').contains(query);
-        return titleMatch || artistMatch;
+        final albumMatch = normalizeString(item.album ?? '').contains(query);
+        return titleMatch || artistMatch || albumMatch;
       }).toList();
       _filteredPlaylist.sort(
         (a, b) => normalizeString(a.title).compareTo(normalizeString(b.title)),
@@ -78,6 +88,7 @@ class SearchPageViewState extends State<SearchPageView> {
 
   @override
   void dispose() {
+    songsVersionNotifier.removeListener(_onSongsChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollController.dispose();

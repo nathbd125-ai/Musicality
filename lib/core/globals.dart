@@ -748,7 +748,8 @@ Future<void> fetchMusiques() async {
         .get(Uri.parse('${ApiConfig.baseUrl}/musiques.json'))
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
-      final String responseBody = utf8.decode(response.bodyBytes);
+      final String responseBody =
+          utf8.decode(response.bodyBytes, allowMalformed: true);
       final List<dynamic> data = jsonDecode(responseBody);
       
       // Mettre en cache dans ObjectBox
