@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:musicality/core/globals.dart';
-import 'package:musicality/ui/player/agsl_rhombus_glass.dart';
 
 class HyperOSSlider extends StatefulWidget {
   final Duration position;
@@ -159,7 +158,6 @@ class _HyperOSSliderState extends State<HyperOSSlider>
     required double pressVal,
     required Color primaryColor,
     required bool isLiquidGlass,
-    required Offset? thumbOffset,
   }) {
     final borderRadius = height / 2;
     // Hide the white circle as soon as interaction begins
@@ -173,54 +171,48 @@ class _HyperOSSliderState extends State<HyperOSSlider>
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          // 1. Ambient colored glow & drop shadow behind the glass capsule
+          // 1. Dynamic ambient glow behind the thumb in liquid glass mode
           if (isLiquidGlass && pressVal > 0.05)
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(borderRadius),
                   boxShadow: [
-                    // Dynamic glow using track album color
                     BoxShadow(
-                      color: primaryColor.withValues(alpha: 0.55 * pressVal),
-                      blurRadius: 28 * pressVal,
-                      spreadRadius: 2 * pressVal,
+                      color: primaryColor.withValues(alpha: 0.45 * pressVal),
+                      blurRadius: 22 * pressVal,
+                      spreadRadius: 1.5 * pressVal,
                     ),
-                    // Crisp luminous aura
                     BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.35 * pressVal),
-                      blurRadius: 14 * pressVal,
-                      spreadRadius: 1 * pressVal,
-                    ),
-                    // Deep 3D physical elevation shadow
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35 * pressVal),
-                      blurRadius: 10 * pressVal,
-                      offset: Offset(0, 4 * pressVal),
+                      color: Colors.black.withValues(alpha: 0.25 * pressVal),
+                      blurRadius: 8 * pressVal,
+                      offset: Offset(0, 3 * pressVal),
                     ),
                   ],
                 ),
               ),
             ),
 
-          // 2. Mini-player's exact AGSL Shader: AGSLRhombusGlass
+          // 2. Liquid Glass frosted capsule (identical look and feel to the mini-player)
           if (isLiquidGlass && pressVal > 0.01)
             Positioned.fill(
-              child: AGSLRhombusGlass(
-                enabled: true,
-                cornerRadius: borderRadius,
-                distance: 14.0,
-                blurSigma: 16.0,
-                offset: thumbOffset,
-                child: Container(
-                  width: width,
-                  height: height,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(borderRadius),
-                    color: Colors.black.withValues(alpha: 0.08 * pressVal),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.25 * pressVal),
-                      width: 1.0,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(borderRadius),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(
+                    sigmaX: 16.0 * pressVal,
+                    sigmaY: 16.0 * pressVal,
+                  ),
+                  child: Container(
+                    width: width,
+                    height: height,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(borderRadius),
+                      color: Colors.black.withValues(alpha: 0.08 * pressVal),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25 * pressVal),
+                        width: 1.0,
+                      ),
                     ),
                   ),
                 ),
@@ -351,20 +343,6 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                           .clamp(0.0, width - currentThumbWidth);
                       final thumbTop = (trackHeight - currentThumbHeight) / 2;
 
-                      // Accurate global offset for AGSLRhombusGlass shader
-                      final RenderBox? sliderBox =
-                          context.findRenderObject() as RenderBox?;
-                      Offset? thumbOffset;
-                      if (sliderBox != null &&
-                          sliderBox.hasSize &&
-                          sliderBox.attached) {
-                        final sliderGlobal = sliderBox.localToGlobal(Offset.zero);
-                        thumbOffset = Offset(
-                          sliderGlobal.dx + thumbLeft,
-                          sliderGlobal.dy + thumbTop,
-                        );
-                      }
-
                       return Stack(
                         alignment: Alignment.centerLeft,
                         clipBehavior: Clip.none,
@@ -426,7 +404,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                                 ),
                               ),
                             ),
-                          // Liquid Glass Thumb (Apple Music style with AGSLRhombusGlass shader)
+                          // Liquid Glass Thumb (Apple Music style)
                           Positioned(
                             left: thumbLeft,
                             top: thumbTop,
@@ -436,7 +414,6 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                               pressVal: pressVal,
                               primaryColor: primaryColor,
                               isLiquidGlass: isLiquidGlass,
-                              thumbOffset: thumbOffset,
                             ),
                           ),
                         ],
