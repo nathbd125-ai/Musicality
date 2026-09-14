@@ -155,46 +155,36 @@ class AllMusicsViewState extends State<AllMusicsView> {
                       ),
                     );
                   },
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      await fetchMusiques();
-                    },
-                    color: Colors.white,
-                    backgroundColor: const Color(0xFF1E1E1E),
-                    child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      controller: _scrollController,
-                      itemCount: _filteredPlaylist.length,
-                      padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).viewInsets.bottom + 180.0,
-                      ),
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      itemBuilder: (context, index) {
-                        final item = _filteredPlaylist[index];
-                        final isSelected = widget.currentItem?.id == item.id;
-
-                        return SongTile(
-                          item: item,
-                          isSelected: isSelected,
-                          activeThemeColors: widget.dynamicGradientColors,
-                          heroTag: 'allmusic_${index}_${item.id}',
-                          onTap: () {
-                            FocusScope.of(context).unfocus();
-                            final fullList = getSortedGlobalPlaylist();
-                            final targetIndex =
-                                fullList.indexWhere((m) => m.id == item.id);
-                            (globalAudioHandler as MyAudioHandler).playFromList(
-                              fullList,
-                              targetIndex >= 0 ? targetIndex : 0,
-                              contextTag: 'all_musics',
-                            );
-                          },
-                        );
-                      },
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _filteredPlaylist.length,
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 180.0,
                     ),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    itemBuilder: (context, index) {
+                      final item = _filteredPlaylist[index];
+                      final isSelected = widget.currentItem?.id == item.id;
+
+                      return SongTile(
+                        item: item,
+                        isSelected: isSelected,
+                        activeThemeColors: widget.dynamicGradientColors,
+                        heroTag: 'allmusic_${index}_${item.id}',
+                        onTap: () {
+                          FocusScope.of(context).unfocus();
+                          final fullList = getSortedGlobalPlaylist();
+                          final targetIndex =
+                              fullList.indexWhere((m) => m.id == item.id);
+                          (globalAudioHandler as MyAudioHandler).playFromList(
+                            fullList,
+                            targetIndex >= 0 ? targetIndex : 0,
+                            contextTag: 'all_musics',
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
         ),
