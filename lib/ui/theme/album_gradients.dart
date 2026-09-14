@@ -29,8 +29,114 @@ List<Color> _computeAlbumGradientColors(MediaItem item) {
   final albumNorm = normalizeString(item.album ?? '');
   final idStr = item.id.toLowerCase();
   final titleNorm = normalizeString(item.title);
+  final artistNorm = normalizeString(item.artist ?? '');
 
   // 1. EXCEPTIONS TITRES / SINGLES SPÉCIAUX (qui gardent leur gradient spécifique)
+  // Niska - Pow Pow / Allo Doudou (Bleu ciel à jaune orangé à orangé couché de soleil)
+  if (idStr == 'allo_doudou' ||
+      idStr.contains('allo_doudou') ||
+      titleNorm.contains('allo doudou') ||
+      artUriStr.contains('allo_doudou')) {
+    return const [
+      Color(0xFF4FC3F7), // Bleu ciel
+      Color(0xFFFFB74D), // Jaune orangé
+      Color(0xFFFF5722), // Orangé couché de soleil
+    ];
+  }
+
+  // bôa - Duvet (Gris bleuté à bleu clair à bleu un peu foncé, transition violette avec le rouge et rouge clair)
+  if (idStr == 'duvet' ||
+      titleNorm == 'duvet' ||
+      titleNorm.startsWith('duvet ') ||
+      titleNorm.contains('duvet') ||
+      artUriStr.contains('duvet')) {
+    return const [
+      Color(0xFF90A4AE), // Gris bleuté
+      Color(0xFF64B5F6), // Bleu clair
+      Color(0xFF1976D2), // Bleu un peu foncé
+      Color(0xFF8E24AA), // Transition violette avec le rouge
+      Color(0xFFEF5350), // Rouge clair
+    ];
+  }
+
+  // ridgeclub - biting bullets (Noir à gris clair)
+  if (idStr == 'biting_bullets' ||
+      titleNorm.contains('biting bullets') ||
+      artUriStr.contains('biting_bullets')) {
+    return const [
+      Color(0xFF111111), // Noir
+      Color(0xFF424242), // Gris anthracite
+      Color(0xFF9E9E9E), // Gris intermédiaire
+      Color(0xFFE0E0E0), // Gris clair
+    ];
+  }
+
+  // Dr. Dog - Where'd All the Time Go? (Marron foncé à gros beige à blanc à bleu jean à bleu foncé)
+  if (titleNorm.contains("where'd all the time go") ||
+      titleNorm.contains('where d all the time go') ||
+      titleNorm.contains('where all the time go') ||
+      idStr.contains("where'd_all_the_time_go") ||
+      idStr.contains('where_d_all_the_time_go') ||
+      artUriStr.contains("where'd_all_the_time_go")) {
+    return const [
+      Color(0xFF3E2723), // Marron foncé
+      Color(0xFFD7CCC8), // Gros beige
+      Color(0xFFFFFFFF), // Blanc
+      Color(0xFF4682B4), // Bleu jean
+      Color(0xFF0D47A1), // Bleu foncé
+    ];
+  }
+
+  // THE SCOTTS, Travis Scott & Kid Cudi - THE SCOTTS (Jaune à vert à rose)
+  if (idStr == 'the_scotts' ||
+      titleNorm == 'the scotts' ||
+      titleNorm.startsWith('the scotts ') ||
+      artUriStr.contains('the_scotts')) {
+    return const [
+      Color(0xFFFFEB3B), // Jaune
+      Color(0xFF4CAF50), // Vert
+      Color(0xFFE91E63), // Rose
+    ];
+  }
+
+  // Rae Sremmurd feat. Gucci Mane - Black Beatles (Noir à marron à blanc)
+  if (idStr == 'black_beatles' ||
+      titleNorm.contains('black beatles') ||
+      idStr.contains('black_beatles') ||
+      artUriStr.contains('black_beatles')) {
+    return const [
+      Color(0xFF111111), // Noir
+      Color(0xFF5D4037), // Marron
+      Color(0xFFFFFFFF), // Blanc
+    ];
+  }
+
+  // Alex G - Mary (Marron grisâtre à gris clair à blanc)
+  if (idStr == 'mary' ||
+      ((titleNorm == 'mary' || titleNorm.startsWith('mary ')) &&
+          (artistNorm.contains('alex g') ||
+              albumNorm.contains('trick') ||
+              a.contains('trick') ||
+              artUriStr.contains('mary')))) {
+    return const [
+      Color(0xFF5D534A), // Marron grisâtre
+      Color(0xFFBDBDBD), // Gris clair
+      Color(0xFFFFFFFF), // Blanc
+    ];
+  }
+
+  // Mark Ronson & Miley Cyrus - Nothing Breaks Like a Heart (Rose à gris pétillant à noir pétillant)
+  if (idStr == 'nothing_breaks_like_a_heart' ||
+      titleNorm.contains('nothing breaks like a heart') ||
+      idStr.contains('nothing_breaks_like_a_heart') ||
+      artUriStr.contains('nothing_breaks_like_a_heart')) {
+    return const [
+      Color(0xFFEC407A), // Rose
+      Color(0xFFECEFF1), // Gris pétillant
+      Color(0xFF1A1C20), // Noir pétillant
+    ];
+  }
+
   // Møme - Aloha (feat. Merryn Jeann) (Blanc bleu cyan clair rouge violet bleu)
   if (titleNorm.contains('aloha') || idStr.contains('aloha')) {
     return const [
