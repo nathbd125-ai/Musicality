@@ -64,9 +64,9 @@ void main() {
     vec2 rr_size = uSize * 0.5;
     float cornerRadius = min(max(uCornerRadius, 1.0), min(rr_size.x, rr_size.y));
     
-    // 2. SDF for the rounded box (outer clipping)
+    // 2. SDF for the rounded box (outer clipping with 2.0px subpixel tolerance)
     float sdf = SD_RBox(coord, rr_size, cornerRadius);
-    if (sdf > 0.0) {
+    if (sdf > 2.0) {
         fragColor = vec4(0.0);
         return;
     }

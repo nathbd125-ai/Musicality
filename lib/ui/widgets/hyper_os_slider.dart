@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:musicality/core/globals.dart';
+import 'package:musicality/ui/player/agsl_rhombus_glass.dart';
 
 class HyperOSSlider extends StatefulWidget {
   final Duration position;
@@ -158,6 +159,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
     required double pressVal,
     required Color primaryColor,
     required bool isLiquidGlass,
+    required Offset? thumbOffset,
   }) {
     final borderRadius = height / 2;
     // Hide the white circle as soon as interaction begins
@@ -201,93 +203,91 @@ class _HyperOSSliderState extends State<HyperOSSlider>
               ),
             ),
 
-          // 2. Liquid Glass Pill Lens (Apple Music style)
+          // 2. Mini-player's exact AGSL Shader: AGSLRhombusGlass
           if (isLiquidGlass && pressVal > 0.01)
             Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(borderRadius),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(
-                    sigmaX: 16.0 * pressVal,
-                    sigmaY: 16.0 * pressVal,
-                  ),
-                  child: Stack(
-                    children: [
-                      // A. Glass body: multi-tone frosted acrylic gradient
-                      Container(
-                        width: width,
-                        height: height,
+              child: AGSLRhombusGlass(
+                enabled: true,
+                cornerRadius: borderRadius,
+                distance: 14.0,
+                blurSigma: 16.0,
+                offset: thumbOffset,
+                child: Stack(
+                  children: [
+                    // A. Glass body: multi-tone frosted acrylic gradient
+                    Container(
+                      width: width,
+                      height: height,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(borderRadius),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.28 * pressVal),
+                            Colors.white.withValues(alpha: 0.12 * pressVal),
+                            primaryColor.withValues(alpha: 0.16 * pressVal),
+                            Colors.black.withValues(alpha: 0.18 * pressVal),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // B. 3D Specular Highlight (Apple's signature curved glass gloss)
+                    Positioned(
+                      top: 1.0,
+                      left: 2.0,
+                      right: 2.0,
+                      height: height * 0.46,
+                      child: Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(borderRadius),
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(borderRadius),
+                            bottom: Radius.circular(borderRadius * 0.5),
+                          ),
                           gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
                             colors: [
-                              Colors.white.withValues(alpha: 0.28 * pressVal),
-                              Colors.white.withValues(alpha: 0.12 * pressVal),
-                              primaryColor.withValues(alpha: 0.16 * pressVal),
-                              Colors.black.withValues(alpha: 0.18 * pressVal),
+                              Colors.white.withValues(alpha: 0.60 * pressVal),
+                              Colors.white.withValues(alpha: 0.0),
                             ],
                           ),
                         ),
                       ),
+                    ),
 
-                      // B. 3D Specular Highlight (Apple's signature curved glass gloss)
-                      Positioned(
-                        top: 1.0,
-                        left: 2.0,
-                        right: 2.0,
-                        height: height * 0.46,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(borderRadius),
-                              bottom: Radius.circular(borderRadius * 0.5),
-                            ),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.60 * pressVal),
-                                Colors.white.withValues(alpha: 0.0),
-                              ],
-                            ),
-                          ),
+                    // C. Bevel / Specular Rim (Crisp, light-catching border)
+                    Container(
+                      width: width,
+                      height: height,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(borderRadius),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.65 * pressVal),
+                          width: 1.2,
                         ),
                       ),
+                    ),
 
-                      // C. Bevel / Specular Rim (Crisp, light-catching border)
-                      Container(
-                        width: width,
-                        height: height,
+                    // D. Inner center optical indicator (subtle vertical glass rib)
+                    Center(
+                      child: Container(
+                        width: 3.5,
+                        height: height * 0.42,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(borderRadius),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.65 * pressVal),
-                            width: 1.2,
-                          ),
+                          color: Colors.white.withValues(alpha: 0.50 * pressVal),
+                          borderRadius: BorderRadius.circular(2.0),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withValues(alpha: 0.40 * pressVal),
+                              blurRadius: 4.0,
+                            ),
+                          ],
                         ),
                       ),
-
-                      // D. Inner center optical indicator (subtle vertical glass rib)
-                      Center(
-                        child: Container(
-                          width: 3.5,
-                          height: height * 0.42,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.50 * pressVal),
-                            borderRadius: BorderRadius.circular(2.0),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withValues(alpha: 0.40 * pressVal),
-                                blurRadius: 4.0,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -416,6 +416,20 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                           .clamp(0.0, width - currentThumbWidth);
                       final thumbTop = (trackHeight - currentThumbHeight) / 2;
 
+                      // Accurate global offset for AGSLRhombusGlass shader
+                      final RenderBox? sliderBox =
+                          context.findRenderObject() as RenderBox?;
+                      Offset? thumbOffset;
+                      if (sliderBox != null &&
+                          sliderBox.hasSize &&
+                          sliderBox.attached) {
+                        final sliderGlobal = sliderBox.localToGlobal(Offset.zero);
+                        thumbOffset = Offset(
+                          sliderGlobal.dx + thumbLeft,
+                          sliderGlobal.dy + thumbTop,
+                        );
+                      }
+
                       return Stack(
                         alignment: Alignment.centerLeft,
                         clipBehavior: Clip.none,
@@ -477,7 +491,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                                 ),
                               ),
                             ),
-                          // Liquid Glass Thumb (Apple Music style)
+                          // Liquid Glass Thumb (Apple Music style with AGSLRhombusGlass shader)
                           Positioned(
                             left: thumbLeft,
                             top: thumbTop,
@@ -487,6 +501,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                               pressVal: pressVal,
                               primaryColor: primaryColor,
                               isLiquidGlass: isLiquidGlass,
+                              thumbOffset: thumbOffset,
                             ),
                           ),
                         ],
