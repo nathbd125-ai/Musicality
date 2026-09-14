@@ -524,6 +524,10 @@ String normalizeAlbumName(String id, dynamic rawAlbum) {
     if (lowerAlbum.contains('bravo')) {
       return 'Tuesday';
     }
+  } else if (lowerId.contains('nothing_breaks_like_a_heart')) {
+    if (lowerAlbum.contains('now that')) {
+      return 'Late Night Feelings';
+    }
   }
   return albumName;
 }
@@ -537,6 +541,9 @@ String resolveCoverName({
   final cleanAlbum = albumName.toLowerCase().trim();
 
   // 1. Dérogations spécifiques (priorités albums et singles ciblés)
+  if (cleanId.contains('nothing_breaks_like_a_heart')) {
+    return 'nothing_breaks_like_a_heart_v2';
+  }
   if (cleanId == 'zoo' || cleanId == 'charge') {
     return 'or_noir';
   }
