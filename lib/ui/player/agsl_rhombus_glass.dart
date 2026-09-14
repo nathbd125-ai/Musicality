@@ -103,9 +103,11 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _updateOffset();
-        });
+        if (widget.offset == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _updateOffset();
+          });
+        }
 
         final shader = program.fragmentShader();
 

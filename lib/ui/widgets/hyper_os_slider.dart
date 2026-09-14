@@ -295,7 +295,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
@@ -319,13 +319,13 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                       final trackRadius = trackHeight / 2;
 
                       // Thumb base dimensions:
-                      // In Liquid Glass mode: expands 10x (from 10x10 to 80x40 capsule!)
+                      // In Liquid Glass mode: expands ~10x (from 10x10 to 84x38 capsule!)
                       // Otherwise: remains classic 10x10
                       final baseThumbWidth = isLiquidGlass
-                          ? ui.lerpDouble(10.0, 80.0, pressVal)!
+                          ? ui.lerpDouble(10.0, 84.0, pressVal)!
                           : 10.0;
                       final baseThumbHeight = isLiquidGlass
-                          ? ui.lerpDouble(10.0, 40.0, pressVal)!
+                          ? ui.lerpDouble(10.0, 38.0, pressVal)!
                           : 10.0;
 
                       // Dynamic squash & stretch based on spring velocity
@@ -341,9 +341,9 @@ class _HyperOSSliderState extends State<HyperOSSlider>
 
                       final thumbLeft = (activeWidth - currentThumbWidth / 2)
                           .clamp(0.0, width - currentThumbWidth);
+                      final thumbTop = (trackHeight - currentThumbHeight) / 2;
 
                       // Calculate global offset for AGSLRhombusGlass shader
-                      const double containerHeight = 44.0;
                       final RenderBox? sliderBox =
                           context.findRenderObject() as RenderBox?;
                       Offset? thumbOffset;
@@ -351,91 +351,87 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                           sliderBox.hasSize &&
                           sliderBox.attached) {
                         final sliderGlobal = sliderBox.localToGlobal(Offset.zero);
-                        final thumbTop =
-                            (containerHeight - currentThumbHeight) / 2;
                         thumbOffset = Offset(
                           sliderGlobal.dx + thumbLeft,
-                          sliderGlobal.dy + thumbTop,
+                          sliderGlobal.dy + 6.0 + thumbTop,
                         );
                       }
 
-                      return SizedBox(
-                        height: containerHeight,
-                        child: Stack(
-                          alignment: Alignment.centerLeft,
-                          clipBehavior: Clip.none,
-                          children: [
-                            // Inactive track (background)
+                      return Stack(
+                        alignment: Alignment.centerLeft,
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Inactive track (background)
+                          Container(
+                            width: width,
+                            height: trackHeight,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2C2C2C),
+                              borderRadius:
+                                  BorderRadius.circular(trackRadius),
+                            ),
+                          ),
+                          // Glowing shadow behind active track
+                          if (activeWidth > 0)
                             Container(
-                              width: width,
+                              width: activeWidth,
                               height: trackHeight,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2C2C2C),
                                 borderRadius:
                                     BorderRadius.circular(trackRadius),
-                              ),
-                            ),
-                            // Glowing shadow behind active track
-                            if (activeWidth > 0)
-                              Container(
-                                width: activeWidth,
-                                height: trackHeight,
-                                decoration: BoxDecoration(
-                                  borderRadius:
-                                      BorderRadius.circular(trackRadius),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: primaryColor.withValues(
-                                        alpha: ui.lerpDouble(
-                                            0.8, 0.9, pressVal)!,
-                                      ),
-                                      blurRadius: ui.lerpDouble(
-                                          12.0, 18.0, pressVal)!,
-                                      spreadRadius: ui.lerpDouble(
-                                          2.0, 3.5, pressVal)!,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: primaryColor.withValues(
+                                      alpha: ui.lerpDouble(
+                                          0.8, 0.9, pressVal)!,
                                     ),
-                                    BoxShadow(
-                                      color: primaryColor.withValues(
-                                        alpha: ui.lerpDouble(
-                                            0.5, 0.65, pressVal)!,
-                                      ),
-                                      blurRadius: ui.lerpDouble(
-                                          24.0, 32.0, pressVal)!,
-                                      spreadRadius: ui.lerpDouble(
-                                          4.0, 6.0, pressVal)!,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            // Active track (gradient)
-                            if (activeWidth > 0)
-                              Container(
-                                width: activeWidth,
-                                height: trackHeight,
-                                decoration: BoxDecoration(
-                                  borderRadius:
-                                      BorderRadius.circular(trackRadius),
-                                  gradient: LinearGradient(
-                                    colors: colors,
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
+                                    blurRadius: ui.lerpDouble(
+                                        12.0, 18.0, pressVal)!,
+                                    spreadRadius: ui.lerpDouble(
+                                        2.0, 3.5, pressVal)!,
                                   ),
-                                ),
-                              ),
-                            // Liquid Glass Thumb (Apple Music style / AGSLRhombusGlass)
-                            Positioned(
-                              left: thumbLeft,
-                              child: _buildLiquidGlassThumb(
-                                width: currentThumbWidth,
-                                height: currentThumbHeight,
-                                pressVal: pressVal,
-                                primaryColor: primaryColor,
-                                isLiquidGlass: isLiquidGlass,
-                                thumbOffset: thumbOffset,
+                                  BoxShadow(
+                                    color: primaryColor.withValues(
+                                      alpha: ui.lerpDouble(
+                                          0.5, 0.65, pressVal)!,
+                                    ),
+                                    blurRadius: ui.lerpDouble(
+                                        24.0, 32.0, pressVal)!,
+                                    spreadRadius: ui.lerpDouble(
+                                        4.0, 6.0, pressVal)!,
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          // Active track (gradient)
+                          if (activeWidth > 0)
+                            Container(
+                              width: activeWidth,
+                              height: trackHeight,
+                              decoration: BoxDecoration(
+                                borderRadius:
+                                    BorderRadius.circular(trackRadius),
+                                gradient: LinearGradient(
+                                  colors: colors,
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                              ),
+                            ),
+                          // Liquid Glass Thumb (Apple Music style / AGSLRhombusGlass)
+                          Positioned(
+                            left: thumbLeft,
+                            top: thumbTop,
+                            child: _buildLiquidGlassThumb(
+                              width: currentThumbWidth,
+                              height: currentThumbHeight,
+                              pressVal: pressVal,
+                              primaryColor: primaryColor,
+                              isLiquidGlass: isLiquidGlass,
+                              thumbOffset: thumbOffset,
+                            ),
+                          ),
+                        ],
                       );
                     },
                   );
