@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:musicality/core/globals.dart';
+import 'package:musicality/ui/player/agsl_slider_glass.dart';
 
 class HyperOSSlider extends StatefulWidget {
   final Duration position;
@@ -33,10 +34,13 @@ class _HyperOSSliderState extends State<HyperOSSlider>
   late final AnimationController _pressController;
   late final Animation<double> _pressAnimation;
   late final SingleSpringController _springController;
+  final GlobalKey _trackKey = GlobalKey();
+  Offset? _cachedTrackOffset;
 
   @override
   void initState() {
     super.initState();
+    AGSLSliderGlass.preload();
     _pressController = AnimationController(
       duration: const Duration(milliseconds: 220),
       reverseDuration: const Duration(milliseconds: 240),
@@ -158,6 +162,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
     required double pressVal,
     required Color primaryColor,
     required bool isLiquidGlass,
+    required Offset? thumbOffset,
   }) {
     final borderRadius = height / 2;
     // Hide the white circle as soon as interaction begins
@@ -193,26 +198,23 @@ class _HyperOSSliderState extends State<HyperOSSlider>
               ),
             ),
 
-          // 2. Liquid Glass frosted capsule (identical look and feel to the mini-player)
+          // 2. Liquid Glass frosted capsule using dedicated slider_glass AGSL shader
           if (isLiquidGlass && pressVal > 0.01)
             Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(borderRadius),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(
-                    sigmaX: 16.0 * pressVal,
-                    sigmaY: 16.0 * pressVal,
-                  ),
-                  child: Container(
-                    width: width,
-                    height: height,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(borderRadius),
-                      color: Colors.black.withValues(alpha: 0.08 * pressVal),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.25 * pressVal),
-                        width: 1.0,
-                      ),
+              child: AGSLSliderGlass(
+                cornerRadius: borderRadius,
+                distance: 12.0 * pressVal,
+                blurSigma: 16.0 * pressVal,
+                offset: thumbOffset,
+                child: Container(
+                  width: width,
+                  height: height,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(borderRadius),
+                    color: Colors.black.withValues(alpha: 0.08 * pressVal),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.25 * pressVal),
+                      width: 1.0,
                     ),
                   ),
                 ),
@@ -343,7 +345,21 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                           .clamp(0.0, width - currentThumbWidth);
                       final thumbTop = (trackHeight - currentThumbHeight) / 2;
 
+                      // Synchronous global offset calculation for AGSLSliderGlass shader
+                      final RenderBox? trackBox =
+                          _trackKey.currentContext?.findRenderObject() as RenderBox?;
+                      if (trackBox != null && trackBox.hasSize && trackBox.attached) {
+                        _cachedTrackOffset = trackBox.localToGlobal(Offset.zero);
+                      }
+                      final Offset? thumbOffset = _cachedTrackOffset != null
+                          ? Offset(
+                              _cachedTrackOffset!.dx + thumbLeft,
+                              _cachedTrackOffset!.dy + thumbTop,
+                            )
+                          : null;
+
                       return Stack(
+                        key: _trackKey,
                         alignment: Alignment.centerLeft,
                         clipBehavior: Clip.none,
                         children: [
@@ -404,7 +420,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                                 ),
                               ),
                             ),
-                          // Liquid Glass Thumb (Apple Music style)
+                          // Liquid Glass Thumb (Apple Music style with AGSLSliderGlass)
                           Positioned(
                             left: thumbLeft,
                             top: thumbTop,
@@ -414,6 +430,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                               pressVal: pressVal,
                               primaryColor: primaryColor,
                               isLiquidGlass: isLiquidGlass,
+                              thumbOffset: thumbOffset,
                             ),
                           ),
                         ],

@@ -1,8 +1,8 @@
-﻿name: musicality
+name: musicality
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 0.9.2-beta+240
+version: 0.9.2-beta+241
 environment:
   sdk: ^3.12.2
 
@@ -51,6 +51,7 @@ flutter:
   shaders:
     - shaders/liquid_glass.frag
     - shaders/rhombus_glass.frag
+    - shaders/slider_glass.frag
 
   assets:
     - assets/audio/
