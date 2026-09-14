@@ -212,82 +212,17 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                 distance: 14.0,
                 blurSigma: 16.0,
                 offset: thumbOffset,
-                child: Stack(
-                  children: [
-                    // A. Glass body: multi-tone frosted acrylic gradient
-                    Container(
-                      width: width,
-                      height: height,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(borderRadius),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.28 * pressVal),
-                            Colors.white.withValues(alpha: 0.12 * pressVal),
-                            primaryColor.withValues(alpha: 0.16 * pressVal),
-                            Colors.black.withValues(alpha: 0.18 * pressVal),
-                          ],
-                        ),
-                      ),
+                child: Container(
+                  width: width,
+                  height: height,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(borderRadius),
+                    color: Colors.black.withValues(alpha: 0.08 * pressVal),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.25 * pressVal),
+                      width: 1.0,
                     ),
-
-                    // B. 3D Specular Highlight (Apple's signature curved glass gloss)
-                    Positioned(
-                      top: 1.0,
-                      left: 2.0,
-                      right: 2.0,
-                      height: height * 0.46,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(borderRadius),
-                            bottom: Radius.circular(borderRadius * 0.5),
-                          ),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.white.withValues(alpha: 0.60 * pressVal),
-                              Colors.white.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // C. Bevel / Specular Rim (Crisp, light-catching border)
-                    Container(
-                      width: width,
-                      height: height,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(borderRadius),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.65 * pressVal),
-                          width: 1.2,
-                        ),
-                      ),
-                    ),
-
-                    // D. Inner center optical indicator (subtle vertical glass rib)
-                    Center(
-                      child: Container(
-                        width: 3.5,
-                        height: height * 0.42,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.50 * pressVal),
-                          borderRadius: BorderRadius.circular(2.0),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withValues(alpha: 0.40 * pressVal),
-                              blurRadius: 4.0,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

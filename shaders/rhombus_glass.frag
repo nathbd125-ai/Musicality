@@ -64,12 +64,9 @@ void main() {
     vec2 rr_size = uSize * 0.5;
     float cornerRadius = min(max(uCornerRadius, 1.0), min(rr_size.x, rr_size.y));
     
-    // 2. SDF for the rounded box (outer clipping with 2.0px subpixel tolerance)
-    float sdf = SD_RBox(coord, rr_size, cornerRadius);
-    if (sdf > 2.0) {
-        fragColor = vec4(0.0);
-        return;
-    }
+    // 2. SDF for the rounded box (clamped to ensure shader renders smoothly across entire surface)
+    vec2 clampedCoord = clamp(coord, -rr_size, rr_size);
+    float sdf = SD_RBox(clampedCoord, rr_size, cornerRadius);
     
     // 3. Subtle interior zoom (5% magnification for realistic glass lens thickness)
     vec2 zoomDisplacement = -(coord / uScreenSize) * 0.05;
