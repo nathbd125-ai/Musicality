@@ -111,7 +111,7 @@ List<Color> _computeAlbumGradientColors(MediaItem item) {
     ];
   }
 
-  // Alex G - Mary (Marron grisâtre à gris clair à blanc)
+  // Alex G - Mary (Vrai marron à gris clair à blanc)
   if (idStr == 'mary' ||
       ((titleNorm == 'mary' || titleNorm.startsWith('mary ')) &&
           (artistNorm.contains('alex g') ||
@@ -119,7 +119,7 @@ List<Color> _computeAlbumGradientColors(MediaItem item) {
               a.contains('trick') ||
               artUriStr.contains('mary')))) {
     return const [
-      Color(0xFF5D534A), // Marron grisâtre
+      Color(0xFF5D2E0C), // Vrai marron
       Color(0xFFBDBDBD), // Gris clair
       Color(0xFFFFFFFF), // Blanc
     ];
