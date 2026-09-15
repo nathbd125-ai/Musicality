@@ -496,11 +496,11 @@ List<Shadow> _buildGlowShadows(Color glowColor, double factor) {
   return [
     Shadow(
       color: Colors.white.withValues(alpha: (f * 0.85).clamp(0.0, 1.0)),
-      blurRadius: (6.0 * f).clamp(0.1, 6.0),
+      blurRadius: 6.0,
     ),
     Shadow(
       color: glowColor.withValues(alpha: (f * 0.7).clamp(0.0, 1.0)),
-      blurRadius: (18.0 * f).clamp(0.1, 18.0),
+      blurRadius: 16.0,
     ),
   ];
 }
@@ -874,10 +874,15 @@ class _DynamicKaraokeWordState extends State<_DynamicKaraokeWord> {
       final duration = (end - start).inMilliseconds.clamp(1, 5000);
       final newProgress = (elapsed / duration).clamp(0.0, 1.0);
       if (mounted) {
-        setState(() {
-          _state = _WordState.singing;
-          _progress = newProgress;
-        });
+        if ((newProgress - _progress).abs() >= 0.003 ||
+            newProgress == 1.0 ||
+            newProgress == 0.0 ||
+            _state != _WordState.singing) {
+          setState(() {
+            _state = _WordState.singing;
+            _progress = newProgress;
+          });
+        }
       }
     }
   }
@@ -943,18 +948,8 @@ class _KaraokeWord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Mot non encore chanté : couleur unlit avec flou direct sur glyphes (120 FPS ultra fluide)
+    // 1. Mot non encore chanté : couleur unlit avec cache glyphe GPU natif
     if (lightFactor <= 0.005) {
-      if (blurRadius > 0.08) {
-        return Text(
-          text,
-          style: _baseTextStyle.copyWith(
-            foreground: Paint()
-              ..color = unlitColor
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
-          ),
-        );
-      }
       return Text(
         text,
         style: _baseTextStyle.copyWith(color: unlitColor),
@@ -979,17 +974,6 @@ class _KaraokeWord extends StatelessWidget {
           cachedFadeShadows ?? _buildGlowShadows(glowColor, lightFactor);
       final wordColor = cachedFadeColor ??
           Color.lerp(unlitColor, Colors.white, lightFactor)!;
-      if (blurRadius > 0.08) {
-        return Text(
-          text,
-          style: _baseTextStyle.copyWith(
-            foreground: Paint()
-              ..color = wordColor
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
-            shadows: shadows,
-          ),
-        );
-      }
       return Text(
         text,
         style: _baseTextStyle.copyWith(
@@ -1058,17 +1042,6 @@ class _PlainLineWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (lineActiveProgress <= 0.005) {
-      if (blurRadius > 0.08) {
-        return Text(
-          text,
-          textAlign: TextAlign.left,
-          style: _KaraokeWord._baseTextStyle.copyWith(
-            foreground: Paint()
-              ..color = unlitColor
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
-          ),
-        );
-      }
       return Text(
         text,
         textAlign: TextAlign.left,
@@ -1090,18 +1063,6 @@ class _PlainLineWidget extends StatelessWidget {
 
     final shadows = _buildGlowShadows(glowColor, lineActiveProgress);
     final color = Color.lerp(unlitColor, Colors.white, lineActiveProgress)!;
-    if (blurRadius > 0.08) {
-      return Text(
-        text,
-        textAlign: TextAlign.left,
-        style: _KaraokeWord._baseTextStyle.copyWith(
-          foreground: Paint()
-            ..color = color
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
-          shadows: shadows,
-        ),
-      );
-    }
     return Text(
       text,
       textAlign: TextAlign.left,
