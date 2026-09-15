@@ -948,8 +948,18 @@ class _KaraokeWord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Mot non encore chanté : couleur unlit avec cache glyphe GPU natif
+    // 1. Mot non encore chanté : couleur unlit avec flou direct sur glyphes (120 FPS ultra fluide)
     if (lightFactor <= 0.005) {
+      if (blurRadius > 0.08) {
+        return Text(
+          text,
+          style: _baseTextStyle.copyWith(
+            foreground: Paint()
+              ..color = unlitColor
+              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
+          ),
+        );
+      }
       return Text(
         text,
         style: _baseTextStyle.copyWith(color: unlitColor),
@@ -974,6 +984,17 @@ class _KaraokeWord extends StatelessWidget {
           cachedFadeShadows ?? _buildGlowShadows(glowColor, lightFactor);
       final wordColor = cachedFadeColor ??
           Color.lerp(unlitColor, Colors.white, lightFactor)!;
+      if (blurRadius > 0.08) {
+        return Text(
+          text,
+          style: _baseTextStyle.copyWith(
+            foreground: Paint()
+              ..color = wordColor
+              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
+            shadows: shadows,
+          ),
+        );
+      }
       return Text(
         text,
         style: _baseTextStyle.copyWith(
@@ -1042,6 +1063,17 @@ class _PlainLineWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (lineActiveProgress <= 0.005) {
+      if (blurRadius > 0.08) {
+        return Text(
+          text,
+          textAlign: TextAlign.left,
+          style: _KaraokeWord._baseTextStyle.copyWith(
+            foreground: Paint()
+              ..color = unlitColor
+              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
+          ),
+        );
+      }
       return Text(
         text,
         textAlign: TextAlign.left,
@@ -1063,6 +1095,18 @@ class _PlainLineWidget extends StatelessWidget {
 
     final shadows = _buildGlowShadows(glowColor, lineActiveProgress);
     final color = Color.lerp(unlitColor, Colors.white, lineActiveProgress)!;
+    if (blurRadius > 0.08) {
+      return Text(
+        text,
+        textAlign: TextAlign.left,
+        style: _KaraokeWord._baseTextStyle.copyWith(
+          foreground: Paint()
+            ..color = color
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
+          shadows: shadows,
+        ),
+      );
+    }
     return Text(
       text,
       textAlign: TextAlign.left,
