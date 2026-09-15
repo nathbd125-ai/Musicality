@@ -32,6 +32,20 @@ List<Color> _computeAlbumGradientColors(MediaItem item) {
   final artistNorm = normalizeString(item.artist ?? '');
 
   // 1. EXCEPTIONS TITRES / SINGLES SPÉCIAUX (qui gardent leur gradient spécifique)
+  // Naps - Sans toi / Carré VIP (Blanc doré à blanc à blanc doré)
+  if (idStr == 'sans_toi' ||
+      idStr.contains('sans_toi') ||
+      titleNorm.contains('sans toi') ||
+      artUriStr.contains('sans_toi') ||
+      a.contains('carre_vip') ||
+      albumNorm.contains('carre vip')) {
+    return const [
+      Color(0xFFFFE8A1), // Blanc doré
+      Color(0xFFFFFFFF), // Blanc
+      Color(0xFFFFE8A1), // Blanc doré
+    ];
+  }
+
   // Niska - Pow Pow / Allo Doudou (Bleu ciel à jaune orangé à orangé couché de soleil)
   if (idStr == 'allo_doudou' ||
       idStr.contains('allo_doudou') ||
