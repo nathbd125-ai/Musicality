@@ -40,7 +40,9 @@ class _HyperOSSliderState extends State<HyperOSSlider>
   @override
   void initState() {
     super.initState();
-    AGSLSliderGlass.preload();
+    if (isLiquidGlassEnabledNotifier.value && !isBatterySaverEnabledNotifier.value) {
+      AGSLSliderGlass.preload();
+    }
     _pressController = AnimationController(
       duration: const Duration(milliseconds: 220),
       reverseDuration: const Duration(milliseconds: 240),

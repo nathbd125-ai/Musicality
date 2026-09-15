@@ -8,6 +8,31 @@ final Set<String> _knownExistingCovers = {};
 final Set<String> _knownMissingCovers = {};
 final Set<String> _pendingCoverDownloads = {};
 
+bool _isCoverCacheInitialized = false;
+
+/// Scans the document directory asynchronously in the background to populate the in-memory cover cache.
+/// Completely prevents synchronous file system calls during list scrolling.
+Future<void> initCoverCache() async {
+  if (_isCoverCacheInitialized) return;
+  _isCoverCacheInitialized = true;
+  try {
+    final dir = Directory(globalDocumentPath);
+    if (await dir.exists()) {
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is File && entity.path.endsWith('.jpg')) {
+          final segments = entity.uri.pathSegments;
+          if (segments.isNotEmpty) {
+            final name = segments.last.isNotEmpty ? segments.last : segments[segments.length - 2];
+            _knownExistingCovers.add(name);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    debugPrint("Erreur initCoverCache: $e");
+  }
+}
+
 void registerExistingCover(String fileName) {
   _knownMissingCovers.remove(fileName);
   _knownExistingCovers.add(fileName);
@@ -53,6 +78,8 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
     '$globalDocumentPath/$fileName',
   );
   final int dynamicCacheWidth = width != null ? (width * 3).toInt() : 300;
+  final FilterQuality quality =
+      (width != null && width <= 80) ? FilterQuality.medium : FilterQuality.high;
 
   if (_checkCoverExists(fileName, coverFile)) {
     return Image.file(
@@ -61,13 +88,13 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
       height: height,
       cacheWidth: dynamicCacheWidth,
       fit: BoxFit.cover,
-      filterQuality: FilterQuality.high,
+      filterQuality: quality,
       errorBuilder: (context, error, stackTrace) {
         _knownExistingCovers.remove(fileName);
         _knownMissingCovers.add(fileName);
         // En cas de fichier corrompu en cache, on fallback sur le réseau et re-téléchargement
         _triggerBackgroundCoverDownload(item, fileName, coverFile);
-        return Image.network(item.artUri.toString(), fit: BoxFit.cover);
+        return Image.network(item.artUri.toString(), fit: BoxFit.cover, filterQuality: quality);
       },
     );
   } else {
@@ -78,7 +105,7 @@ Widget getLocalOrNetworkImage(MediaItem item, {double? width, double? height}) {
       height: height,
       cacheWidth: dynamicCacheWidth,
       fit: BoxFit.cover,
-      filterQuality: FilterQuality.high,
+      filterQuality: quality,
     );
   }
 }

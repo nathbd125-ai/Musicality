@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:musicality/ui/widgets/song_tile.dart';
 import 'package:musicality/core/my_audio_handler.dart';
 import 'package:musicality/core/globals.dart';
@@ -26,11 +27,13 @@ class AllMusicsViewState extends State<AllMusicsView> {
   late ScrollController _scrollController;
   bool _isScrolled = false;
   List<MediaItem> _filteredPlaylist = [];
+  Timer? _debounceTimer;
 
   bool get isSearching =>
       _searchQuery.trim().isNotEmpty || _searchController.text.trim().isNotEmpty;
 
   void clearSearch() {
+    _debounceTimer?.cancel();
     _searchController.clear();
     _searchFocusNode.unfocus();
     setState(() {
@@ -69,23 +72,23 @@ class AllMusicsViewState extends State<AllMusicsView> {
   void _updateFilter() {
     final cleanQuery = _searchQuery.trim();
     if (cleanQuery.isEmpty) {
-      _filteredPlaylist = List<MediaItem>.from(globalPlaylist);
+      // Re-use cached sorted global playlist directly: zero copying, zero sorting
+      _filteredPlaylist = getSortedGlobalPlaylist();
     } else {
       final query = normalizeString(cleanQuery);
-      _filteredPlaylist = globalPlaylist.where((item) {
+      // Filtering an already sorted list maintains sorted order: eliminates O(N log N) sorting step
+      _filteredPlaylist = getSortedGlobalPlaylist().where((item) {
         final titleMatch = normalizeString(item.title).contains(query);
         final artistMatch = normalizeString(item.artist ?? '').contains(query);
         final albumMatch = normalizeString(item.album ?? '').contains(query);
         return titleMatch || artistMatch || albumMatch;
       }).toList();
     }
-    _filteredPlaylist.sort(
-      (a, b) => normalizeString(a.title).compareTo(normalizeString(b.title)),
-    );
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     songsVersionNotifier.removeListener(_onSongsChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -104,9 +107,14 @@ class AllMusicsViewState extends State<AllMusicsView> {
             focusNode: _searchFocusNode,
             hintText: "Filtrer vos musiques...",
             onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-                _updateFilter();
+              _searchQuery = value;
+              _debounceTimer?.cancel();
+              _debounceTimer = Timer(const Duration(milliseconds: 100), () {
+                if (mounted) {
+                  setState(() {
+                    _updateFilter();
+                  });
+                }
               });
             },
             onClear: () {

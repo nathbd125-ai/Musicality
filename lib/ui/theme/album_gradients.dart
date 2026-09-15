@@ -23,11 +23,55 @@ List<Color> getAlbumGradientColors(MediaItem item) {
   return colors;
 }
 
+const Map<String, List<Color>> _exactIdGradients = {
+  'sans_toi': [
+    Color(0xFFFFE8A1), // Blanc doré
+    Color(0xFFFFFFFF), // Blanc
+    Color(0xFFFFE8A1), // Blanc doré
+  ],
+  'allo_doudou': [
+    Color(0xFF4FC3F7), // Bleu ciel
+    Color(0xFFFFB74D), // Jaune orangé
+    Color(0xFFFF5722), // Orangé couché de soleil
+  ],
+  'duvet': [
+    Color(0xFF90A4AE), // Gris bleuté
+    Color(0xFF64B5F6), // Bleu clair
+    Color(0xFF1976D2), // Bleu un peu foncé
+    Color(0xFF8E24AA), // Transition violette avec le rouge
+    Color(0xFFEF5350), // Rouge clair
+  ],
+  'biting_bullets': [
+    Color(0xFF111111), // Noir
+    Color(0xFF424242), // Gris anthracite
+    Color(0xFF9E9E9E), // Gris intermédiaire
+    Color(0xFFE0E0E0), // Gris clair
+  ],
+  'the_scotts': [
+    Color(0xFFFFEB3B), // Jaune
+    Color(0xFF4CAF50), // Vert
+    Color(0xFFE91E63), // Rose
+  ],
+  'black_beatles': [
+    Color(0xFF111111), // Noir
+    Color(0xFF5D4037), // Marron
+    Color(0xFFFFFFFF), // Blanc
+  ],
+  'nothing_breaks_like_a_heart': [
+    Color(0xFFFD9197), // Rose
+    Color(0xFFECEFF1), // Gris pétillant
+    Color(0xFF1A1C20), // Noir pétillant
+  ],
+};
+
 List<Color> _computeAlbumGradientColors(MediaItem item) {
+  final idStr = item.id.toLowerCase();
+  final exact = _exactIdGradients[idStr];
+  if (exact != null) return exact;
+
   final artUriStr = item.artUri?.toString().toLowerCase() ?? '';
   final a = getSafeFileName(item.album ?? '');
   final albumNorm = normalizeString(item.album ?? '');
-  final idStr = item.id.toLowerCase();
   final titleNorm = normalizeString(item.title);
   final artistNorm = normalizeString(item.artist ?? '');
 

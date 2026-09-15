@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:rxdart/rxdart.dart';
 import 'package:musicality/core/models.dart';
 import 'package:flutter/services.dart';
@@ -273,88 +274,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         artist: 'Inconnu',
                       ));
 
-            return TweenAnimationBuilder<Color?>(
+            return TweenAnimationBuilder<List<Color>>(
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeOut,
-              tween: ColorTween(
+              tween: _ColorsListTween(
                 end: _dynamicGradientColors.isNotEmpty
-                    ? _dynamicGradientColors[0]
-                    : Colors.black,
+                    ? _dynamicGradientColors
+                    : const [Colors.black, Colors.black],
               ),
-              builder: (context, color1, _) {
-                return TweenAnimationBuilder<Color?>(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOut,
-                  tween: ColorTween(
-                    end: _dynamicGradientColors.length > 1
-                        ? _dynamicGradientColors[1]
-                        : (_dynamicGradientColors.isNotEmpty
-                            ? _dynamicGradientColors[0]
-                            : Colors.black),
-                  ),
-                  builder: (context, color2, _) {
-                    return TweenAnimationBuilder<Color?>(
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOut,
-                      tween: ColorTween(
-                        end: _dynamicGradientColors.length > 2
-                            ? _dynamicGradientColors[2]
-                            : (_dynamicGradientColors.length > 1
-                                ? _dynamicGradientColors[1]
-                                : (_dynamicGradientColors.isNotEmpty
-                                    ? _dynamicGradientColors[0]
-                                    : Colors.black)),
-                      ),
-                      builder: (context, color3, _) {
-                        return TweenAnimationBuilder<Color?>(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeOut,
-                          tween: ColorTween(
-                            end: _dynamicGradientColors.length > 3
-                                ? _dynamicGradientColors[3]
-                                : (_dynamicGradientColors.isNotEmpty
-                                    ? _dynamicGradientColors.last
-                                    : Colors.black),
-                          ),
-                          builder: (context, color4, _) {
-                            final List<Color> smoothThemeColors =
-                                _dynamicGradientColors.length > 4
-                                    ? _dynamicGradientColors
-                                    : [
-                                        color1 ??
-                                            (_dynamicGradientColors.isNotEmpty
-                                                ? _dynamicGradientColors[0]
-                                                : Colors.black),
-                                        color2 ??
-                                            (_dynamicGradientColors.length > 1
-                                                ? _dynamicGradientColors[1]
-                                                : (_dynamicGradientColors
-                                                        .isNotEmpty
-                                                    ? _dynamicGradientColors[0]
-                                                    : Colors.black)),
-                                        color3 ??
-                                            (_dynamicGradientColors.length > 2
-                                                ? _dynamicGradientColors[2]
-                                                : (_dynamicGradientColors
-                                                        .isNotEmpty
-                                                    ? _dynamicGradientColors
-                                                        .last
-                                                    : Colors.black)),
-                                        color4 ??
-                                            (_dynamicGradientColors.length > 3
-                                                ? _dynamicGradientColors[3]
-                                                : (_dynamicGradientColors
-                                                        .isNotEmpty
-                                                    ? _dynamicGradientColors
-                                                        .last
-                                                    : Colors.black)),
-                                      ];
-
-                            return ListenableBuilder(
-                              listenable: Listenable.merge([
-                                isLiquidGlassEnabledNotifier,
-                                isBatterySaverEnabledNotifier,
-                              ]),
+              builder: (context, smoothThemeColors, _) {
+                return ListenableBuilder(
+                  listenable: Listenable.merge([
+                    isLiquidGlassEnabledNotifier,
+                    isBatterySaverEnabledNotifier,
+                  ]),
                               builder: (context, _) {
                                 return TweenAnimationBuilder<double>(
                                   duration: transitionDuration,
@@ -1497,15 +1430,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             );
                           },
                         );
-                      },
-                    );
-                  },
-                );
-              },
-            );
           },
         ),
       ),
     );
+  }
+}
+
+class _ColorsListTween extends Tween<List<Color>> {
+  _ColorsListTween({required List<Color> end}) : super(end: end);
+
+  @override
+  List<Color> lerp(double t) {
+    final b = begin ?? const [];
+    final e = end ?? const [];
+    if (b.isEmpty && e.isEmpty) return const [Colors.black, Colors.black];
+    if (b.isEmpty) return e;
+    if (e.isEmpty) return b;
+    final int count = math.max(b.length, e.length);
+    return List<Color>.generate(count, (i) {
+      final c1 = i < b.length ? b[i] : b.last;
+      final c2 = i < e.length ? e[i] : e.last;
+      return Color.lerp(c1, c2, t) ?? c2;
+    });
   }
 }

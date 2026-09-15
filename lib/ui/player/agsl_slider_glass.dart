@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:musicality/core/globals.dart';
 
 /// Specialized AGSL Frosted Glass component tailored for dynamic moving UI elements (e.g. slider thumbs).
 /// Uses 'shaders/slider_glass.frag' which eliminates SDF outer clipping discard to guarantee continuous,
@@ -24,8 +25,24 @@ class AGSLSliderGlass extends StatefulWidget {
 
   static FragmentProgram? _cachedProgram;
 
-  /// Preload the shader program so that touch interactions start instantly with 0ms latency.
+  static bool _hasBoundListener = false;
+
+  static void _bindListener() {
+    if (_hasBoundListener) return;
+    _hasBoundListener = true;
+    isLiquidGlassEnabledNotifier.addListener(() {
+      if (isLiquidGlassEnabledNotifier.value && !isBatterySaverEnabledNotifier.value) {
+        preload();
+      }
+    });
+  }
+
+  /// Preload the shader program ONLY if Liquid Glass is currently enabled and battery saver is off.
   static Future<void> preload() async {
+    _bindListener();
+    if (!isLiquidGlassEnabledNotifier.value || isBatterySaverEnabledNotifier.value) {
+      return;
+    }
     if (_cachedProgram != null) return;
     try {
       _cachedProgram = await FragmentProgram.fromAsset(
