@@ -673,8 +673,16 @@ Uri buildArtUri(String imageName) {
 
 void _parseMusiquesFromJson(List<dynamic> data) {
   globalPlaylist.clear();
+  final Set<String> seenIds = {};
+  final Set<String> seenAlbumTitles = {};
+
   for (var jsonItem in data) {
-    final id = jsonItem['id'] as String;
+    final id = (jsonItem['id'] as String).trim();
+    // Rejeter les doublons au format non standardisé si présents
+    if (id.startsWith('Niska - Commando - ')) {
+      continue;
+    }
+
     var albumName = normalizeAlbumName(id, jsonItem['album']);
     var rawTitle = jsonItem['title'] ?? id;
     if (id.toLowerCase() == 'afro_trap,_part.7_(la_puissance)') {
@@ -685,7 +693,21 @@ void _parseMusiquesFromJson(List<dynamic> data) {
       rawArtist = 'Franglish & Tory Lanez';
     } else if (id.toLowerCase().contains('look_don') && id.toLowerCase().contains('touch')) {
       rawArtist = 'Odetari & Cade Clair';
+    } else if (id == 'reseaux_remix') {
+      rawTitle = "Réseaux (Remix)";
+      rawArtist = "Niska feat. Quavo & Stefflon Don";
+      albumName = "Commando";
     }
+
+    final title = cleanTitle(rawTitle);
+    final enrichedArtist = _extractEnrichedArtist(title, rawArtist);
+    final dedupKey = '${normalizeString(albumName)}::${normalizeString(title)}';
+
+    if (seenIds.contains(id) || seenAlbumTitles.contains(dedupKey)) {
+      continue;
+    }
+    seenIds.add(id);
+    seenAlbumTitles.add(dedupKey);
 
     final safeImageName = resolveCoverName(
       id: id,
@@ -696,8 +718,8 @@ void _parseMusiquesFromJson(List<dynamic> data) {
     final mediaItem = MediaItem(
       id: '${ApiConfig.baseUrl}/$id.flac',
       album: albumName,
-      title: cleanTitle(rawTitle),
-      artist: _extractEnrichedArtist(rawTitle, rawArtist),
+      title: title,
+      artist: enrichedArtist,
       artUri: buildArtUri(safeImageName),
       duration: Duration(seconds: jsonItem['durationSeconds'] ?? 0),
       extras: {
@@ -715,13 +737,43 @@ void loadMusiquesFromCache() {
     final cachedSongs = obx.songBox.getAll();
     if (cachedSongs.isNotEmpty) {
       globalPlaylist.clear();
+      final Set<String> seenIds = {};
+      final Set<String> seenAlbumTitles = {};
+      final List<SongEntity> cleanEntities = [];
+
       for (var entity in cachedSongs) {
-        var album = normalizeAlbumName(entity.songId, entity.album);
+        final songId = entity.songId.trim();
+        // Élimine les anciens doublons historiques stockés dans le cache ObjectBox
+        if (songId.startsWith('Niska - Commando - ')) {
+          continue;
+        }
+
+        var rawTitle = entity.title;
+        var rawArtist = entity.artist;
+        var album = normalizeAlbumName(songId, entity.album);
+
+        if (songId == 'reseaux_remix') {
+          rawTitle = "Réseaux (Remix)";
+          rawArtist = "Niska feat. Quavo & Stefflon Don";
+          album = "Commando";
+        }
+
+        final title = cleanTitle(rawTitle);
+        final enrichedArtist = _extractEnrichedArtist(title, rawArtist);
+        final dedupKey = '${normalizeString(album)}::${normalizeString(title)}';
+
+        if (seenIds.contains(songId) || seenAlbumTitles.contains(dedupKey)) {
+          continue;
+        }
+        seenIds.add(songId);
+        seenAlbumTitles.add(dedupKey);
+        cleanEntities.add(entity);
+
         final mediaItem = MediaItem(
-          id: '${ApiConfig.baseUrl}/${entity.songId}.flac',
+          id: '${ApiConfig.baseUrl}/$songId.flac',
           album: album,
-          title: cleanTitle(entity.title),
-          artist: _extractEnrichedArtist(entity.title, entity.artist),
+          title: title,
+          artist: enrichedArtist,
           artUri: entity.artUri != null ? Uri.parse(entity.artUri!) : null,
           duration: Duration(seconds: entity.durationSeconds),
           extras: {
@@ -732,6 +784,14 @@ void loadMusiquesFromCache() {
         
         globalPlaylist.add(mediaItem);
       }
+
+      // Nettoie automatiquement ObjectBox si des doublons y résidaient
+      if (cleanEntities.length < cachedSongs.length) {
+        obx.songBox.removeAll();
+        obx.songBox.putMany(cleanEntities);
+        debugPrint('ObjectBox assaini : ${cachedSongs.length - cleanEntities.length} doublons supprimés');
+      }
+
       songsVersionNotifier.value++;
       debugPrint('Musiques chargées depuis le CACHE LOCAL (ObjectBox) : ${globalPlaylist.length}');
     } else {
@@ -760,10 +820,17 @@ Future<void> fetchMusiques() async {
           utf8.decode(response.bodyBytes, allowMalformed: true);
       final List<dynamic> data = jsonDecode(responseBody);
       
-      // Mettre en cache dans ObjectBox
+      // Mettre en cache dans ObjectBox avec déduplication stricte
       final List<SongEntity> entities = [];
+      final Set<String> seenIds = {};
+      final Set<String> seenAlbumTitles = {};
+
       for (var jsonItem in data) {
-        final id = jsonItem['id'] as String;
+        final id = (jsonItem['id'] as String).trim();
+        if (id.startsWith('Niska - Commando - ')) {
+          continue;
+        }
+
         var albumName = normalizeAlbumName(id, jsonItem['album']);
         var rawTitle = jsonItem['title'] ?? id;
         if (id.toLowerCase() == 'afro_trap,_part.7_(la_puissance)') {
@@ -774,7 +841,21 @@ Future<void> fetchMusiques() async {
           rawArtist = 'Franglish & Tory Lanez';
         } else if (id.toLowerCase().contains('look_don') && id.toLowerCase().contains('touch')) {
           rawArtist = 'Odetari & Cade Clair';
+        } else if (id == 'reseaux_remix') {
+          rawTitle = "Réseaux (Remix)";
+          rawArtist = "Niska feat. Quavo & Stefflon Don";
+          albumName = "Commando";
         }
+
+        final title = cleanTitle(rawTitle);
+        final enrichedArtist = _extractEnrichedArtist(title, rawArtist);
+        final dedupKey = '${normalizeString(albumName)}::${normalizeString(title)}';
+
+        if (seenIds.contains(id) || seenAlbumTitles.contains(dedupKey)) {
+          continue;
+        }
+        seenIds.add(id);
+        seenAlbumTitles.add(dedupKey);
 
         final safeImageName = resolveCoverName(
           id: id,
@@ -784,8 +865,8 @@ Future<void> fetchMusiques() async {
         
         entities.add(SongEntity(
           songId: id,
-          title: rawTitle,
-          artist: _extractEnrichedArtist(rawTitle, rawArtist),
+          title: title,
+          artist: enrichedArtist,
           album: albumName,
           artUri: buildArtUriString(safeImageName),
           durationSeconds: jsonItem['durationSeconds'] ?? 0,
@@ -794,7 +875,7 @@ Future<void> fetchMusiques() async {
         ));
       }
       
-      // On vide l'ancienne boîte et on insère les nouvelles données
+      // On vide l'ancienne boîte et on insère les nouvelles données assainies
       obx.songBox.removeAll();
       obx.songBox.putMany(entities);
 

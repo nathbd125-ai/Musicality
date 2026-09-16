@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'dart:math' as math;
 import 'dart:async';
+import 'package:flutter/scheduler.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:palette_generator/palette_generator.dart';
@@ -17,9 +18,12 @@ class RealAlbumBlurredBackground extends StatefulWidget {
 
 class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  late final AnimationController _liquidController;
-  late final AnimationController _fadeController;
-  StreamSubscription<PlaybackState>? _playbackSub;
+  late final Ticker _driftTicker;
+  double _driftTime = 0.0;
+  Duration? _lastTick;
+
+  late final AnimationController _coverFadeController;
+  late final AnimationController _colorFadeController;
   bool _isForeground = true;
 
   MediaItem? _previousItem;
@@ -49,23 +53,35 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     _previousColors = initialColors;
     _targetColors = initialColors;
 
-    // Animation très lente en boucle continue (effet liquide fluide sans surchauffe)
-    _liquidController = AnimationController(
+    // Contrôleur de fondu de la pochette (changement de morceau)
+    _coverFadeController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 18),
-      value: math.Random().nextDouble(),
-    );
-
-    // Transition fluide entre pochettes lors d'un changement de musique
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 700),
       value: 1.0,
     );
 
-    _playbackSub = globalAudioHandler.playbackState.listen((_) {
-      _syncAnimation();
+    // Contrôleur de fondu des teintes / orbes
+    _colorFadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+      value: 1.0,
+    );
+
+    // Ticker continu haute précision : le temps ne se réinitialise JAMAIS (zéro saut, zéro téléportation)
+    _driftTicker = createTicker((Duration elapsed) {
+      if (_lastTick != null) {
+        final double dt = (elapsed - _lastTick!).inMicroseconds / 1000000.0;
+        // Plafonnement de dt pour éviter tout à-coup lors de la reprise d'activité
+        if (dt > 0.0 && dt < 0.1) {
+          _driftTime += dt;
+        }
+      }
+      _lastTick = elapsed;
+      if (mounted) {
+        setState(() {});
+      }
     });
+
     isBatterySaverEnabledNotifier.addListener(_onBatterySaverChanged);
 
     _syncAnimation();
@@ -79,6 +95,15 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
         oldWidget.item.artUri != widget.item.artUri) {
       _previousItem = oldWidget.item;
       _currentItem = widget.item;
+
+      // Déclenchement propre du fondu croisé de la pochette
+      _coverFadeController.forward(from: 0.0).then((_) {
+        if (mounted) {
+          setState(() {
+            _previousItem = null;
+          });
+        }
+      });
 
       // Récupération instantanée des couleurs de l'album (0 ms de freeze)
       final newColors = _getInitialColors(widget.item);
@@ -151,16 +176,14 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
 
   void _applyNewColors(List<Color> newColors) {
     if (!mounted) return;
-    setState(() {
-      final currentProgress = _fadeController.value;
-      _previousColors = [
-        Color.lerp(_previousColors[0], _targetColors[0], currentProgress)!,
-        Color.lerp(_previousColors[1], _targetColors[1], currentProgress)!,
-        Color.lerp(_previousColors[2], _targetColors[2], currentProgress)!,
-      ];
-      _targetColors = newColors;
-    });
-    _fadeController.forward(from: 0.0);
+    final currentProgress = _colorFadeController.value;
+    _previousColors = [
+      Color.lerp(_previousColors[0], _targetColors[0], currentProgress)!,
+      Color.lerp(_previousColors[1], _targetColors[1], currentProgress)!,
+      Color.lerp(_previousColors[2], _targetColors[2], currentProgress)!,
+    ];
+    _targetColors = newColors;
+    _colorFadeController.forward(from: 0.0);
   }
 
   void _onBatterySaverChanged() {
@@ -170,16 +193,18 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
   void _syncAnimation() {
     if (!mounted) return;
     final isBatterySaver = isBatterySaverEnabledNotifier.value;
-    final isPlaying = globalAudioHandler.playbackState.value.playing;
-    final shouldAnimate = !isBatterySaver && isPlaying && _isForeground;
+    // Dérive liquide continue style Apple Music : reste vivante même en pause de lecture
+    final shouldAnimate = !isBatterySaver && _isForeground;
 
     if (shouldAnimate) {
-      if (!_liquidController.isAnimating) {
-        _liquidController.repeat();
+      if (!_driftTicker.isTicking) {
+        _lastTick = null;
+        _driftTicker.start();
       }
     } else {
-      if (_liquidController.isAnimating) {
-        _liquidController.stop();
+      if (_driftTicker.isTicking) {
+        _driftTicker.stop();
+        _lastTick = null;
       }
     }
   }
@@ -194,10 +219,10 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _playbackSub?.cancel();
     isBatterySaverEnabledNotifier.removeListener(_onBatterySaverChanged);
-    _liquidController.dispose();
-    _fadeController.dispose();
+    _driftTicker.dispose();
+    _coverFadeController.dispose();
+    _colorFadeController.dispose();
     super.dispose();
   }
 
@@ -225,111 +250,101 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
 
   @override
   Widget build(BuildContext context) {
+    final coverProgress = CurvedAnimation(
+      parent: _coverFadeController,
+      curve: Curves.easeInOutCubic,
+    ).value;
+
+    final colorProgress = CurvedAnimation(
+      parent: _colorFadeController,
+      curve: Curves.easeOutCubic,
+    ).value;
+
+    final c1 = Color.lerp(_previousColors[0], _targetColors[0], colorProgress)!;
+    final c2 = Color.lerp(_previousColors[1], _targetColors[1], colorProgress)!;
+    final c3 = Color.lerp(_previousColors[2], _targetColors[2], colorProgress)!;
+
+    // Dérive continue fluide sans téléportation (temps perpétuellement croissant)
+    // Harmonies multi-fréquences douces et non-périodiques (façon Apple Music)
+    final driftX = math.sin(_driftTime * 0.22) * 16.0 + math.cos(_driftTime * 0.39) * 8.0;
+    final driftY = math.cos(_driftTime * 0.17) * 22.0 + math.sin(_driftTime * 0.31) * 10.0;
+    final driftScale = 1.15 + math.sin(_driftTime * 0.13) * 0.03;
+
+    // Orbes liquides vibrants en orbites continues déphasées
+    final orb1X = math.sin(_driftTime * 0.26) * 0.50 + math.cos(_driftTime * 0.11) * 0.15;
+    final orb1Y = math.cos(_driftTime * 0.21) * 0.40 - 0.20;
+
+    final orb2X = -math.cos(_driftTime * 0.24) * 0.45 + math.sin(_driftTime * 0.14) * 0.15;
+    final orb2Y = -math.sin(_driftTime * 0.19) * 0.40 + 0.20;
+
     return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_liquidController, _fadeController]),
-        builder: (context, child) {
-          final fadeProgress = CurvedAnimation(
-            parent: _fadeController,
-            curve: Curves.easeInOutCubic,
-          ).value;
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. Fond sombre de base ancré dans la palette de l'album
+          Container(color: c3),
 
-          final c1 = Color.lerp(_previousColors[0], _targetColors[0], fadeProgress)!;
-          final c2 = Color.lerp(_previousColors[1], _targetColors[1], fadeProgress)!;
-          final c3 = Color.lerp(_previousColors[2], _targetColors[2], fadeProgress)!;
-
-          // Paramétrage temporel fluide continu
-          final t = _liquidController.value * 2 * math.pi;
-
-          // Orbe 1 : Évolution orbitale haute (ne passe jamais au centre)
-          final r1 = 0.42 + 0.18 * math.sin(t * 0.8);
-          final theta1 = t * 0.7 + (math.pi / 4);
-          final x1 = r1 * math.cos(theta1);
-          final y1 = r1 * math.sin(theta1) * 0.85 - 0.18;
-
-          // Orbe 2 : Évolution orbitale basse en contre-mouvement (ne passe jamais au centre)
-          final r2 = 0.46 + 0.16 * math.cos(t * 0.9);
-          final theta2 = -t * 0.6 + (5 * math.pi / 4);
-          final x2 = r2 * math.cos(theta2);
-          final y2 = r2 * math.sin(theta2) * 0.85 + 0.18;
-
-          // Dérive physique de la pochette : trajectoire orbitale errante (rayon non-nul garanti)
-          // Ne revient JAMAIS au milieu (0,0), flotte de manière continue et vivante
-          final driftRadius = 20.0 + 12.0 * math.sin(t * 0.6 + 0.5); // Toujours entre 8 et 32 px
-          final driftAngle = t * 0.75 + 0.35 * math.sin(t * 1.6);
-          final driftDx = driftRadius * math.cos(driftAngle);
-          final driftDy = driftRadius * math.sin(driftAngle) * 1.35; // Élongation portrait naturelle
-          final driftScale = 1.16 + math.sin(t * 0.5 + 1.2) * 0.035;
-
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1. Fond sombre de base ancré dans la palette de l'album
-              Container(color: c3),
-
-              // 2. Vraie pochette de l'album floutée avec dérive physique fluide (mise en cache GPU VRAM sans recalcul de flou)
-              Transform.translate(
-                offset: Offset(driftDx, driftDy),
-                child: Transform.scale(
-                  scale: driftScale,
-                  alignment: Alignment.center,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (_previousItem != null && fadeProgress < 1.0)
-                        Opacity(
-                          opacity: (1.0 - fadeProgress).clamp(0.0, 1.0),
-                          child: _buildAmbientCover(_previousItem),
-                        ),
-                      if (_currentItem != null)
-                        Opacity(
-                          opacity: fadeProgress.clamp(0.0, 1.0),
-                          child: _buildAmbientCover(_currentItem),
-                        ),
-                    ],
-                  ),
-                ),
+          // 2. Vraie pochette de l'album floutée avec dérive physique fluide (mise en cache GPU VRAM sans recalcul de flou)
+          Transform.translate(
+            offset: Offset(driftX, driftY),
+            child: Transform.scale(
+              scale: driftScale,
+              alignment: Alignment.center,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (_previousItem != null && coverProgress < 1.0)
+                    Opacity(
+                      opacity: (1.0 - coverProgress).clamp(0.0, 1.0),
+                      child: _buildAmbientCover(_previousItem),
+                    ),
+                  if (_currentItem != null)
+                    Opacity(
+                      opacity: coverProgress.clamp(0.0, 1.0),
+                      child: _buildAmbientCover(_currentItem),
+                    ),
+                ],
               ),
+            ),
+          ),
 
-              // 3. Orbe liquide animé 1 (lueur vibrante Apple Music en orbite)
-              Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(x1, y1),
-                    radius: 1.3,
-                    colors: [
-                      c1.withValues(alpha: 0.65),
-                      c1.withValues(alpha: 0.20),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.55, 1.0],
-                  ),
-                ),
+          // 3. Orbe liquide animé 1 (lueur vibrante Apple Music en orbite)
+          Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(orb1X, orb1Y),
+                radius: 1.3,
+                colors: [
+                  c1.withValues(alpha: 0.65),
+                  c1.withValues(alpha: 0.20),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.55, 1.0],
               ),
+            ),
+          ),
 
-              // 4. Orbe liquide animé 2 (lueur dominante en contre-orbite)
-              Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(x2, y2),
-                    radius: 1.4,
-                    colors: [
-                      c2.withValues(alpha: 0.60),
-                      c2.withValues(alpha: 0.15),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.60, 1.0],
-                  ),
-                ),
+          // 4. Orbe liquide animé 2 (lueur dominante en contre-orbite)
+          Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(orb2X, orb2Y),
+                radius: 1.4,
+                colors: [
+                  c2.withValues(alpha: 0.60),
+                  c2.withValues(alpha: 0.15),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.60, 1.0],
               ),
+            ),
+          ),
 
-              // 5. Voile sombre translucide pour garantir la lisibilité et le contraste
-              Container(
-                color: Colors.black.withValues(alpha: 0.32),
-              ),
-            ],
-          );
-        },
+          // 5. Voile sombre translucide pour garantir la lisibilité et le contraste
+          Container(
+            color: Colors.black.withValues(alpha: 0.32),
+          ),
+        ],
       ),
     );
   }
