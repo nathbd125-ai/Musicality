@@ -238,17 +238,28 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           final c2 = Color.lerp(_previousColors[1], _targetColors[1], fadeProgress)!;
           final c3 = Color.lerp(_previousColors[2], _targetColors[2], fadeProgress)!;
 
-          // Positions liquides orbitales très douces et organiques (façon Apple Music)
+          // Paramétrage temporel fluide continu
           final t = _liquidController.value * 2 * math.pi;
-          final x1 = math.sin(t) * 0.55;
-          final y1 = math.cos(t * 0.7) * 0.45;
-          final x2 = -math.cos(t * 0.8) * 0.50;
-          final y2 = -math.sin(t * 0.6) * 0.45;
 
-          // Dérive flottante physique de la pochette (translation + zoom subtil fluide)
-          final driftDx = (math.sin(t * 0.7) * 0.7 + math.sin(t * 1.5) * 0.3) * 24.0;
-          final driftDy = (math.cos(t * 0.6) * 0.7 + math.cos(t * 1.8) * 0.3) * 32.0;
-          final driftScale = 1.15 + math.sin(t * 0.4) * 0.03;
+          // Orbe 1 : Évolution orbitale haute (ne passe jamais au centre)
+          final r1 = 0.42 + 0.18 * math.sin(t * 0.8);
+          final theta1 = t * 0.7 + (math.pi / 4);
+          final x1 = r1 * math.cos(theta1);
+          final y1 = r1 * math.sin(theta1) * 0.85 - 0.18;
+
+          // Orbe 2 : Évolution orbitale basse en contre-mouvement (ne passe jamais au centre)
+          final r2 = 0.46 + 0.16 * math.cos(t * 0.9);
+          final theta2 = -t * 0.6 + (5 * math.pi / 4);
+          final x2 = r2 * math.cos(theta2);
+          final y2 = r2 * math.sin(theta2) * 0.85 + 0.18;
+
+          // Dérive physique de la pochette : trajectoire orbitale errante (rayon non-nul garanti)
+          // Ne revient JAMAIS au milieu (0,0), flotte de manière continue et vivante
+          final driftRadius = 20.0 + 12.0 * math.sin(t * 0.6 + 0.5); // Toujours entre 8 et 32 px
+          final driftAngle = t * 0.75 + 0.35 * math.sin(t * 1.6);
+          final driftDx = driftRadius * math.cos(driftAngle);
+          final driftDy = driftRadius * math.sin(driftAngle) * 1.35; // Élongation portrait naturelle
+          final driftScale = 1.16 + math.sin(t * 0.5 + 1.2) * 0.035;
 
           return Stack(
             fit: StackFit.expand,

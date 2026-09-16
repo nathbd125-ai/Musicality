@@ -745,7 +745,15 @@ void loadMusiquesFromCache() {
 Future<void> fetchMusiques() async {
   try {
     final response = await http
-        .get(Uri.parse('${ApiConfig.baseUrl}/musiques.json'))
+        .get(
+          Uri.parse(
+            '${ApiConfig.baseUrl}/musiques.json?t=${DateTime.now().millisecondsSinceEpoch}',
+          ),
+          headers: const {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        )
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
       final String responseBody =
