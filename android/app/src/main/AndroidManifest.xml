@@ -90,10 +90,19 @@
         <!-- Samsung MultiWindow global configuration -->
         <meta-data
             android:name="com.samsung.android.sdk.multiwindow.enable"
-            android:value="true" />
+            android:value="false" />
+        <meta-data
+            android:name="com.sec.android.multiwindow.enable"
+            android:value="false" />
+        <meta-data
+            android:name="com.samsung.android.sdk.multiwindow.popupwindow.enable"
+            android:value="false" />
+        <meta-data
+            android:name="com.sec.android.multiwindow.popupwindow.enable"
+            android:value="false" />
         <meta-data
             android:name="com.samsung.android.sdk.multiwindow.style"
-            android:value="splitOnly" />
+            android:value="none" />
 
         <!-- Xiaomi MIUI / HyperOS global configuration -->
         <meta-data

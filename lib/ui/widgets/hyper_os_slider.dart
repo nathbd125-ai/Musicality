@@ -31,6 +31,9 @@ class _HyperOSSliderState extends State<HyperOSSlider>
   bool _isInteracting = false;
   bool _hasDragStarted = false;
 
+  // Bloqué à la demande de l'utilisateur pour garantir 0% de charge GPU/CPU
+  static const bool _forceDisableSliderLiquidGlass = true;
+
   late final AnimationController _pressController;
   late final Animation<double> _pressAnimation;
   late final SingleSpringController _springController;
@@ -40,9 +43,10 @@ class _HyperOSSliderState extends State<HyperOSSlider>
   @override
   void initState() {
     super.initState();
-    if (isLiquidGlassEnabledNotifier.value && !isBatterySaverEnabledNotifier.value) {
-      AGSLSliderGlass.preload();
-    }
+    // Slider Liquid Glass temporairement désactivé (0 ressource consommée)
+    // if (isLiquidGlassEnabledNotifier.value && !isBatterySaverEnabledNotifier.value) {
+    //   AGSLSliderGlass.preload();
+    // }
     _pressController = AnimationController(
       duration: const Duration(milliseconds: 220),
       reverseDuration: const Duration(milliseconds: 240),
@@ -166,6 +170,24 @@ class _HyperOSSliderState extends State<HyperOSSlider>
     required bool isLiquidGlass,
     required Offset? thumbOffset,
   }) {
+    if (!isLiquidGlass) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.8),
+              blurRadius: 6,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+      );
+    }
+
     final borderRadius = height / 2;
     // Hide the white circle as soon as interaction begins
     final double whiteCircleOpacity =
@@ -306,16 +328,18 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                   final activeWidth = width * pct;
 
                   return ListenableBuilder(
-                    listenable: Listenable.merge([
-                      _pressAnimation,
-                      _springController,
-                      isLiquidGlassEnabledNotifier,
-                      isBatterySaverEnabledNotifier,
-                    ]),
+                    listenable: _forceDisableSliderLiquidGlass
+                        ? const AlwaysStoppedAnimation(0)
+                        : Listenable.merge([
+                            _pressAnimation,
+                            _springController,
+                            isLiquidGlassEnabledNotifier,
+                            isBatterySaverEnabledNotifier,
+                          ]),
                     builder: (context, _) {
-                      final bool isLiquidGlass =
+                      final bool isLiquidGlass = !_forceDisableSliderLiquidGlass &&
                           isLiquidGlassEnabledNotifier.value &&
-                              !isBatterySaverEnabledNotifier.value;
+                          !isBatterySaverEnabledNotifier.value;
 
                       final pressVal =
                           isLiquidGlass ? _pressAnimation.value : 0.0;
@@ -332,8 +356,8 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                           ? ui.lerpDouble(10.0, 38.0, pressVal)!
                           : 10.0;
 
-                      // Dynamic squash & stretch based on spring velocity
-                      final double velocity = _springController.velocity.abs();
+                      // Dynamic squash & stretch based on spring velocity (uniquement si Liquid Glass actif)
+                      final double velocity = isLiquidGlass ? _springController.velocity.abs() : 0.0;
                       final double stretchFactor =
                           (isLiquidGlass && _isInteracting)
                               ? (velocity * 0.08).clamp(0.0, 0.35)
@@ -347,18 +371,21 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                           .clamp(0.0, width - currentThumbWidth);
                       final thumbTop = (trackHeight - currentThumbHeight) / 2;
 
-                      // Synchronous global offset calculation for AGSLSliderGlass shader
-                      final RenderBox? trackBox =
-                          _trackKey.currentContext?.findRenderObject() as RenderBox?;
-                      if (trackBox != null && trackBox.hasSize && trackBox.attached) {
-                        _cachedTrackOffset = trackBox.localToGlobal(Offset.zero);
+                      // Synchronous global offset calculation for AGSLSliderGlass shader (uniquement si Liquid Glass)
+                      Offset? thumbOffset;
+                      if (isLiquidGlass) {
+                        final RenderBox? trackBox =
+                            _trackKey.currentContext?.findRenderObject() as RenderBox?;
+                        if (trackBox != null && trackBox.hasSize && trackBox.attached) {
+                          _cachedTrackOffset = trackBox.localToGlobal(Offset.zero);
+                        }
+                        if (_cachedTrackOffset != null) {
+                          thumbOffset = Offset(
+                            _cachedTrackOffset!.dx + thumbLeft,
+                            _cachedTrackOffset!.dy + thumbTop,
+                          );
+                        }
                       }
-                      final Offset? thumbOffset = _cachedTrackOffset != null
-                          ? Offset(
-                              _cachedTrackOffset!.dx + thumbLeft,
-                              _cachedTrackOffset!.dy + thumbTop,
-                            )
-                          : null;
 
                       return Stack(
                         key: _trackKey,

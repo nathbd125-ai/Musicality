@@ -179,7 +179,7 @@ class _AccountPageViewState extends State<AccountPageView> {
                                 Row(
                                   children: [
                                     Text(
-                                      "Liquid Glass",
+                                      "Liquid Glass (Bêta)",
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,

@@ -11,7 +11,6 @@ import 'package:mmkv/mmkv.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:musicality/core/objectbox_service.dart';
 import 'package:musicality/core/app_config.dart';
-import 'package:musicality/ui/player/agsl_slider_glass.dart';
 
 import 'dart:io';
 import 'dart:async';
@@ -141,10 +140,10 @@ Future<void> main() async {
       await initPersistence();
       // Préchargement asynchrone du cache des pochettes pour éliminer les I/O synchrones au scroll
       unawaited(initCoverCache());
-      // Préchargement conditionnel du shader du slider UNIQUEMENT si Liquid Glass est activé
-      if (isLiquidGlassEnabledNotifier.value && !isBatterySaverEnabledNotifier.value) {
-        unawaited(AGSLSliderGlass.preload());
-      }
+      // Slider Liquid Glass bloqué à la demande de l'utilisateur (0 ressource consommée)
+      // if (isLiquidGlassEnabledNotifier.value && !isBatterySaverEnabledNotifier.value) {
+      //   unawaited(AGSLSliderGlass.preload());
+      // }
     } catch (e, st) {
       debugPrint("Erreur initPersistence : $e\n$st");
     }

@@ -128,7 +128,7 @@ Future<void> initPersistence() async {
   );
   isDownloadHiResNotifier.value = mmkv.decodeBool('isDownloadHiRes');
   isCacheEnabledNotifier.value = mmkv.decodeBool('isCacheEnabled');
-  isLiquidGlassEnabledNotifier.value = mmkv.decodeBool('isLiquidGlassEnabled', defaultValue: true);
+  isLiquidGlassEnabledNotifier.value = mmkv.decodeBool('isLiquidGlassEnabled', defaultValue: false);
   isBatterySaverEnabledNotifier.value = mmkv.decodeBool('isBatterySaverEnabled', defaultValue: false);
   if (isLiquidGlassEnabledNotifier.value && isBatterySaverEnabledNotifier.value) {
     isLiquidGlassEnabledNotifier.value = false;
@@ -528,6 +528,12 @@ String normalizeAlbumName(String id, dynamic rawAlbum) {
     if (lowerAlbum.contains('now that')) {
       return 'Late Night Feelings';
     }
+  } else if (lowerId.startsWith('damso') || lowerAlbum.contains('beyah') || lowerAlbum.contains('bēyāh')) {
+    return 'BĒYĀH';
+  } else if (lowerId.startsWith('nekfeu') || lowerId == 'egerie' || lowerAlbum == 'feu') {
+    return 'Feu';
+  } else if (lowerId.startsWith('lartiste') || lowerId.contains('mafiosa') || lowerAlbum == 'grandestino') {
+    return 'Grandestino';
   }
   return albumName;
 }
@@ -647,6 +653,15 @@ String resolveCoverName({
   if (cleanId == 'without_me') {
     return 'curtain_call_the_hits';
   }
+  if (cleanAlbum == 'feu' || cleanId.startsWith('nekfeu') || cleanId == 'egerie') {
+    return 'feu';
+  }
+  if (cleanAlbum.contains('beyah') || cleanAlbum.contains('bēyāh') || cleanId.startsWith('damso')) {
+    return 'beyah';
+  }
+  if (cleanAlbum == 'grandestino' || cleanId.startsWith('lartiste') || cleanId.contains('mafiosa')) {
+    return 'grandestino';
+  }
 
   // 2. Priorité au coverName explicite (si renseigné dans musiques.json)
   if (coverName != null && coverName.trim().isNotEmpty) {
@@ -672,7 +687,7 @@ Uri buildArtUri(String imageName) {
 }
 
 void _parseMusiquesFromJson(List<dynamic> data) {
-  globalPlaylist.clear();
+  final List<MediaItem> newItems = [];
   final Set<String> seenIds = {};
   final Set<String> seenAlbumTitles = {};
 
@@ -728,7 +743,13 @@ void _parseMusiquesFromJson(List<dynamic> data) {
       },
     );
     
-    globalPlaylist.add(mediaItem);
+    newItems.add(mediaItem);
+  }
+
+  if (newItems.isNotEmpty) {
+    globalPlaylist
+      ..clear()
+      ..addAll(newItems);
   }
 }
 
@@ -736,7 +757,7 @@ void loadMusiquesFromCache() {
   try {
     final cachedSongs = obx.songBox.getAll();
     if (cachedSongs.isNotEmpty) {
-      globalPlaylist.clear();
+      final List<MediaItem> cachedItems = [];
       final Set<String> seenIds = {};
       final Set<String> seenAlbumTitles = {};
       final List<SongEntity> cleanEntities = [];
@@ -782,7 +803,13 @@ void loadMusiquesFromCache() {
           },
         );
         
-        globalPlaylist.add(mediaItem);
+        cachedItems.add(mediaItem);
+      }
+
+      if (cachedItems.isNotEmpty) {
+        globalPlaylist
+          ..clear()
+          ..addAll(cachedItems);
       }
 
       // Nettoie automatiquement ObjectBox si des doublons y résidaient

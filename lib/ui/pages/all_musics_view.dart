@@ -181,7 +181,10 @@ class AllMusicsViewState extends State<AllMusicsView> {
                         activeThemeColors: widget.dynamicGradientColors,
                         heroTag: 'allmusic_${index}_${item.id}',
                         onTap: () {
-                          FocusScope.of(context).unfocus();
+                          if (widget.currentItem?.id == item.id) return;
+                          if (_searchFocusNode.hasFocus) {
+                            FocusScope.of(context).unfocus();
+                          }
                           final fullList = getSortedGlobalPlaylist();
                           final targetIndex =
                               fullList.indexWhere((m) => m.id == item.id);

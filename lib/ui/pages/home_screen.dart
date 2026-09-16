@@ -56,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   List<LyricLine> _currentLyrics = [];
   bool _isLoadingLyrics = false;
+  Timer? _lyricsFetchDebounceTimer;
   String? _lastSongId;
   StreamSubscription<MediaItem?>? _mediaItemSub;
 
@@ -102,6 +103,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ).asBroadcastStream();
 
     _mediaItemSub = globalAudioHandler.mediaItem.listen((item) {
+      if (item == null && _isPlayerExpanded) {
+        if (mounted) {
+          setState(() {
+            _isPlayerExpanded = false;
+          });
+        }
+      }
       if (item != null && item.id != _lastSongId) {
         _lastSongId = item.id;
         _fetchLyrics(item);
@@ -148,9 +156,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final bool isResumed = (state == AppLifecycleState.resumed);
-    setState(() {
-      _isAppInForeground = isResumed;
-    });
+    if (mounted) {
+      setState(() {
+        _isAppInForeground = isResumed;
+        // Si retour au premier plan sans musique active, s'assurer que le grand lecteur est refermé
+        if (isResumed && globalAudioHandler.mediaItem.value == null && _isPlayerExpanded) {
+          _isPlayerExpanded = false;
+        }
+      });
+    }
     if (isResumed) {
       fetchMusiques();
     }
@@ -158,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _lyricsFetchDebounceTimer?.cancel();
     LyricsService.onLyricsUpdated.removeListener(_onLyricsUpdatedFromService);
     _mediaItemSub?.cancel();
     isBatterySaverEnabledNotifier.removeListener(_onBatterySaverChanged);
@@ -168,26 +183,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _fetchLyrics(MediaItem item) async {
     final songId = item.id;
+    _lyricsFetchDebounceTimer?.cancel();
+
+    // 1. Si en cache mémoire (ou via baseName) : affichage instantané sans scintillement
     if (LyricsService.hasCached(songId)) {
-      setState(() {
-        _currentLyrics = LyricsService.getCached(songId)!;
-        _isLoadingLyrics = false;
-      });
+      final cached = LyricsService.getCached(songId)!;
+      if (mounted) {
+        setState(() {
+          _currentLyrics = cached;
+          _isLoadingLyrics = false;
+        });
+      }
       LyricsService.revalidateLyrics(item);
       return;
     }
-    setState(() {
-      _isLoadingLyrics = true;
-      _currentLyrics = [];
-    });
 
-    final lyrics = await LyricsService.fetchLyrics(item);
-    if (mounted && _lastSongId == songId) {
+    // 2. Si le grand lecteur est ouvert, afficher l'indicateur de chargement
+    if (_isPlayerExpanded && mounted) {
       setState(() {
-        _currentLyrics = lyrics;
-        _isLoadingLyrics = false;
+        _isLoadingLyrics = true;
       });
     }
+
+    // Debounce de 180ms pour ne pas surcharger le réseau lors du zapping rapide
+    _lyricsFetchDebounceTimer = Timer(const Duration(milliseconds: 180), () async {
+      if (!mounted || _lastSongId != songId) return;
+      final lyrics = await LyricsService.fetchLyrics(item);
+      if (mounted && _lastSongId == songId) {
+        setState(() {
+          _currentLyrics = lyrics;
+          _isLoadingLyrics = false;
+        });
+      }
+    });
   }
 
   Future<void> _checkForUpdates() async {
@@ -263,6 +291,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           builder: (context, mainSnapshot) {
             final currentItem = mainSnapshot.data;
             final hasMusic = currentItem != null;
+            final bool isPlayerExpanded = _isPlayerExpanded && hasMusic;
 
             final safeItem =
                 currentItem ??
@@ -293,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   duration: transitionDuration,
                                   curve: transitionCurve,
                                   tween: Tween<double>(
-                                    end: _isPlayerExpanded ? 0.0 : 32.0,
+                                    end: isPlayerExpanded ? 0.0 : 32.0,
                                   ),
                                   builder: (context, currentRadius, _) {
                                     return Stack(
@@ -318,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                               ),
                                             ),
                                             AnimatedOpacity(
-                                              opacity: _isPlayerExpanded
+                                              opacity: isPlayerExpanded
                                                   ? 0.0
                                                   : 1.0,
                                               duration: const Duration(
@@ -326,9 +355,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                               ),
                                               child: FocusScope(
                                                 canRequestFocus:
-                                                    !_isPlayerExpanded,
+                                                    !isPlayerExpanded,
                                                 child: IgnorePointer(
-                                                  ignoring: _isPlayerExpanded,
+                                                  ignoring: isPlayerExpanded,
                                                   child: Scaffold(
                                                     backgroundColor:
                                                         Colors.transparent,
@@ -346,12 +375,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                           currentItem:
                                                               currentItem,
                                                           dynamicGradientColors:
-                                                              smoothThemeColors,
+                                                              _dynamicGradientColors,
                                                         ),
                                                         ArtistPageView(
                                                           key: _artistKey,
                                                           dynamicThemeColors:
-                                                              smoothThemeColors,
+                                                              _dynamicGradientColors,
                                                           currentItem:
                                                               currentItem,
                                                         ),
@@ -360,18 +389,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                           currentItem:
                                                               currentItem,
                                                           dynamicGradientColors:
-                                                              smoothThemeColors,
+                                                              _dynamicGradientColors,
                                                         ),
                                                         LibraryPageView(
                                                           key: _libraryKey,
                                                           currentItem:
                                                               currentItem,
                                                           dynamicGradientColors:
-                                                              smoothThemeColors,
+                                                              _dynamicGradientColors,
                                                         ),
                                                         AccountPageView(
                                                           dynamicGradientColors:
-                                                              smoothThemeColors,
+                                                              _dynamicGradientColors,
                                                         ),
                                                       ],
                                                     ),
@@ -396,18 +425,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             return AnimatedPositioned(
                                               duration: transitionDuration,
                                               curve: transitionCurve,
-                                              bottom: _isPlayerExpanded
+                                              bottom: isPlayerExpanded
                                                   ? 0
                                                   : (isLiquidGlass
                                                         ? 12 + bottomPadding
                                                         : 0),
-                                              left: _isPlayerExpanded
+                                              left: isPlayerExpanded
                                                   ? 0
                                                   : (isLiquidGlass ? 12 : 0),
-                                              right: _isPlayerExpanded
+                                              right: isPlayerExpanded
                                                   ? 0
                                                   : (isLiquidGlass ? 12 : 0),
-                                              height: _isPlayerExpanded
+                                              height: isPlayerExpanded
                                                   ? screenHeight
                                                   : (hasMusic
                                                         ? (isLiquidGlass
@@ -427,7 +456,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                   clipBehavior: Clip.antiAlias,
                                                   decoration: BoxDecoration(
                                                     borderRadius:
-                                                        _isPlayerExpanded
+                                                        isPlayerExpanded
                                                         ? BorderRadius.zero
                                                         : (isLiquidGlass
                                                               ? BorderRadius.circular(
@@ -446,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                   ),
                                                   child: TweenAnimationBuilder<double>(
                                                     tween: Tween<double>(
-                                                      end: (isLiquidGlass || isBatterySaver || _isPlayerExpanded)
+                                                      end: (isLiquidGlass || isBatterySaver || isPlayerExpanded)
                                                           ? 0.001
                                                           : 20.0,
                                                     ),
@@ -468,24 +497,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                       duration: transitionDuration,
                                                       curve: transitionCurve,
                                                       color: isBatterySaver
-                                                          ? (_isPlayerExpanded
-                                                              ? Colors.black
-                                                                    .withValues(
-                                                                      alpha: 0.1,
-                                                                    )
-                                                              : Colors.black
-                                                                    .withValues(
-                                                                      alpha: 0.75,
-                                                                    ))
-                                                          : (_isPlayerExpanded
-                                                              ? Colors.black
-                                                                    .withValues(
-                                                                      alpha: 0.1,
-                                                                    )
-                                                              : Colors.black
-                                                                    .withValues(
-                                                                      alpha: 0.55,
-                                                                    )),
+                                                          ? (isPlayerExpanded
+                                                               ? Colors.black
+                                                                     .withValues(
+                                                                       alpha: 0.1,
+                                                                     )
+                                                               : Colors.black
+                                                                     .withValues(
+                                                                       alpha: 0.75,
+                                                                     ))
+                                                          : (isPlayerExpanded
+                                                               ? Colors.black
+                                                                     .withValues(
+                                                                       alpha: 0.1,
+                                                                     )
+                                                               : Colors.black
+                                                                     .withValues(
+                                                                       alpha: 0.55,
+                                                                     )),
                                                     ),
                                                   ),
                                                 ),
@@ -522,17 +551,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                   key: _miniPlayerKey,
                                                   duration: transitionDuration,
                                                   curve: transitionCurve,
-                                                  left: _isPlayerExpanded
+                                                  left: isPlayerExpanded
                                                       ? 0
                                                       : (isLiquidGlass
                                                             ? 12
                                                             : 0),
-                                                  right: _isPlayerExpanded
+                                                  right: isPlayerExpanded
                                                       ? 0
                                                       : (isLiquidGlass
                                                             ? 12
                                                             : 0),
-                                                  bottom: _isPlayerExpanded
+                                                  bottom: isPlayerExpanded
                                                       ? 0
                                                       : (isLiquidGlass
                                                             ? (12 +
@@ -540,7 +569,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                   12 +
                                                                   bottomPadding)
                                                             : 0),
-                                                  height: _isPlayerExpanded
+                                                  height: isPlayerExpanded
                                                       ? screenHeight
                                                       : (hasMusic
                                                             ? (isLiquidGlass
@@ -562,6 +591,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                             _isPlayerExpanded =
                                                                 true;
                                                           });
+                                                          if (_currentLyrics.isEmpty) {
+                                                            _fetchLyrics(safeItem);
+                                                          }
                                                         }
                                                       },
                                                       onVerticalDragEnd: (details) {

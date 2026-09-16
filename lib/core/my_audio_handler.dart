@@ -97,6 +97,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   void _initAudioSession() async {
     final session = await AudioSession.instance;
+    try {
+      await session.configure(const AudioSessionConfiguration.music());
+    } catch (e) {
+      debugPrint("Erreur configuration AudioSession: $e");
+    }
 
     // Gestion des priorités audio & interruptions (appels entrants, alarmes, etc.)
     session.interruptionEventStream.listen((event) {
@@ -188,8 +193,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         }
 
         final durationSecs = currentItem.duration?.inSeconds ?? 0;
-        if (durationSecs > 0 && !_hasScoredCurrentSong) {
-          if (_currentSongListeningSeconds >= (durationSecs * 0.90)) {
+        final fadeSecs = isCrossfadeEnabledNotifier.value
+            ? (crossfadeDurationNotifier.value < 1 || crossfadeDurationNotifier.value > 12 ? 5 : crossfadeDurationNotifier.value)
+            : 0;
+        // Durée effective du titre en soustrayant le fondu enchaîné
+        final effectiveDurationSecs = (durationSecs - fadeSecs).clamp(1, durationSecs);
+
+        if (effectiveDurationSecs > 0 && !_hasScoredCurrentSong) {
+          // Une écoute est comptabilisée quand le titre est écouté quasi entièrement (90% de la durée effective)
+          if (_currentSongListeningSeconds >= (effectiveDurationSecs * 0.90)) {
             _hasScoredCurrentSong = true;
             updateArtistScore(artist, 1);
 
@@ -305,15 +317,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  int? _getNextIndex() {
+  int? _getNextIndex({bool ignoreRepeatOne = false}) {
     if (queue.value.isEmpty) return null;
-    if (_loopMode == LoopMode.one) return _currentIndex;
+    if (!ignoreRepeatOne && _loopMode == LoopMode.one) return _currentIndex;
 
     if (_shuffleModeEnabled && _shuffledIndices.isNotEmpty) {
       final currentPos = _shuffledIndices.indexOf(_currentIndex);
       if (currentPos != -1 && currentPos + 1 < _shuffledIndices.length) {
         return _shuffledIndices[currentPos + 1];
-      } else if (_loopMode == LoopMode.all) {
+      } else if (_loopMode == LoopMode.all || ignoreRepeatOne) {
         return _shuffledIndices.first;
       }
       return null;
@@ -321,21 +333,21 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     if (_currentIndex + 1 < queue.value.length) {
       return _currentIndex + 1;
-    } else if (_loopMode == LoopMode.all) {
+    } else if (_loopMode == LoopMode.all || ignoreRepeatOne) {
       return 0;
     }
     return null;
   }
 
-  int? _getPreviousIndex() {
+  int? _getPreviousIndex({bool ignoreRepeatOne = false}) {
     if (queue.value.isEmpty) return null;
-    if (_loopMode == LoopMode.one) return _currentIndex;
+    if (!ignoreRepeatOne && _loopMode == LoopMode.one) return _currentIndex;
 
     if (_shuffleModeEnabled && _shuffledIndices.isNotEmpty) {
       final currentPos = _shuffledIndices.indexOf(_currentIndex);
       if (currentPos > 0) {
         return _shuffledIndices[currentPos - 1];
-      } else if (_loopMode == LoopMode.all) {
+      } else if (_loopMode == LoopMode.all || ignoreRepeatOne) {
         return _shuffledIndices.last;
       }
       return null;
@@ -343,7 +355,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
     if (_currentIndex - 1 >= 0) {
       return _currentIndex - 1;
-    } else if (_loopMode == LoopMode.all) {
+    } else if (_loopMode == LoopMode.all || ignoreRepeatOne) {
       return queue.value.length - 1;
     }
     return null;
@@ -393,6 +405,24 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       debugPrint("[CROSSFADE] Annulé pendant le chargement (seek/skip), on abandonne.");
       _nextPlayer.stop();
       return;
+    }
+
+    // Juste avant de basculer : validation de l'écoute du morceau sortant
+    if (!_hasScoredCurrentSong && mediaItem.value != null) {
+      final oldItem = mediaItem.value!;
+      final oldDuration = oldItem.duration?.inSeconds ?? 0;
+      final effectiveDuration = (oldDuration - fadeSecs).clamp(1, oldDuration);
+      if (_currentSongListeningSeconds >= (effectiveDuration * 0.90)) {
+        _hasScoredCurrentSong = true;
+        final oldArtist = oldItem.artist ?? 'Inconnu';
+        updateArtistScore(oldArtist, 1);
+        final currentPlayCounts = Map<String, int>.from(
+          songPlayCountNotifier.value,
+        );
+        currentPlayCounts[oldItem.id] =
+            (currentPlayCounts[oldItem.id] ?? 0) + 1;
+        songPlayCountNotifier.value = currentPlayCounts;
+      }
     }
 
     // Le 2ème son commence : on bascule immédiatement l'UI et les métadonnées sur le 2ème son
@@ -478,24 +508,18 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           }
           _broadcastState();
 
-          // Passage au morceau suivant uniquement si le morceau s'est réellement terminé
+          // Passage au morceau suivant dès que le morceau s'est terminé
           if (state.processingState == ProcessingState.completed &&
-              !_isCrossfading &&
               !_isPreparing) {
-            final duration = _activePlayer.duration;
-            final position = _activePlayer.position;
-            final isReallyFinished = duration != null &&
-                duration.inSeconds > 3 &&
-                (duration - position).inSeconds <= 2;
-
-            if (isReallyFinished) {
-              manageCacheSize();
-              final nextIdx = _getNextIndex();
-              if (nextIdx != null) {
-                skipToQueueItem(nextIdx);
-              } else {
-                stop();
-              }
+            if (_isCrossfading) {
+              _completeCrossfade();
+            }
+            manageCacheSize();
+            final nextIdx = _getNextIndex();
+            if (nextIdx != null) {
+              skipToQueueItem(nextIdx);
+            } else {
+              stop();
             }
           }
         }
@@ -581,59 +605,68 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     );
   }
 
+  DateTime _lastCacheCheckTime = DateTime.fromMillisecondsSinceEpoch(0);
+
   Future<void> manageCacheSize() async {
     if (!isCacheEnabledNotifier.value) return;
-    final cacheDir = Directory('$globalDocumentPath/cache');
-    if (!cacheDir.existsSync()) return;
+    final now = DateTime.now();
+    if (now.difference(_lastCacheCheckTime).inMinutes < 5) return;
+    _lastCacheCheckTime = now;
 
-    final int limitBytes = cacheLimitNotifier.value * 1024 * 1024;
-    List<File> cachedFiles = cacheDir.listSync().whereType<File>().toList();
-
-    if (cachedFiles.isEmpty) return;
-
-    int totalSize = cachedFiles.fold(
-      0,
-      (total, file) {
-        try {
-          return total + file.lengthSync();
-        } catch (_) {
-          return total;
-        }
-      },
-    );
-
-    if (totalSize <= limitBytes) return;
-
-    // Trie par date de dernier accès/modification croissante : les plus anciens en premier (LRU)
-    cachedFiles.sort((a, b) {
+    scheduleMicrotask(() async {
       try {
-        return a.lastModifiedSync().compareTo(b.lastModifiedSync());
-      } catch (_) {
-        return 0;
+        final cacheDir = Directory('$globalDocumentPath/cache');
+        if (!await cacheDir.exists()) return;
+
+        final int limitBytes = cacheLimitNotifier.value * 1024 * 1024;
+        final entities = await cacheDir.list().toList();
+        final List<File> cachedFiles = entities.whereType<File>().toList();
+
+        if (cachedFiles.isEmpty) return;
+
+        int totalSize = 0;
+        for (final file in cachedFiles) {
+          try {
+            totalSize += await file.length();
+          } catch (_) {}
+        }
+
+        if (totalSize <= limitBytes) return;
+
+        // Trie par date de dernier accès/modification croissante : les plus anciens en premier (LRU)
+        cachedFiles.sort((a, b) {
+          try {
+            return a.lastModifiedSync().compareTo(b.lastModifiedSync());
+          } catch (_) {
+            return 0;
+          }
+        });
+
+        final currentMediaItem = mediaItem.value;
+        final String currentSafeName = currentMediaItem != null
+            ? currentMediaItem.id.split('/').last.replaceAll('.flac', '')
+            : "";
+
+        for (final file in cachedFiles) {
+          if (totalSize <= limitBytes) break;
+
+          // On ne supprime pas le morceau actuellement en cours d'écoute
+          if (currentSafeName.isNotEmpty && file.path.contains(currentSafeName)) {
+            continue;
+          }
+
+          try {
+            final fileSize = await file.length();
+            await file.delete();
+            totalSize -= fileSize;
+          } catch (e) {
+            debugPrint("Erreur lors de la suppression du cache ($file) : $e");
+          }
+        }
+      } catch (e) {
+        debugPrint("Erreur manageCacheSize : $e");
       }
     });
-
-    final currentMediaItem = mediaItem.value;
-    final String currentSafeName = currentMediaItem != null
-        ? currentMediaItem.id.split('/').last.replaceAll('.flac', '')
-        : "";
-
-    for (final file in cachedFiles) {
-      if (totalSize <= limitBytes) break;
-
-      // On ne supprime pas le morceau actuellement en cours d'écoute
-      if (currentSafeName.isNotEmpty && file.path.contains(currentSafeName)) {
-        continue;
-      }
-
-      try {
-        final fileSize = file.lengthSync();
-        file.deleteSync();
-        totalSize -= fileSize;
-      } catch (e) {
-        debugPrint("Erreur lors de la suppression du cache ($file) : $e");
-      }
-    }
   }
 
   void _updatePlaylist(MediaItem newItem) {
@@ -795,6 +828,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     String? contextTag,
     bool? forceShuffle,
   }) async {
+    final int currentReqId = ++_loadRequestId;
     _isPreparing = true;
     _cancelCrossfade();
     _preloadedIndex = null;
@@ -810,32 +844,61 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _shuffleModeController.add(_shuffleModeEnabled);
     _persistShuffleMode();
 
-    queue.add(newQueue);
-    _generateShuffleIndices(newQueue.length);
+    // Fast-path : N'émettre sur queue.add QUE si la liste a réellement changé.
+    // Évite de re-sérialiser 300+ morceaux via Platform Channel à chaque clic dans AllMusicsView !
+    final bool isQueueIdentical = queue.value.length == newQueue.length &&
+        (identical(queue.value, newQueue) ||
+         (queue.value.isNotEmpty && newQueue.isNotEmpty && queue.value.first.id == newQueue.first.id));
 
-    try {
-      if (startIndex >= 0 && startIndex < newQueue.length) {
-        _currentIndex = startIndex;
-        final item = newQueue[startIndex];
-        mediaItem.add(item);
+    if (!isQueueIdentical) {
+      queue.add(newQueue);
+      _generateShuffleIndices(newQueue.length);
+    } else if (_shuffledIndices.length != newQueue.length) {
+      _generateShuffleIndices(newQueue.length);
+    }
 
-        final source = _createSource(item);
-        await _activePlayer.setAudioSource(source);
-        _loadedSongId = item.id;
-        await _activePlayer.seek(Duration.zero);
-        _activePlayer.play();
-      }
-    } catch (e) {
-      debugPrint("Erreur playFromList : $e");
-    } finally {
-      _isPreparing = false;
-      _isSourceLoaded = true;
+    _skipDebounceTimer?.cancel();
+
+    if (startIndex >= 0 && startIndex < newQueue.length) {
+      _currentIndex = startIndex;
+      final item = newQueue[startIndex];
+      mediaItem.add(item);
       _broadcastState();
 
-      // Préchargement immédiat du prochain morceau 2 secondes après le démarrage
-      Future.delayed(const Duration(seconds: 2), () {
-        if (!_isCrossfading && !_isPreparing && playbackState.value.playing) {
-          _checkNextPreload();
+      _skipDebounceTimer = Timer(const Duration(milliseconds: 100), () async {
+        if (currentReqId != _loadRequestId) return;
+        try {
+          final source = _createSource(item);
+          if (currentReqId != _loadRequestId) return;
+
+          await _activePlayer.setAudioSource(source);
+          if (currentReqId != _loadRequestId) return;
+
+          _loadedSongId = item.id;
+          await _activePlayer.seek(Duration.zero);
+          if (currentReqId != _loadRequestId) return;
+
+          _activePlayer.play();
+        } catch (e) {
+          if (currentReqId == _loadRequestId) {
+            debugPrint("Erreur playFromList : $e");
+          }
+        } finally {
+          if (currentReqId == _loadRequestId) {
+            _isPreparing = false;
+            _isSourceLoaded = true;
+            _broadcastState();
+
+            // Préchargement immédiat du prochain morceau 2 secondes après le démarrage
+            Future.delayed(const Duration(seconds: 2), () {
+              if (currentReqId == _loadRequestId &&
+                  !_isCrossfading &&
+                  !_isPreparing &&
+                  playbackState.value.playing) {
+                _checkNextPreload();
+              }
+            });
+          }
         }
       });
     }
@@ -1068,7 +1131,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> skipToNext() async {
-    final nextIdx = _getNextIndex();
+    final nextIdx = _getNextIndex(ignoreRepeatOne: true);
     if (nextIdx != null) {
       _currentIndex = nextIdx;
       _isPreparing = true;
@@ -1090,7 +1153,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       await seek(Duration.zero);
       return;
     }
-    final prevIdx = _getPreviousIndex();
+    final prevIdx = _getPreviousIndex(ignoreRepeatOne: true);
     if (prevIdx != null) {
       _currentIndex = prevIdx;
       _isPreparing = true;

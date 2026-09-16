@@ -302,6 +302,7 @@ class SearchPageViewState extends State<SearchPageView> {
                             }
                           : null,
                       onTap: () {
+                        if (widget.currentItem?.id == item.id) return;
                         _searchFocusNode.unfocus(
                           disposition: UnfocusDisposition.previouslyFocusedChild,
                         );

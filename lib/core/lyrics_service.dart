@@ -52,9 +52,12 @@ class LyricsService {
     });
   }
 
-  static bool hasCached(String songId) => _lyricsCache.containsKey(songId);
+  static bool hasCached(String songId) =>
+      _lyricsCache.containsKey(songId) ||
+      _lyricsCache.containsKey(getBaseName(songId));
 
-  static List<LyricLine>? getCached(String songId) => _lyricsCache[songId];
+  static List<LyricLine>? getCached(String songId) =>
+      _lyricsCache[songId] ?? _lyricsCache[getBaseName(songId)];
 
   static void setCached(String songId, List<LyricLine> lyrics) {
     _lyricsCache[songId] = lyrics;

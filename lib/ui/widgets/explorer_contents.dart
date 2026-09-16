@@ -163,6 +163,7 @@ class ExplorerFavoritesContent extends StatelessWidget {
                   heroTag: 'fav_exp_${item.id}',
                   showPlayCount: true,
                   onTap: () {
+                    if (currentItem?.id == item.id) return;
                     (globalAudioHandler as MyAudioHandler).playFromList(
                       topItems,
                       idx,

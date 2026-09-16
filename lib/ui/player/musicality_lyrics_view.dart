@@ -41,31 +41,13 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   DateTime _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _autoScrollResumeTimer;
   bool _isPlaying = false;
+  bool _isUserInteracting = false;
 
   bool _hasNoLyricsCached = true;
   bool _isUnsyncedLyricsCached = true;
 
   bool get _hasNoLyrics => _hasNoLyricsCached;
   bool get _isUnsyncedLyrics => _isUnsyncedLyricsCached;
-
-  void _onUserScroll(ScrollDirection direction) {
-    if (direction != ScrollDirection.idle) {
-      _lastUserScrollTime = DateTime.now();
-      _autoScrollResumeTimer?.cancel();
-    } else {
-      _lastUserScrollTime = DateTime.now();
-      _autoScrollResumeTimer?.cancel();
-      _autoScrollResumeTimer = Timer(const Duration(milliseconds: 2500), () {
-        if (!mounted || !widget.isExpanded) return;
-        final target = _activeIndexNotifier.value;
-        if (target >= 0) {
-          _scrollToActiveIndex(target);
-        } else if (widget.lyrics.isNotEmpty) {
-          _scrollToTop();
-        }
-      });
-    }
-  }
 
   void _computeLyricsMetadata() {
     if (widget.lyrics.isEmpty) {
@@ -103,13 +85,26 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
         _checkActiveIndex(current);
       }
     });
+
+    final currentPos = globalAudioHandler.playbackState.value.position;
+    _lastKnownPosition = currentPos;
+    _lastPositionUpdate = DateTime.now();
+    _positionNotifier.value = currentPos;
     _isPlaying = globalAudioHandler.playbackState.value.playing;
     _updateTickerState();
+
+    if (!_hasNoLyrics) {
+      _checkActiveIndex(currentPos);
+    }
 
     _listenToPosition();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (!mounted) return;
+      final active = _activeIndexNotifier.value;
+      if (active > 0) {
+        _scrollToActiveIndex(active, immediate: true, force: true);
+      } else if (_scrollController.hasClients) {
         _scrollController.jumpTo(0.0);
       }
     });
@@ -139,17 +134,21 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     if (songChanged || lyricsChanged) {
       _autoScrollResumeTimer?.cancel();
       _computeLyricsMetadata();
+      _isUserInteracting = false;
       _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
-      _activeIndexNotifier.value = -1;
-      _lastKnownPosition = Duration.zero;
-      _lastPositionUpdate = DateTime.now();
-      _positionNotifier.value = Duration.zero;
       _generateKeys();
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(0.0);
-      }
+      final currentPos = globalAudioHandler.playbackState.value.position;
+      _lastKnownPosition = currentPos;
+      _lastPositionUpdate = DateTime.now();
+      _positionNotifier.value = currentPos;
+      _activeIndexNotifier.value = -1;
+      _checkActiveIndex(currentPos);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
+        if (!mounted) return;
+        final active = _activeIndexNotifier.value;
+        if (active > 0) {
+          _scrollToActiveIndex(active, immediate: true, force: true);
+        } else if (_scrollController.hasClients) {
           _scrollController.jumpTo(0.0);
         }
       });
@@ -161,14 +160,33 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       _listenToPosition();
     }
 
-    if (widget.isExpanded != oldWidget.isExpanded || songChanged || lyricsChanged) {
-      _updateTickerState();
+    if (widget.isExpanded != oldWidget.isExpanded) {
       if (widget.isExpanded && !_isUnsyncedLyrics) {
-        if (_activeIndexNotifier.value <= 0) {
-          _scrollToTop(immediate: true);
-        } else {
-          _scrollToActiveIndex(_activeIndexNotifier.value, immediate: true);
-        }
+        final currentPos = globalAudioHandler.playbackState.value.position;
+        _lastKnownPosition = currentPos;
+        _lastPositionUpdate = DateTime.now();
+        _positionNotifier.value = currentPos;
+        _isUserInteracting = false;
+        _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
+        _checkActiveIndex(currentPos);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !widget.isExpanded) return;
+          final active = _activeIndexNotifier.value;
+          if (active > 0) {
+            _scrollToActiveIndex(active, immediate: true, force: true);
+          } else {
+            _scrollToTop(immediate: true);
+          }
+        });
+
+        // Activer le Ticker haute fréquence après que la transition d'ouverture (410ms) soit achevée
+        Timer(const Duration(milliseconds: 380), () {
+          if (mounted && widget.isExpanded) {
+            _updateTickerState();
+          }
+        });
+      } else {
+        _updateTickerState();
       }
     }
   }
@@ -185,13 +203,13 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       _lastPositionUpdate = DateTime.now();
       final wasPlaying = _isPlaying;
       _isPlaying = globalAudioHandler.playbackState.value.playing;
-      _positionNotifier.value = data.position;
 
       if (_isPlaying != wasPlaying) {
         _updateTickerState();
       }
 
       if (widget.isExpanded) {
+        _positionNotifier.value = data.position;
         _checkActiveIndex(data.position);
       }
     });
@@ -235,10 +253,13 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     if (newIndex != _activeIndexNotifier.value) {
       _activeIndexNotifier.value = newIndex;
       if (widget.isExpanded) {
-        if (newIndex <= 0) {
-          _scrollToTop(immediate: true);
-        } else {
-          _scrollToActiveIndex(newIndex);
+        if (!_isUserInteracting &&
+            DateTime.now().difference(_lastUserScrollTime).inMilliseconds >= 2200) {
+          if (newIndex <= 0) {
+            _scrollToTop();
+          } else {
+            _scrollToActiveIndex(newIndex);
+          }
         }
       }
     }
@@ -247,10 +268,6 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
   void _scrollToTop({bool immediate = false}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !widget.isExpanded) return;
-      if (!immediate &&
-          DateTime.now().difference(_lastUserScrollTime).inMilliseconds < 2500) {
-        return;
-      }
       if (_scrollController.hasClients) {
         if (immediate) {
           _scrollController.jumpTo(0.0);
@@ -265,7 +282,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     });
   }
 
-  void _scrollToActiveIndex(int targetIndex, {bool immediate = false}) {
+  void _scrollToActiveIndex(int targetIndex, {bool immediate = false, bool force = false}) {
     if (targetIndex <= 0) {
       _scrollToTop(immediate: immediate);
       return;
@@ -278,9 +295,13 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 
       if (!widget.isExpanded) return;
 
-      // Respect du défilement manuel de l'utilisateur pendant 2.5 secondes
-      if (!immediate &&
-          DateTime.now().difference(_lastUserScrollTime).inMilliseconds < 2500) {
+      if (!force && _isUserInteracting) {
+        return;
+      }
+
+      if (!force &&
+          !immediate &&
+          DateTime.now().difference(_lastUserScrollTime).inMilliseconds < 2200) {
         return;
       }
 
@@ -288,54 +309,29 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       if (keyContext != null && keyContext.mounted) {
         Scrollable.ensureVisible(
           keyContext,
-          alignment: 0.28,
+          alignment: 0.30,
           duration:
               immediate ? Duration.zero : const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
         );
-      } else if (_scrollController.hasClients) {
-        // Fallback: Si l'item n'est pas dans le viewport (grâce au ListView virtualisé),
-        // On estime sa position pour s'en rapprocher en tenant compte du padding supérieur et de la hauteur réelle
-        final screenHeight = MediaQuery.of(context).size.height;
-        final topPadding = screenHeight * 0.22;
-        final targetAlignmentOffset = screenHeight * 0.28;
-        final estimatedOffset = (topPadding + targetIndex * 65.0 - targetAlignmentOffset)
-            .clamp(0.0, _scrollController.position.maxScrollExtent);
-
-        if (immediate) {
-          _scrollController.jumpTo(estimatedOffset);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted || targetIndex != _activeIndexNotifier.value) return;
-            final newContext = _lyricKeys[targetIndex].currentContext;
-            if (newContext != null && newContext.mounted) {
-              Scrollable.ensureVisible(
-                newContext,
-                alignment: 0.28,
-                duration: Duration.zero,
-              );
-            }
-          });
-        } else {
-          _scrollController.animateTo(
-            estimatedOffset,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOutCubic,
-          ).then((_) {
-            if (!mounted || targetIndex != _activeIndexNotifier.value) return;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted || targetIndex != _activeIndexNotifier.value) return;
-              final newContext = _lyricKeys[targetIndex].currentContext;
-              if (newContext != null && newContext.mounted) {
-                Scrollable.ensureVisible(
-                  newContext,
-                  alignment: 0.28,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutCubic,
-                );
-              }
-            });
-          });
-        }
+      } else if (_scrollController.hasClients && widget.lyrics.isNotEmpty) {
+        // Ligne hors viewport : saut direct vers la position estimée
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        final approxOffset = (targetIndex / widget.lyrics.length) * maxScroll;
+        _scrollController.jumpTo(approxOffset.clamp(0.0, maxScroll));
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !widget.isExpanded) return;
+          final retryContext = _lyricKeys[targetIndex].currentContext;
+          if (retryContext != null && retryContext.mounted) {
+            Scrollable.ensureVisible(
+              retryContext,
+              alignment: 0.30,
+              duration:
+                  immediate ? Duration.zero : const Duration(milliseconds: 350),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        });
       }
     });
   }
@@ -453,14 +449,37 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
           ).createShader(bounds);
         },
         blendMode: BlendMode.dstIn,
-        child: NotificationListener<UserScrollNotification>(
+        child: NotificationListener<ScrollNotification>(
           onNotification: (notification) {
-            _onUserScroll(notification.direction);
+            if (notification is ScrollStartNotification) {
+              if (notification.dragDetails != null) {
+                _isUserInteracting = true;
+                _autoScrollResumeTimer?.cancel();
+              }
+            } else if (notification is ScrollUpdateNotification) {
+              if (notification.dragDetails != null) {
+                _isUserInteracting = true;
+                _lastUserScrollTime = DateTime.now();
+                _autoScrollResumeTimer?.cancel();
+              }
+            } else if (notification is ScrollEndNotification) {
+              _lastUserScrollTime = DateTime.now();
+              _autoScrollResumeTimer?.cancel();
+              _autoScrollResumeTimer =
+                  Timer(const Duration(milliseconds: 2200), () {
+                if (!mounted || !widget.isExpanded) return;
+                _isUserInteracting = false;
+                final target = _activeIndexNotifier.value;
+                if (target >= 0) {
+                  _scrollToActiveIndex(target, force: true);
+                }
+              });
+            }
             return false;
           },
           child: ListView.builder(
             controller: _scrollController,
-            scrollCacheExtent: const ScrollCacheExtent.pixels(1600.0),
+            scrollCacheExtent: const ScrollCacheExtent.pixels(1500.0),
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.only(
               top: screenHeight * 0.22,
@@ -479,7 +498,12 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
                   positionNotifier: _positionNotifier,
                   glowColor: glowColor,
                   unlitColor: unlitColor,
-                  onTap: () => globalAudioHandler.seek(line.time),
+                  onTap: () {
+                    _isUserInteracting = false;
+                    _autoScrollResumeTimer?.cancel();
+                    globalAudioHandler.seek(line.time);
+                    _scrollToActiveIndex(index, force: true);
+                  },
                 ),
               );
             },
@@ -558,14 +582,13 @@ class _LyricLineItemState extends State<_LyricLineItem>
       if (_isActive) {
         _controller.animateTo(
           1.0,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
         );
       } else {
-        // La ligne n'est plus active : la lumière reste et disparaît progressivement
         _controller.animateTo(
           0.0,
-          duration: const Duration(milliseconds: 2800),
+          duration: const Duration(milliseconds: 400),
           curve: Curves.easeInOutCubic,
         );
       }
@@ -597,35 +620,32 @@ class _LyricLineItemState extends State<_LyricLineItem>
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: isBatterySaverEnabledNotifier,
-      builder: (context, isBatterySaver, _) {
-        return AnimatedBuilder(
-          animation: _animation,
-          builder: (context, _) {
-            final progress = _animation.value;
-            final currentOpacity = lerpDouble(0.45, 1.0, progress)!;
-            final effectiveUnlitColor =
-                widget.unlitColor.withValues(alpha: currentOpacity);
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        final progress = _animation.value;
+        final currentOpacity = lerpDouble(0.40, 1.0, progress)!;
+        final effectiveUnlitColor =
+            widget.unlitColor.withValues(alpha: currentOpacity);
 
+        return ValueListenableBuilder<bool>(
+          valueListenable: isBatterySaverEnabledNotifier,
+          builder: (context, isBatterySaver, _) {
             const kBlurSigma = 1.2;
             final currentBlur =
                 isBatterySaver ? 0.0 : (1.0 - progress) * kBlurSigma;
 
             final Widget renderedLine;
-
             final bool hasWords = widget.line.words.isNotEmpty;
 
             if (_isActive) {
-              // 1. LIGNE ACTIVE EN COURS DE CHANT :
-              // Les mots non encore chantés restent à l'opacité atténuée (0.45) sans aucun flash !
               renderedLine = hasWords
                   ? _KaraokeLineWidget(
                       line: widget.line,
                       isActive: true,
                       positionNotifier: widget.positionNotifier,
                       glowColor: widget.glowColor,
-                      unlitColor: widget.unlitColor.withValues(alpha: 0.45),
+                      unlitColor: widget.unlitColor.withValues(alpha: 0.40),
                       lineActiveProgress: 1.0,
                       blurRadius: currentBlur,
                     )
@@ -637,8 +657,6 @@ class _LyricLineItemState extends State<_LyricLineItem>
                       blurRadius: currentBlur,
                     );
             } else if (progress <= 0.001) {
-              // 2. LIGNE TOTALEMENT INACTIVE :
-              // Conserve rigoureusement le même conteneur (Wrap) pour éviter tout saut de taille ou de retour à la ligne
               renderedLine = hasWords
                   ? _KaraokeLineWidget(
                       line: widget.line,
@@ -657,15 +675,13 @@ class _LyricLineItemState extends State<_LyricLineItem>
                       blurRadius: isBatterySaver ? 0.0 : kBlurSigma,
                     );
             } else {
-              // 3. TRANSITION DE FIN DE LIGNE (la lumière s'estompe sur 2,8s) :
-              // Lueur qui disparaît progressivement et flou qui remonte en douceur
               renderedLine = hasWords
                   ? _KaraokeLineWidget(
                       line: widget.line,
                       isActive: false,
                       positionNotifier: widget.positionNotifier,
                       glowColor: widget.glowColor,
-                      unlitColor: widget.unlitColor.withValues(alpha: 0.45),
+                      unlitColor: widget.unlitColor.withValues(alpha: 0.40),
                       lineActiveProgress: progress,
                       blurRadius: currentBlur,
                     )
@@ -690,9 +706,6 @@ class _LyricLineItemState extends State<_LyricLineItem>
               ),
             );
 
-            // Isole CHAQUE ligne dans son propre calque GPU (RepaintBoundary).
-            // Les 80+ lignes inactives restent ainsi en cache de texture GPU et ne sont jamais
-            // repeintes pendant que le mot en cours de chant s'anime à 120 FPS.
             return RepaintBoundary(child: lineWidget);
           },
         );
@@ -763,9 +776,6 @@ class _KaraokeLineWidget extends StatelessWidget {
     }
 
     // LIGNE ACTIVE :
-    // Le Wrap est instancié UNE SEULE FOIS pour toute la ligne.
-    // Chaque mot est isolé dans son RepaintBoundary et écoute individuellement.
-    // Il ne se rafraîchit à 120 FPS QUE lorsqu'il est en train d'être chanté !
     return Wrap(
       spacing: 7.0,
       runSpacing: 7.0,
@@ -869,7 +879,6 @@ class _DynamicKaraokeWordState extends State<_DynamicKaraokeWord> {
         }
       }
     } else {
-      // Ce mot précis est en cours de chant : animation fluide du balayage lumineux (sweep)
       final elapsed = (pos - start).inMilliseconds;
       final duration = (end - start).inMilliseconds.clamp(1, 5000);
       final newProgress = (elapsed / duration).clamp(0.0, 1.0);
@@ -948,7 +957,7 @@ class _KaraokeWord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Mot non encore chanté : couleur unlit avec flou direct sur glyphes (120 FPS ultra fluide)
+    // 1. Mot non encore chanté : couleur unlit propre avec flou esthétique 1.2px
     if (lightFactor <= 0.005) {
       if (blurRadius > 0.08) {
         return Text(
@@ -978,7 +987,7 @@ class _KaraokeWord extends StatelessWidget {
       );
     }
 
-    // 3. Ligne qui se termine (estompage progressif de la lumière et du blanc sur 2,8s)
+    // 3. Ligne qui se termine (estompage progressif de la lumière et retour du flou)
     if (!isCurrent) {
       final shadows =
           cachedFadeShadows ?? _buildGlowShadows(glowColor, lightFactor);
@@ -1005,7 +1014,6 @@ class _KaraokeWord extends StatelessWidget {
     }
 
     // 4. Mot en cours de chant actif (sweep fluide de gauche à droite uniquement sur ce mot précis)
-    // Remplacement du ShaderMask (saveLayer 120 FPS) par un ClipRect matériel ultra performant (0 pixel altéré)
     final shadows = _buildGlowShadows(
       glowColor,
       lightFactor,

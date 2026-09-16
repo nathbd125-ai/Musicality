@@ -614,6 +614,7 @@ class LibraryPageViewState extends State<LibraryPageView> {
                           heroTag:
                               'lib_${_activePlaylistName}_${songIndex}_${item.id}',
                           onTap: () {
+                            if (widget.currentItem?.id == item.id) return;
                             FocusScope.of(context).unfocus();
                             final targetIndex = fullPlaylist.indexWhere(
                               (m) => m.id == item.id,

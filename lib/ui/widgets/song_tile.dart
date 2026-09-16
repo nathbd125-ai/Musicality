@@ -99,15 +99,6 @@ class SongTile extends StatelessWidget {
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: activeThemeColors[0].withValues(
-                                  alpha: 0.0,
-                                ),
-                                blurRadius: 0,
-                                spreadRadius: 0,
-                              ),
-                            ],
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
