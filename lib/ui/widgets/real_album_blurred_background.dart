@@ -245,23 +245,40 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
           final x2 = -math.cos(t * 0.8) * 0.50;
           final y2 = -math.sin(t * 0.6) * 0.45;
 
+          // Dérive flottante physique de la pochette (translation + zoom subtil fluide)
+          final driftDx = (math.sin(t * 0.7) * 0.7 + math.sin(t * 1.5) * 0.3) * 24.0;
+          final driftDy = (math.cos(t * 0.6) * 0.7 + math.cos(t * 1.8) * 0.3) * 32.0;
+          final driftScale = 1.15 + math.sin(t * 0.4) * 0.03;
+
           return Stack(
             fit: StackFit.expand,
             children: [
               // 1. Fond sombre de base ancré dans la palette de l'album
               Container(color: c3),
 
-              // 2. Vraie pochette de l'album floutée statique (mise en cache GPU VRAM sans surchauffe)
-              if (_previousItem != null && fadeProgress < 1.0)
-                Opacity(
-                  opacity: (1.0 - fadeProgress).clamp(0.0, 1.0),
-                  child: _buildAmbientCover(_previousItem),
+              // 2. Vraie pochette de l'album floutée avec dérive physique fluide (mise en cache GPU VRAM sans recalcul de flou)
+              Transform.translate(
+                offset: Offset(driftDx, driftDy),
+                child: Transform.scale(
+                  scale: driftScale,
+                  alignment: Alignment.center,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (_previousItem != null && fadeProgress < 1.0)
+                        Opacity(
+                          opacity: (1.0 - fadeProgress).clamp(0.0, 1.0),
+                          child: _buildAmbientCover(_previousItem),
+                        ),
+                      if (_currentItem != null)
+                        Opacity(
+                          opacity: fadeProgress.clamp(0.0, 1.0),
+                          child: _buildAmbientCover(_currentItem),
+                        ),
+                    ],
+                  ),
                 ),
-              if (_currentItem != null)
-                Opacity(
-                  opacity: fadeProgress.clamp(0.0, 1.0),
-                  child: _buildAmbientCover(_currentItem),
-                ),
+              ),
 
               // 3. Orbe liquide animé 1 (lueur vibrante Apple Music en orbite)
               Container(
