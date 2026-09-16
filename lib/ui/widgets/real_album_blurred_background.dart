@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
@@ -21,6 +22,9 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
   StreamSubscription<PlaybackState>? _playbackSub;
   bool _isForeground = true;
 
+  MediaItem? _previousItem;
+  MediaItem? _currentItem;
+
   // Cache mémoire des palettes pour 0 ms de calcul lors des réécoutes
   static final Map<String, List<Color>> _colorCache = {};
 
@@ -40,17 +44,22 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Animation très lente en boucle continue (effet liquide fluide sans saccade)
+    _currentItem = widget.item;
+    final initialColors = _getInitialColors(widget.item);
+    _previousColors = initialColors;
+    _targetColors = initialColors;
+
+    // Animation très lente en boucle continue (effet liquide fluide sans surchauffe)
     _liquidController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 16),
+      duration: const Duration(seconds: 18),
       value: math.Random().nextDouble(),
     );
 
     // Transition fluide entre pochettes lors d'un changement de musique
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 800),
       value: 1.0,
     );
 
@@ -59,8 +68,8 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     });
     isBatterySaverEnabledNotifier.addListener(_onBatterySaverChanged);
 
-    _extractAndSetColors(widget.item);
     _syncAnimation();
+    _refineColorsAsync(widget.item);
   }
 
   @override
@@ -68,51 +77,81 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.id != widget.item.id ||
         oldWidget.item.artUri != widget.item.artUri) {
-      _extractAndSetColors(widget.item);
+      _previousItem = oldWidget.item;
+      _currentItem = widget.item;
+
+      // Récupération instantanée des couleurs de l'album (0 ms de freeze)
+      final newColors = _getInitialColors(widget.item);
+      _applyNewColors(newColors);
+
+      // Raffinement asynchrone non-bloquant
+      _refineColorsAsync(widget.item);
     }
   }
 
-  Future<void> _extractAndSetColors(MediaItem item) async {
+  List<Color> _getInitialColors(MediaItem item) {
     final cacheKey = item.artUri?.toString() ?? item.id;
     if (_colorCache.containsKey(cacheKey)) {
-      _applyNewColors(_colorCache[cacheKey]!);
-      return;
+      return _colorCache[cacheKey]!;
     }
 
-    try {
-      final imageProvider = getLocalOrNetworkImageProvider(item);
-      final palette = await PaletteGenerator.fromImageProvider(
-        imageProvider,
-        size: const Size(64, 64), // Réduit la zone d'analyse pour un calcul instantané (<5ms)
-        maximumColorCount: 4,
-      );
-
-      final dominant = palette.dominantColor?.color;
-      final vibrant = palette.vibrantColor?.color ??
-          palette.lightVibrantColor?.color ??
-          dominant;
-      final darkMuted = palette.darkMutedColor?.color ??
-          palette.mutedColor?.color ??
-          const Color(0xFF0E0E14);
-
-      final c1 = vibrant ?? const Color(0xFF2E1B4E);
-      final c2 = dominant ?? const Color(0xFF181C2B);
-      final c3 = darkMuted;
-
-      final colors = [c1, c2, c3];
-      _colorCache[cacheKey] = colors;
-      if (mounted) {
-        _applyNewColors(colors);
-      }
-    } catch (e) {
-      debugPrint('PaletteGenerator extraction error: $e');
+    // Couleurs instantanées du thème de l'album (0 ms de calcul)
+    final preset = getAlbumGradientColors(item);
+    if (preset.length >= 3) {
+      return [preset[0], preset[1], preset[2]];
+    } else if (preset.length == 2) {
+      return [preset[0], preset[1], const Color(0xFF0E0E14)];
+    } else if (preset.isNotEmpty) {
+      return [preset[0], preset[0], const Color(0xFF0E0E14)];
     }
+    return const [
+      Color(0xFF2E1B4E),
+      Color(0xFF181C2B),
+      Color(0xFF0E0E14),
+    ];
+  }
+
+  void _refineColorsAsync(MediaItem item) {
+    final cacheKey = item.artUri?.toString() ?? item.id;
+    if (_colorCache.containsKey(cacheKey)) return;
+
+    // Exécution en tâche de fond pour ne jamais bloquer le clic ou l'UI
+    scheduleMicrotask(() async {
+      if (!mounted) return;
+      try {
+        final imageProvider = getLocalOrNetworkImageProvider(item);
+        final palette = await PaletteGenerator.fromImageProvider(
+          imageProvider,
+          size: const Size(32, 32), // Échantillon ultra-léger pour 0 freeze
+          maximumColorCount: 4,
+        );
+
+        final dominant = palette.dominantColor?.color;
+        final vibrant = palette.vibrantColor?.color ??
+            palette.lightVibrantColor?.color ??
+            dominant;
+        final darkMuted = palette.darkMutedColor?.color ??
+            palette.mutedColor?.color ??
+            const Color(0xFF0E0E14);
+
+        if (vibrant != null || dominant != null) {
+          final c1 = vibrant ?? const Color(0xFF2E1B4E);
+          final c2 = dominant ?? const Color(0xFF181C2B);
+          final c3 = darkMuted;
+          final refined = [c1, c2, c3];
+          _colorCache[cacheKey] = refined;
+
+          if (mounted && (widget.item.id == item.id)) {
+            _applyNewColors(refined);
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   void _applyNewColors(List<Color> newColors) {
     if (!mounted) return;
     setState(() {
-      // Démarre la transition depuis les couleurs actuelles
       final currentProgress = _fadeController.value;
       _previousColors = [
         Color.lerp(_previousColors[0], _targetColors[0], currentProgress)!,
@@ -162,6 +201,28 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
     super.dispose();
   }
 
+  Widget _buildAmbientCover(MediaItem? item) {
+    if (item == null) return const SizedBox.shrink();
+    return RepaintBoundary(
+      child: ImageFiltered(
+        imageFilter: ImageFilter.blur(
+          sigmaX: 32,
+          sigmaY: 32,
+          tileMode: TileMode.mirror,
+        ),
+        child: SizedBox.expand(
+          child: Image(
+            image: getLocalOrNetworkImageProvider(item),
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.low,
+            errorBuilder: (context, error, stackTrace) =>
+                const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -190,15 +251,27 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
               // 1. Fond sombre de base ancré dans la palette de l'album
               Container(color: c3),
 
-              // 2. Bulle radiale liquide 1 (couleur vibrante principale)
+              // 2. Vraie pochette de l'album floutée statique (mise en cache GPU VRAM sans surchauffe)
+              if (_previousItem != null && fadeProgress < 1.0)
+                Opacity(
+                  opacity: (1.0 - fadeProgress).clamp(0.0, 1.0),
+                  child: _buildAmbientCover(_previousItem),
+                ),
+              if (_currentItem != null)
+                Opacity(
+                  opacity: fadeProgress.clamp(0.0, 1.0),
+                  child: _buildAmbientCover(_currentItem),
+                ),
+
+              // 3. Orbe liquide animé 1 (lueur vibrante Apple Music en orbite)
               Container(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     center: Alignment(x1, y1),
-                    radius: 1.4,
+                    radius: 1.3,
                     colors: [
-                      c1.withValues(alpha: 0.85),
-                      c1.withValues(alpha: 0.35),
+                      c1.withValues(alpha: 0.65),
+                      c1.withValues(alpha: 0.20),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.55, 1.0],
@@ -206,15 +279,15 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
                 ),
               ),
 
-              // 3. Bulle radiale liquide 2 en contre-mouvement (couleur dominante)
+              // 4. Orbe liquide animé 2 (lueur dominante en contre-orbite)
               Container(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     center: Alignment(x2, y2),
-                    radius: 1.5,
+                    radius: 1.4,
                     colors: [
-                      c2.withValues(alpha: 0.80),
-                      c2.withValues(alpha: 0.25),
+                      c2.withValues(alpha: 0.60),
+                      c2.withValues(alpha: 0.15),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.60, 1.0],
@@ -222,9 +295,9 @@ class _RealAlbumBlurredBackgroundState extends State<RealAlbumBlurredBackground>
                 ),
               ),
 
-              // 4. Voile sombre translucide pour garantir la lisibilité et le contraste
+              // 5. Voile sombre translucide pour garantir la lisibilité et le contraste
               Container(
-                color: Colors.black.withValues(alpha: 0.25),
+                color: Colors.black.withValues(alpha: 0.32),
               ),
             ],
           );

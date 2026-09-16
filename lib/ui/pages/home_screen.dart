@@ -307,8 +307,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                 ),
                                                 child: hasMusic
                                                     ? RealAlbumBlurredBackground(
-                                                        key: ValueKey<String>(
-                                                          safeItem.id,
+                                                        key: const ValueKey<String>(
+                                                          'real_album_background',
                                                         ),
                                                         item: safeItem,
                                                       )
