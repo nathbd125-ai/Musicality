@@ -244,8 +244,14 @@ List<Color> _computeAlbumGradientColors(MediaItem item) {
     ];
   }
 
-  // Lartiste, Caroliina - Mafiosa (feat. Caroliina) (Rouge à orange à jaune à violet)
-  if (titleNorm.contains('mafiosa') || idStr.contains('mafiosa')) {
+  // Lartiste - Grandestino (album complet) & Mafiosa (Rouge à orange à jaune à violet)
+  if (a == 'grandestino' ||
+      a.contains('grandestino') ||
+      albumNorm.contains('grandestino') ||
+      titleNorm.contains('mafiosa') ||
+      idStr.contains('mafiosa') ||
+      idStr.startsWith('lartiste') ||
+      artistNorm.contains('lartiste')) {
     return const [
       Color(0xFFE53935), // Rouge
       Color(0xFFFF9800), // Orange

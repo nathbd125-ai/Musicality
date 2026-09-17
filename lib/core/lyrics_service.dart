@@ -212,7 +212,7 @@ class LyricsService {
     final fallback = [
       LyricLine(
         time: Duration.zero,
-        text: 'Paroles indisponibles pour ce titre',
+        text: 'Paroles indisponibles',
       ),
     ];
     return fallback;

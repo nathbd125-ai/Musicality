@@ -368,9 +368,10 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     final unlitColor = _getUnlitColor();
 
     if (_hasNoLyrics) {
-      final String message = widget.lyrics.isNotEmpty
+      final String message = (widget.lyrics.isNotEmpty &&
+              !widget.lyrics.first.text.toLowerCase().contains('indisponible'))
           ? widget.lyrics.first.text
-          : "Paroles indisponibles pour ce titre";
+          : "Paroles indisponibles";
       final gradientColors = widget.themeColors.isNotEmpty
           ? (widget.themeColors.length == 1
               ? [widget.themeColors.first, widget.themeColors.first]
@@ -475,7 +476,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
           },
           child: ListView.builder(
             controller: _scrollController,
-            scrollCacheExtent: const ScrollCacheExtent.pixels(1500.0),
+            scrollCacheExtent: const ScrollCacheExtent.pixels(250.0),
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.only(
               top: screenHeight * 0.22,
@@ -628,8 +629,9 @@ class _LyricLineItemState extends State<_LyricLineItem>
           valueListenable: isBatterySaverEnabledNotifier,
           builder: (context, isBatterySaver, _) {
             const kBlurSigma = 1.2;
-            final currentBlur =
-                isBatterySaver ? 0.0 : (1.0 - progress) * kBlurSigma;
+            final currentBlur = isBatterySaver
+                ? 0.0
+                : ((_isActive || progress > 0.001) ? 0.0 : kBlurSigma);
 
             final Widget renderedLine;
             final bool hasWords = widget.line.words.isNotEmpty;

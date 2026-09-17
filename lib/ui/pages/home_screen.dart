@@ -1067,7 +1067,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                                             ignoring: !_isPlayerExpanded,
                                                                             child: Stack(
                                                                               children: [
-                                                                                MusicalityLyricsView(
+                                                                                if (!_isLoadingLyrics)
+                                                                                  MusicalityLyricsView(
                                                                                   key: const ValueKey('lyrics_view'),
                                                                                   songId: safeItem.id,
                                                                                   lyrics: _currentLyrics,
