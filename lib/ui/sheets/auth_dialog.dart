@@ -178,8 +178,9 @@ Future<void> showAuthDialog({
                                   : null,
                             );
 
-                            final googleAccount = await googleSignIn
-                                .authenticate();
+                            final googleAccount =
+                                await googleSignIn.attemptLightweightAuthentication() ??
+                                    await googleSignIn.authenticate();
                             final authClient = googleAccount.authentication;
 
                             final credential = GoogleAuthProvider.credential(

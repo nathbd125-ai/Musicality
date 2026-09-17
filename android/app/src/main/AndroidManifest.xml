@@ -34,7 +34,8 @@
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true"
         android:resizeableActivity="false"
-        tools:replace="android:label,android:icon"
+        android:allowBackup="false"
+        tools:replace="android:label,android:icon,android:allowBackup"
         tools:ignore="MissingClass">
 
         <activity

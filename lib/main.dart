@@ -34,6 +34,19 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // Activation du mode bord-à-bord (Edge-to-Edge) Android 15 & 16 avec barres transparentes
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemStatusBarContrastEnforced: false,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
+
   // 1. Initialisation de Firebase en premier pour activer Crashlytics
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
