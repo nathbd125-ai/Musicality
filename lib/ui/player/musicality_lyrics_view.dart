@@ -38,7 +38,6 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       ValueNotifier<Duration>(Duration.zero);
   Duration _lastKnownPosition = Duration.zero;
   DateTime _lastPositionUpdate = DateTime.now();
-  DateTime _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _autoScrollResumeTimer;
   bool _isPlaying = false;
   bool _isUserInteracting = false;
@@ -135,7 +134,6 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       _autoScrollResumeTimer?.cancel();
       _computeLyricsMetadata();
       _isUserInteracting = false;
-      _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
       _generateKeys();
       final currentPos = globalAudioHandler.playbackState.value.position;
       _lastKnownPosition = currentPos;
@@ -167,7 +165,6 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
         _lastPositionUpdate = DateTime.now();
         _positionNotifier.value = currentPos;
         _isUserInteracting = false;
-        _lastUserScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
         _checkActiveIndex(currentPos);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !widget.isExpanded) return;
@@ -253,8 +250,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
     if (newIndex != _activeIndexNotifier.value) {
       _activeIndexNotifier.value = newIndex;
       if (widget.isExpanded) {
-        if (!_isUserInteracting &&
-            DateTime.now().difference(_lastUserScrollTime).inMilliseconds >= 2200) {
+        if (!_isUserInteracting) {
           if (newIndex <= 0) {
             _scrollToTop();
           } else {
@@ -296,12 +292,6 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
       if (!widget.isExpanded) return;
 
       if (!force && _isUserInteracting) {
-        return;
-      }
-
-      if (!force &&
-          !immediate &&
-          DateTime.now().difference(_lastUserScrollTime).inMilliseconds < 2200) {
         return;
       }
 
@@ -451,7 +441,12 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
         blendMode: BlendMode.dstIn,
         child: NotificationListener<ScrollNotification>(
           onNotification: (notification) {
-            if (notification is ScrollStartNotification) {
+            if (notification is UserScrollNotification) {
+              if (notification.direction != ScrollDirection.idle) {
+                _isUserInteracting = true;
+                _autoScrollResumeTimer?.cancel();
+              }
+            } else if (notification is ScrollStartNotification) {
               if (notification.dragDetails != null) {
                 _isUserInteracting = true;
                 _autoScrollResumeTimer?.cancel();
@@ -459,21 +454,22 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
             } else if (notification is ScrollUpdateNotification) {
               if (notification.dragDetails != null) {
                 _isUserInteracting = true;
-                _lastUserScrollTime = DateTime.now();
                 _autoScrollResumeTimer?.cancel();
               }
             } else if (notification is ScrollEndNotification) {
-              _lastUserScrollTime = DateTime.now();
-              _autoScrollResumeTimer?.cancel();
-              _autoScrollResumeTimer =
-                  Timer(const Duration(milliseconds: 2200), () {
-                if (!mounted || !widget.isExpanded) return;
-                _isUserInteracting = false;
-                final target = _activeIndexNotifier.value;
-                if (target >= 0) {
-                  _scrollToActiveIndex(target, force: true);
-                }
-              });
+              // On ne relance le timer de recentrage QUE si l'utilisateur était en train d'interagir manuellement
+              if (_isUserInteracting) {
+                _autoScrollResumeTimer?.cancel();
+                _autoScrollResumeTimer =
+                    Timer(const Duration(milliseconds: 3000), () {
+                  if (!mounted || !widget.isExpanded) return;
+                  _isUserInteracting = false;
+                  final target = _activeIndexNotifier.value;
+                  if (target >= 0) {
+                    _scrollToActiveIndex(target, force: true);
+                  }
+                });
+              }
             }
             return false;
           },
