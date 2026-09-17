@@ -74,6 +74,23 @@ class LibraryPageViewState extends State<LibraryPageView> {
       duration: const Duration(milliseconds: 400),
       curve: Curves.fastOutSlowIn,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final isLikes = name == 'LIKES';
+        final isDownloads = name == 'DOWNLOADS';
+        final currentSet = isLikes
+            ? likedSongsNotifier.value
+            : (isDownloads
+                ? SongDownloadService.downloadedSongs
+                : (playlistContentsNotifier.value[name] ?? <String>{}));
+        final currentBaseIds = currentSet.map(getBaseId).toSet();
+        final fullPlaylist = globalPlaylist.where((item) {
+          final baseId = getBaseId(item.id);
+          return currentSet.contains(item.id) || currentBaseIds.contains(baseId);
+        }).toList();
+        precacheSongCovers(context, fullPlaylist, count: 12);
+      }
+    });
   }
 
   void goBack() {
@@ -227,157 +244,229 @@ class LibraryPageViewState extends State<LibraryPageView> {
         return ValueListenableBuilder<List<String>>(
           valueListenable: customPlaylistsNotifier,
           builder: (context, customPlaylists, child) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      left: 20,
-                      right: 16,
-                      top: 20,
-                      bottom: 10,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "Bibliothèque",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
+            return ValueListenableBuilder<Set<String>>(
+              valueListenable: SongDownloadService.downloadedSongsNotifier,
+              builder: (context, downloadedSongs, child) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          left: 20,
+                          right: 16,
+                          top: 20,
+                          bottom: 10,
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.add,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          onPressed: () {
-                            showCreatePlaylistDialog(
-                              context,
-                              widget.dynamicGradientColors,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                if (likedSongs.isNotEmpty || customPlaylists.isNotEmpty)
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Column(
-                        children: [
-                          if (likedSongs.isNotEmpty)
-                            GestureDetector(
-                              onTap: () {
-                                _openPlaylist('LIKES');
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 6,
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.08),
-                                    width: 0.5,
-                                  ),
-                                ),
-                                child: Material(
-                                  type: MaterialType.transparency,
-                                  child: ListTile(
-                                    leading: Container(
-                                      width: 45,
-                                      height: 45,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        gradient: LinearGradient(
-                                          colors: widget.dynamicGradientColors,
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        CupertinoIcons.heart_fill,
-                                        color: Colors.white,
-                                        size: 24,
-                                      ),
-                                    ),
-                                    title: const Text(
-                                      "Titres likés",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      "${likedSongs.length} titre${likedSongs.length > 1 ? 's' : ''}",
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                    trailing: const Icon(
-                                      CupertinoIcons.chevron_right,
-                                      color: Colors.white54,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Bibliothèque",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
+                            IconButton(
+                              icon: const Icon(
+                                CupertinoIcons.add,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                              onPressed: () {
+                                showCreatePlaylistDialog(
+                                  context,
+                                  widget.dynamicGradientColors,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
-                          ...customPlaylists.reversed.map(
-                            (name) => _buildCustomPlaylistTile(name),
+                    if (likedSongs.isNotEmpty ||
+                        customPlaylists.isNotEmpty ||
+                        downloadedSongs.isNotEmpty)
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            children: [
+                              if (likedSongs.isNotEmpty)
+                                GestureDetector(
+                                  onTap: () {
+                                    _openPlaylist('LIKES');
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 6,
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.08),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Material(
+                                      type: MaterialType.transparency,
+                                      child: ListTile(
+                                        leading: Container(
+                                          width: 45,
+                                          height: 45,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(8),
+                                            gradient: LinearGradient(
+                                              colors: widget.dynamicGradientColors,
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            CupertinoIcons.heart_fill,
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        title: const Text(
+                                          "Titres likés",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          "${likedSongs.length} titre${likedSongs.length > 1 ? 's' : ''}",
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        trailing: const Icon(
+                                          CupertinoIcons.chevron_right,
+                                          color: Colors.white54,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              if (downloadedSongs.isNotEmpty)
+                                GestureDetector(
+                                  onTap: () {
+                                    _openPlaylist('DOWNLOADS');
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 6,
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.08),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Material(
+                                      type: MaterialType.transparency,
+                                      child: ListTile(
+                                        leading: Container(
+                                          width: 45,
+                                          height: 45,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(8),
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                widget.dynamicGradientColors.first,
+                                                Colors.tealAccent.shade700,
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            CupertinoIcons.arrow_down_circle_fill,
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        title: const Text(
+                                          "Titres téléchargés",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          "${downloadedSongs.length} titre${downloadedSongs.length > 1 ? 's' : ''} • Hors-ligne",
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        trailing: const Icon(
+                                          CupertinoIcons.chevron_right,
+                                          color: Colors.white54,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              ...customPlaylists.reversed.map(
+                                (name) => _buildCustomPlaylistTile(name),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: Container(
+                          alignment: Alignment.topCenter,
+                          padding: const EdgeInsets.only(top: 100),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                CupertinoIcons.heart,
+                                color: Colors.white.withValues(alpha: 0.2),
+                                size: 60,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                "Votre bibliothèque est vide",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                "Les titres que vous aimez apparaîtront ici",
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: Container(
-                      alignment: Alignment.topCenter,
-                      padding: const EdgeInsets.only(top: 100),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            CupertinoIcons.heart,
-                            color: Colors.white.withValues(alpha: 0.2),
-                            size: 60,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            "Votre bibliothèque est vide",
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            "Les titres que vous aimez apparaîtront ici",
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
+                  ],
+                );
+              },
             );
           },
         );
@@ -421,7 +510,9 @@ class LibraryPageViewState extends State<LibraryPageView> {
                               child: Text(
                                 _activePlaylistName == 'LIKES'
                                     ? "Titres likés"
-                                    : _activePlaylistName,
+                                    : (_activePlaylistName == 'DOWNLOADS'
+                                        ? "Titres téléchargés"
+                                        : _activePlaylistName),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
@@ -433,7 +524,8 @@ class LibraryPageViewState extends State<LibraryPageView> {
                         ],
                       ),
                     ),
-                    if (_activePlaylistName != 'LIKES')
+                    if (_activePlaylistName != 'LIKES' &&
+                        _activePlaylistName != 'DOWNLOADS')
                       IconButton(
                         icon: const Icon(
                           CupertinoIcons.add,
@@ -454,7 +546,9 @@ class LibraryPageViewState extends State<LibraryPageView> {
               CustomSearchBar(
                 hintText: _activePlaylistName == 'LIKES'
                     ? "Rechercher dans vos coups de cœur..."
-                    : "Rechercher dans cette playlist...",
+                    : (_activePlaylistName == 'DOWNLOADS'
+                        ? "Rechercher dans vos téléchargements..."
+                        : "Rechercher dans cette playlist..."),
                 onChanged: (value) {
                   setState(() {
                     _searchQuery = value;
@@ -502,90 +596,113 @@ class LibraryPageViewState extends State<LibraryPageView> {
                 return ValueListenableBuilder<Map<String, Set<String>>>(
                   valueListenable: playlistContentsNotifier,
                   builder: (context, playlistContents, _) {
-                    final isLikes = _activePlaylistName == 'LIKES';
-                    final currentSet = isLikes
-                        ? likedSongs
-                        : (playlistContents[_activePlaylistName] ?? <String>{});
+                    return ValueListenableBuilder<Set<String>>(
+                      valueListenable:
+                          SongDownloadService.downloadedSongsNotifier,
+                      builder: (context, downloadedSongs, _) {
+                        final isLikes = _activePlaylistName == 'LIKES';
+                        final isDownloads = _activePlaylistName == 'DOWNLOADS';
+                        final currentSet = isLikes
+                            ? likedSongs
+                            : (isDownloads
+                                ? downloadedSongs
+                                : (playlistContents[_activePlaylistName] ??
+                                    <String>{}));
 
-                    if (isLikes &&
-                        currentSet.isEmpty &&
-                        _pageController.hasClients &&
-                        (_pageController.page?.round() ?? 0) == 1) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) goBack();
-                      });
-                    }
+                        if ((isLikes || isDownloads) &&
+                            currentSet.isEmpty &&
+                            _pageController.hasClients &&
+                            (_pageController.page?.round() ?? 0) == 1) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) goBack();
+                          });
+                        }
 
-                    final currentBaseIds = currentSet.map(getBaseId).toSet();
-                    final query = normalizeString(_searchQuery);
+                        final currentBaseIds =
+                            currentSet.map(getBaseId).toSet();
+                        final query = normalizeString(_searchQuery);
 
-                    final fullPlaylist = globalPlaylist.where((item) {
-                      final baseId = getBaseId(item.id);
-                      return currentSet.contains(item.id) ||
-                          currentBaseIds.contains(baseId);
-                    }).toList();
-                    fullPlaylist.sort(
-                      (a, b) => normalizeString(
-                        a.title,
-                      ).compareTo(normalizeString(b.title)),
-                    );
+                        final fullPlaylist = globalPlaylist.where((item) {
+                          final baseId = getBaseId(item.id);
+                          return currentSet.contains(item.id) ||
+                              currentBaseIds.contains(baseId);
+                        }).toList();
+                        fullPlaylist.sort(
+                          (a, b) => normalizeString(
+                            a.title,
+                          ).compareTo(normalizeString(b.title)),
+                        );
 
-                    final filteredPlaylist = query.isEmpty
-                        ? fullPlaylist
-                        : fullPlaylist.where((item) {
-                            final titleMatch = normalizeString(
-                              item.title,
-                            ).contains(query);
-                            final artistMatch = normalizeString(
-                              item.artist ?? '',
-                            ).contains(query);
-                            return titleMatch || artistMatch;
-                          }).toList();
+                        final filteredPlaylist = query.isEmpty
+                            ? fullPlaylist
+                            : (fullPlaylist
+                                .map(
+                                  (item) => (
+                                    item: item,
+                                    score: calculateSearchScore(
+                                      title: item.title,
+                                      artist: item.artist,
+                                      album: item.album,
+                                      query: query,
+                                    ),
+                                  ),
+                                )
+                                .where((e) => e.score > 0)
+                                .toList()
+                              ..sort((a, b) => b.score.compareTo(a.score)))
+                                .map((e) => e.item)
+                                .toList();
 
-                    String emptyText = _searchQuery.isEmpty
-                        ? (isLikes
-                            ? "Votre bibliothèque est vide"
-                            : "Cette playlist est vide")
-                        : "Aucun résultat pour cette recherche";
+                        String emptyText = _searchQuery.isEmpty
+                            ? (isLikes
+                                ? "Votre bibliothèque est vide"
+                                : (isDownloads
+                                    ? "Aucun titre téléchargé"
+                                    : "Cette playlist est vide"))
+                            : "Aucun résultat pour cette recherche";
 
-                    if (filteredPlaylist.isEmpty) {
-                      return Container(
-                        alignment: Alignment.topCenter,
-                        padding: const EdgeInsets.only(top: 100),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isLikes
-                                  ? CupertinoIcons.heart
-                                  : CupertinoIcons.music_note_list,
-                              color: Colors.white24,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              emptyText,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (!isLikes && _searchQuery.isEmpty) ...[
-                              const SizedBox(height: 8),
-                              const Text(
-                                "Ajoutez des titres à l'aide du bouton + en haut à droite",
-                                style: TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 13,
+                        if (filteredPlaylist.isEmpty) {
+                          return Container(
+                            alignment: Alignment.topCenter,
+                            padding: const EdgeInsets.only(top: 100),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isLikes
+                                      ? CupertinoIcons.heart
+                                      : (isDownloads
+                                          ? CupertinoIcons.arrow_down_circle
+                                          : CupertinoIcons.music_note_list),
+                                  color: Colors.white24,
+                                  size: 48,
                                 ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    }
+                                const SizedBox(height: 16),
+                                Text(
+                                  emptyText,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (!isLikes &&
+                                    !isDownloads &&
+                                    _searchQuery.isEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    "Ajoutez des titres à l'aide du bouton + en haut à droite",
+                                    style: TextStyle(
+                                      color: Colors.white38,
+                                      fontSize: 13,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        }
 
                     return ListView.builder(
                       controller: _scrollController,
@@ -631,11 +748,13 @@ class LibraryPageViewState extends State<LibraryPageView> {
                   },
                 );
               },
-            ),
-          ),
+            );
+          },
         ),
-      ],
-    );
+      ),
+    ),
+  ],
+);
   }
 
   Widget _buildPlaylistActionBar(

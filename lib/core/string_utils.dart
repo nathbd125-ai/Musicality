@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:musicality/core/api_config.dart';
 
 final RegExp _parenthesesRegex = RegExp(r'\s*\(.*?\)');
@@ -220,3 +221,118 @@ String normalizeString(String text) {
   _normalizedCache[text] = normalized;
   return normalized;
 }
+
+/// Calcule la distance d'édition de Levenshtein entre deux chaînes (optimisé 2-lignes O(min(m,n)) mémoire).
+int levenshteinDistance(String s1, String s2) {
+  if (s1 == s2) return 0;
+  if (s1.isEmpty) return s2.length;
+  if (s2.isEmpty) return s1.length;
+
+  List<int> v0 = List<int>.generate(s2.length + 1, (i) => i);
+  List<int> v1 = List<int>.filled(s2.length + 1, 0);
+
+  for (int i = 0; i < s1.length; i++) {
+    v1[0] = i + 1;
+    for (int j = 0; j < s2.length; j++) {
+      final int cost = (s1.codeUnitAt(i) == s2.codeUnitAt(j)) ? 0 : 1;
+      v1[j + 1] = [v1[j] + 1, v0[j + 1] + 1, v0[j] + cost].reduce(min);
+    }
+    for (int j = 0; j <= s2.length; j++) {
+      v0[j] = v1[j];
+    }
+  }
+  return v1[s2.length];
+}
+
+final RegExp _wordSplitRegex = RegExp(r'[\s\-_\.,;:/\(\)\[\]]+');
+
+/// Calcule le score de pertinence d'une recherche avec tolérance aux fautes (Fuzzy Search).
+/// Renvoie 0 si aucune correspondance n'est trouvée, ou un score positif (>0) trié par pertinence.
+int calculateSearchScore({
+  required String title,
+  required String? artist,
+  required String? album,
+  required String query,
+}) {
+  final cleanQuery = normalizeString(query);
+  if (cleanQuery.isEmpty) return 0;
+
+  final normTitle = normalizeString(title);
+  final normArtist = normalizeString(artist ?? '');
+  final normAlbum = normalizeString(album ?? '');
+
+  // 1. Détection ultra-rapide par correspondance directe (Bonus absolu)
+  if (normTitle == cleanQuery) return 300;
+  if (normTitle.startsWith(cleanQuery)) return 250;
+  if (normArtist == cleanQuery) return 220;
+  if (normArtist.startsWith(cleanQuery)) return 200;
+  if (normTitle.contains(cleanQuery)) return 180;
+  if (normArtist.contains(cleanQuery)) return 150;
+  if (normAlbum.contains(cleanQuery)) return 120;
+
+  // 2. Recherche multi-termes et tolérance aux fautes (Fuzzy Search)
+  final queryTokens = cleanQuery.split(_wordSplitRegex).where((s) => s.isNotEmpty).toList();
+  if (queryTokens.isEmpty) return 0;
+
+  final titleWords = normTitle.split(_wordSplitRegex).where((s) => s.isNotEmpty).toList();
+  final artistWords = normArtist.split(_wordSplitRegex).where((s) => s.isNotEmpty).toList();
+  final albumWords = normAlbum.split(_wordSplitRegex).where((s) => s.isNotEmpty).toList();
+
+  int totalScore = 0;
+
+  for (final qToken in queryTokens) {
+    int bestTokenScore = 0;
+
+    // A. Correspondance dans les mots du titre
+    for (final tWord in titleWords) {
+      if (tWord == qToken) {
+        bestTokenScore = max(bestTokenScore, 90);
+      } else if (tWord.startsWith(qToken)) {
+        bestTokenScore = max(bestTokenScore, 75);
+      } else if (tWord.contains(qToken)) {
+        bestTokenScore = max(bestTokenScore, 60);
+      } else if (qToken.length >= 4) {
+        final dist = levenshteinDistance(tWord, qToken);
+        if (dist == 1) {
+          bestTokenScore = max(bestTokenScore, 55);
+        } else if (dist == 2 && qToken.length >= 7) {
+          bestTokenScore = max(bestTokenScore, 40);
+        }
+      }
+    }
+
+    // B. Correspondance dans les mots de l'artiste
+    for (final aWord in artistWords) {
+      if (aWord == qToken) {
+        bestTokenScore = max(bestTokenScore, 80);
+      } else if (aWord.startsWith(qToken)) {
+        bestTokenScore = max(bestTokenScore, 70);
+      } else if (aWord.contains(qToken)) {
+        bestTokenScore = max(bestTokenScore, 50);
+      } else if (qToken.length >= 4) {
+        final dist = levenshteinDistance(aWord, qToken);
+        if (dist == 1) {
+          bestTokenScore = max(bestTokenScore, 50);
+        } else if (dist == 2 && qToken.length >= 7) {
+          bestTokenScore = max(bestTokenScore, 35);
+        }
+      }
+    }
+
+    // C. Correspondance dans l'album
+    for (final albWord in albumWords) {
+      if (albWord == qToken || albWord.startsWith(qToken)) {
+        bestTokenScore = max(bestTokenScore, 40);
+      }
+    }
+
+    // Chaque mot saisi doit correspondre au moins partiellement
+    if (bestTokenScore == 0) {
+      return 0;
+    }
+    totalScore += bestTokenScore;
+  }
+
+  return totalScore;
+}
+

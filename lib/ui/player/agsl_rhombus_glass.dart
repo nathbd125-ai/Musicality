@@ -136,13 +136,18 @@ class _AGSLRhombusGlassState extends State<AGSLRhombusGlass> {
         shader.setFloat(8, screenSize.width * dpr);
         shader.setFloat(9, screenSize.height * dpr);
 
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(widget.cornerRadius),
-          child: BackdropFilter(
-            filter: ImageFilter.shader(shader),
-            child: widget.child,
-          ),
+        final filterWidget = BackdropFilter(
+          filter: ImageFilter.shader(shader),
+          child: widget.child,
         );
+
+        if (widget.cornerRadius > 0) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(widget.cornerRadius),
+            child: filterWidget,
+          );
+        }
+        return filterWidget;
       },
     );
   }

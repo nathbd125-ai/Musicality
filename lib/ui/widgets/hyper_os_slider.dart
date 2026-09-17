@@ -1,7 +1,5 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:musicality/core/globals.dart';
 import 'package:musicality/ui/player/agsl_slider_glass.dart';
 
@@ -28,6 +26,7 @@ class HyperOSSlider extends StatefulWidget {
 class _HyperOSSliderState extends State<HyperOSSlider>
     with TickerProviderStateMixin {
   double? _dragValue;
+  double _baseMsForDrag = 0.0;
   bool _isInteracting = false;
   bool _hasDragStarted = false;
 
@@ -36,17 +35,12 @@ class _HyperOSSliderState extends State<HyperOSSlider>
 
   late final AnimationController _pressController;
   late final Animation<double> _pressAnimation;
-  late final SingleSpringController _springController;
   final GlobalKey _trackKey = GlobalKey();
   Offset? _cachedTrackOffset;
 
   @override
   void initState() {
     super.initState();
-    // Slider Liquid Glass temporairement désactivé (0 ressource consommée)
-    // if (isLiquidGlassEnabledNotifier.value && !isBatterySaverEnabledNotifier.value) {
-    //   AGSLSliderGlass.preload();
-    // }
     _pressController = AnimationController(
       duration: const Duration(milliseconds: 220),
       reverseDuration: const Duration(milliseconds: 240),
@@ -57,64 +51,43 @@ class _HyperOSSliderState extends State<HyperOSSlider>
       curve: Curves.easeOutBack,
       reverseCurve: Curves.easeInOutCubic,
     );
-
-    final double maxMs = widget.duration.inMilliseconds.toDouble() == 0.0
-        ? 1.0
-        : widget.duration.inMilliseconds.toDouble();
-    final double initialPct =
-        (widget.position.inMilliseconds.toDouble() / maxMs).clamp(0.0, 1.0);
-
-    _springController = SingleSpringController(
-      vsync: this,
-      spring: GlassSpring.snappy(
-        duration: const Duration(milliseconds: 300),
-      ),
-      initialValue: initialPct,
-    );
-  }
-
-  @override
-  void didUpdateWidget(HyperOSSlider oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_isInteracting) {
-      final double maxMs = widget.duration.inMilliseconds.toDouble() == 0.0
-          ? 1.0
-          : widget.duration.inMilliseconds.toDouble();
-      final double pct =
-          (widget.position.inMilliseconds.toDouble() / maxMs).clamp(0.0, 1.0);
-      _springController.setValue(pct);
-    }
   }
 
   @override
   void dispose() {
     _pressController.dispose();
-    _springController.dispose();
     super.dispose();
   }
 
-  void _onInteractionStart(Offset localPosition, double width, double maxMs) {
-    HapticFeedback.lightImpact();
+  void _onTapDown(Offset localPosition, double width, double maxMs) {
+    if (width <= 0) return;
     _isInteracting = true;
     _pressController.forward();
-    if (width > 0) {
-      final double tapX = localPosition.dx.clamp(0.0, width);
-      final double newMs = (tapX / width) * maxMs;
-      final double normalizedX = (tapX / width).clamp(0.0, 1.0);
-      setState(() {
-        _dragValue = newMs;
-      });
-      _springController.animateTo(normalizedX);
-    }
+    final double tapX = localPosition.dx.clamp(0.0, width);
+    final double newMs = (tapX / width) * maxMs;
+    setState(() {
+      _dragValue = newMs;
+    });
+    widget.onSeek(Duration(milliseconds: newMs.toInt()));
   }
 
-  void _onInteractionUpdate(Offset localPosition, double width, double maxMs) {
-    if (width <= 0) return;
-    final double currentX = localPosition.dx.clamp(0.0, width);
-    final double newMs = (currentX / width) * maxMs;
-    final double normalizedX = (currentX / width).clamp(0.0, 1.0);
+  void _onDragStart(double maxMs) {
+    _hasDragStarted = true;
+    _isInteracting = true;
+    _pressController.forward();
+    _baseMsForDrag =
+        (_dragValue ?? widget.position.inMilliseconds.toDouble()).clamp(0.0, maxMs);
+    setState(() {
+      _dragValue = _baseMsForDrag;
+    });
+  }
 
-    _springController.animateTo(normalizedX);
+  void _onDragUpdate(double deltaX, double width, double maxMs) {
+    if (width <= 0) return;
+    final double deltaMs = (deltaX / width) * maxMs;
+    final double currentMs = (_dragValue ?? _baseMsForDrag);
+    final double newMs = (currentMs + deltaMs).clamp(0.0, maxMs);
+
     setState(() {
       _dragValue = newMs;
     });
@@ -291,7 +264,7 @@ class _HyperOSSliderState extends State<HyperOSSlider>
         onTapDown: (details) {
           final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
           if (renderBox == null) return;
-          _onInteractionStart(details.localPosition, renderBox.size.width, maxMs);
+          _onTapDown(details.localPosition, renderBox.size.width, maxMs);
         },
         onTapUp: (details) {
           _onInteractionEnd();
@@ -302,15 +275,12 @@ class _HyperOSSliderState extends State<HyperOSSlider>
           }
         },
         onHorizontalDragStart: (details) {
-          _hasDragStarted = true;
-          final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-          if (renderBox == null) return;
-          _onInteractionStart(details.localPosition, renderBox.size.width, maxMs);
+          _onDragStart(maxMs);
         },
         onHorizontalDragUpdate: (details) {
           final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
           if (renderBox == null) return;
-          _onInteractionUpdate(details.localPosition, renderBox.size.width, maxMs);
+          _onDragUpdate(details.delta.dx, renderBox.size.width, maxMs);
         },
         onHorizontalDragEnd: (details) {
           _onInteractionEnd();
@@ -332,7 +302,6 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                         ? const AlwaysStoppedAnimation(0)
                         : Listenable.merge([
                             _pressAnimation,
-                            _springController,
                             isLiquidGlassEnabledNotifier,
                             isBatterySaverEnabledNotifier,
                           ]),
@@ -356,8 +325,8 @@ class _HyperOSSliderState extends State<HyperOSSlider>
                           ? ui.lerpDouble(10.0, 38.0, pressVal)!
                           : 10.0;
 
-                      // Dynamic squash & stretch based on spring velocity (uniquement si Liquid Glass actif)
-                      final double velocity = isLiquidGlass ? _springController.velocity.abs() : 0.0;
+                      // Dynamic squash & stretch (uniquement si Liquid Glass actif)
+                      const double velocity = 0.0;
                       final double stretchFactor =
                           (isLiquidGlass && _isInteracting)
                               ? (velocity * 0.08).clamp(0.0, 0.35)

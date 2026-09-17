@@ -62,26 +62,30 @@ void main() {
     vec2 coord = localCoord - uSize * 0.5;
     
     vec2 rr_size = uSize * 0.5;
-    float cornerRadius = min(max(uCornerRadius, 1.0), min(rr_size.x, rr_size.y));
+    bool isRectangular = (uCornerRadius < 2.0);
+    float cornerRadius = isRectangular ? 0.0 : min(max(uCornerRadius, 1.0), min(rr_size.x, rr_size.y));
     
     // 2. SDF for the rounded box (outer clipping)
-    float sdf = SD_RBox(coord, rr_size, cornerRadius);
-    if (sdf > 0.0) {
-        fragColor = vec4(0.0);
-        return;
+    float sdf = 0.0;
+    if (!isRectangular) {
+        sdf = SD_RBox(coord, rr_size, cornerRadius);
+        if (sdf > 0.0) {
+            fragColor = vec4(0.0);
+            return;
+        }
     }
     
     // 3. Subtle interior zoom (5% magnification for realistic glass lens thickness)
-    vec2 zoomDisplacement = -(coord / uScreenSize) * 0.05;
+    vec2 zoomDisplacement = isRectangular ? vec2(0.0) : (-(coord / uScreenSize) * 0.05);
 
     // 4. 3D Bevel on the curved outer rim
     vec3 n1 = vec3(0.0, 0.0, 1.0);
     float z2_z1 = 0.0;
     float smoothFactor = 0.0;
     
-    float bevelWidth = min(rr_size.y * 0.35, min(cornerRadius, 36.0));
+    float bevelWidth = isRectangular ? 0.0 : min(rr_size.y * 0.35, min(cornerRadius, 36.0));
     
-    if (sdf > -bevelWidth) {
+    if (!isRectangular && sdf > -bevelWidth) {
         vec2 e = vec2(1.0, 0.0);
         float dx = SD_RBox(coord + e.xy, rr_size, cornerRadius) - SD_RBox(coord - e.xy, rr_size, cornerRadius);
         float dy = SD_RBox(coord + e.yx, rr_size, cornerRadius) - SD_RBox(coord - e.yx, rr_size, cornerRadius);

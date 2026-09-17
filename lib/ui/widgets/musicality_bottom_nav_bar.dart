@@ -10,10 +10,7 @@ class MusicalityBottomNavBar extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   static final Stream<User?> _authStateStream =
-      FirebaseAuth.instance.authStateChanges();
-  static bool? _cachedGoogleAvatarExists;
-  static String? _lastVerifiedLocalPath;
-  static bool _lastVerifiedLocalExists = false;
+      FirebaseAuth.instance.userChanges();
 
   const MusicalityBottomNavBar({
     super.key,
@@ -23,10 +20,7 @@ class MusicalityBottomNavBar extends StatelessWidget {
 
   static bool _checkLocalImage(String? path) {
     if (path == null || path.isEmpty) return false;
-    if (path == _lastVerifiedLocalPath) return _lastVerifiedLocalExists;
-    _lastVerifiedLocalPath = path;
-    _lastVerifiedLocalExists = File(path).existsSync();
-    return _lastVerifiedLocalExists;
+    return File(path).existsSync();
   }
 
   @override
@@ -53,16 +47,19 @@ class MusicalityBottomNavBar extends StatelessWidget {
                 return ValueListenableBuilder<String?>(
                   valueListenable: userProfileImageNotifier,
                   builder: (context, localImagePath, _) {
-                    // Logique de l'icône (Locale > Google > Défaut)
+                    // Logique de l'icône (Locale > Google Cachée > Google Réseau > Défaut)
                     final hasLocalImage = _checkLocalImage(localImagePath);
                     final hasGoogleImage =
-                        user != null && user.photoURL != null;
+                        user != null && user.photoURL != null && user.photoURL!.isNotEmpty;
 
                     final cachedGoogleAvatar = File(
                       '$globalDocumentPath/cached_google_avatar.jpg',
                     );
-                    final hasCachedGoogle = _cachedGoogleAvatarExists ??=
-                        cachedGoogleAvatar.existsSync();
+                    final hasCachedGoogle = cachedGoogleAvatar.existsSync();
+
+                    if (hasGoogleImage && !hasCachedGoogle) {
+                      cacheGoogleAvatar(user.photoURL!);
+                    }
 
                     Widget accountIcon;
                     if (hasLocalImage) {

@@ -157,3 +157,21 @@ Widget getLocalOrNetworkImageSuperBlurred(MediaItem item) {
     );
   }
 }
+
+/// Précharge en mémoire vive (RAM) les pochettes d'albums spécifiées
+/// pour éliminer tout micro-temps de chargement visuel au défilement ou à la lecture.
+void precacheSongCovers(
+  BuildContext context,
+  List<MediaItem> items, {
+  int count = 10,
+}) {
+  if (items.isEmpty || !context.mounted) return;
+  final toPreload = items.take(count);
+  for (final item in toPreload) {
+    try {
+      final provider = getLocalOrNetworkImageProvider(item);
+      precacheImage(provider, context).catchError((_) {});
+    } catch (_) {}
+  }
+}
+

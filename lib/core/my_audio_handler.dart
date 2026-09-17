@@ -405,6 +405,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     } catch (e) {
       debugPrint("[CROSSFADE] Erreur lors de la préparation du crossfade : $e");
       _isCrossfading = false;
+      _nextPlayer.stop();
+      _nextPlayer.setVolume(1.0);
+      _activePlayer.setVolume(1.0);
       return;
     } finally {
       _preloadedIndex = null;
@@ -413,6 +416,8 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     if (!_isCrossfading || _isPreparing) {
       debugPrint("[CROSSFADE] Annulé pendant le chargement (seek/skip), on abandonne.");
       _nextPlayer.stop();
+      _nextPlayer.setVolume(1.0);
+      _activePlayer.setVolume(1.0);
       return;
     }
 

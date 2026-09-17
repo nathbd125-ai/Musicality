@@ -12,6 +12,7 @@ import 'package:musicality/core/my_audio_handler.dart';
 import 'package:musicality/core/string_utils.dart';
 import 'package:musicality/core/cloud_sync_service.dart';
 import 'package:musicality/core/song_download_service.dart';
+import 'package:musicality/core/connectivity_service.dart';
 import 'package:musicality/ui/widgets/cached_album_art.dart';
 import 'package:musicality/objectbox.g.dart';
 
@@ -20,6 +21,7 @@ export 'package:musicality/core/cloud_sync_service.dart';
 export 'package:musicality/core/recommendation_service.dart';
 export 'package:musicality/core/lyrics_service.dart';
 export 'package:musicality/core/song_download_service.dart';
+export 'package:musicality/core/connectivity_service.dart';
 export 'package:musicality/core/app_update_service.dart';
 export 'package:musicality/ui/widgets/cached_album_art.dart';
 export 'package:musicality/ui/theme/album_gradients.dart';
@@ -117,7 +119,11 @@ Future<void> initPersistence() async {
   // Chargement paramètres Compte
   final savedProfile = mmkv.decodeString('userProfileImage');
   if (savedProfile != null && savedProfile.isNotEmpty) {
-    userProfileImageNotifier.value = savedProfile;
+    if (File(savedProfile).existsSync()) {
+      userProfileImageNotifier.value = savedProfile;
+    } else {
+      mmkv.removeValue('userProfileImage');
+    }
   }
 
   isLosslessNotifier.value = mmkv.decodeBool('isLossless');
@@ -204,8 +210,11 @@ Future<void> initPersistence() async {
   });
 
   userProfileImageNotifier.addListener(() {
-    if (userProfileImageNotifier.value != null) {
+    if (userProfileImageNotifier.value != null &&
+        userProfileImageNotifier.value!.isNotEmpty) {
       mmkv.encodeString('userProfileImage', userProfileImageNotifier.value!);
+    } else {
+      mmkv.removeValue('userProfileImage');
     }
   });
 
@@ -457,6 +466,25 @@ Future<void> initPersistence() async {
   });
 }
 
+Future<void> cacheGoogleAvatar(String url) async {
+  try {
+    final mmkv = MMKV.defaultMMKV();
+    final savedUrl = mmkv.decodeString('last_google_avatar_url');
+    final cacheFile = File('$globalDocumentPath/cached_google_avatar.jpg');
+
+    if (savedUrl != url || !cacheFile.existsSync()) {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        await cacheFile.writeAsBytes(response.bodyBytes);
+        mmkv.encodeString('last_google_avatar_url', url);
+        debugPrint('✅ Avatar Google mis en cache local avec succès');
+      }
+    }
+  } catch (e) {
+    debugPrint('Failed to cache Google avatar: $e');
+  }
+}
+
 List<MediaItem> globalPlaylist = [];
 
 String _extractEnrichedArtist(String rawTitle, String rawArtist) {
@@ -528,7 +556,13 @@ String normalizeAlbumName(String id, dynamic rawAlbum) {
     if (lowerAlbum.contains('now that')) {
       return 'Late Night Feelings';
     }
-  } else if (lowerId.startsWith('damso') || lowerAlbum.contains('beyah') || lowerAlbum.contains('bēyāh')) {
+  } else if (lowerAlbum.contains('lithopedion') || lowerAlbum.contains('lithopédion')) {
+    return 'Lithopédion';
+  } else if (lowerAlbum.contains('ipseite') || lowerAlbum.contains('ipséité')) {
+    return 'Ipséité';
+  } else if (lowerAlbum.contains('batterie') && lowerAlbum.contains('faible')) {
+    return 'Batterie faible';
+  } else if (lowerAlbum.contains('beyah') || lowerAlbum.contains('bēyāh')) {
     return 'BĒYĀH';
   } else if (lowerId.startsWith('nekfeu') || lowerId == 'egerie' || lowerAlbum == 'feu') {
     return 'Feu';
@@ -656,7 +690,16 @@ String resolveCoverName({
   if (cleanAlbum == 'feu' || cleanId.startsWith('nekfeu') || cleanId == 'egerie') {
     return 'feu';
   }
-  if (cleanAlbum.contains('beyah') || cleanAlbum.contains('bēyāh') || cleanId.startsWith('damso')) {
+  if (cleanAlbum.contains('lithopedion') || cleanAlbum.contains('lithopédion')) {
+    return 'lithopedion';
+  }
+  if (cleanAlbum.contains('ipseite') || cleanAlbum.contains('ipséité')) {
+    return 'ipseite';
+  }
+  if (cleanAlbum.contains('batterie') && cleanAlbum.contains('faible')) {
+    return 'batterie_faible';
+  }
+  if (cleanAlbum.contains('beyah') || cleanAlbum.contains('bēyāh')) {
     return 'beyah';
   }
   if (cleanAlbum == 'grandestino' || cleanId.startsWith('lartiste') || cleanId.contains('mafiosa')) {
@@ -714,8 +757,8 @@ void _parseMusiquesFromJson(List<dynamic> data) {
       albumName = "Commando";
     }
 
+    final enrichedArtist = _extractEnrichedArtist(rawTitle, rawArtist);
     final title = cleanTitle(rawTitle);
-    final enrichedArtist = _extractEnrichedArtist(title, rawArtist);
     final dedupKey = '${normalizeString(albumName)}::${normalizeString(title)}';
 
     if (seenIds.contains(id) || seenAlbumTitles.contains(dedupKey)) {
@@ -779,8 +822,8 @@ void loadMusiquesFromCache() {
           album = "Commando";
         }
 
+        final enrichedArtist = _extractEnrichedArtist(rawTitle, rawArtist);
         final title = cleanTitle(rawTitle);
-        final enrichedArtist = _extractEnrichedArtist(title, rawArtist);
         final dedupKey = '${normalizeString(album)}::${normalizeString(title)}';
 
         if (seenIds.contains(songId) || seenAlbumTitles.contains(dedupKey)) {
@@ -830,6 +873,13 @@ void loadMusiquesFromCache() {
 }
 
 Future<void> fetchMusiques() async {
+  if (ConnectivityService.isOffline) {
+    debugPrint("📶 [fetchMusiques] Hors-ligne : court-circuit 0ms réseau, lecture ObjectBox");
+    if (globalPlaylist.isEmpty) {
+      loadMusiquesFromCache();
+    }
+    return;
+  }
   try {
     final response = await http
         .get(
@@ -874,8 +924,8 @@ Future<void> fetchMusiques() async {
           albumName = "Commando";
         }
 
+        final enrichedArtist = _extractEnrichedArtist(rawTitle, rawArtist);
         final title = cleanTitle(rawTitle);
-        final enrichedArtist = _extractEnrichedArtist(title, rawArtist);
         final dedupKey = '${normalizeString(albumName)}::${normalizeString(title)}';
 
         if (seenIds.contains(id) || seenAlbumTitles.contains(dedupKey)) {

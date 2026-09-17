@@ -635,7 +635,9 @@ class _LyricLineItemState extends State<_LyricLineItem>
         return ValueListenableBuilder<bool>(
           valueListenable: isBatterySaverEnabledNotifier,
           builder: (context, isBatterySaver, _) {
-            const currentBlur = 0.0;
+            final currentBlur = isBatterySaver
+                ? 0.0
+                : lerpDouble(1.3, 0.0, progress)!;
 
             final Widget renderedLine;
             final bool hasWords = widget.line.words.isNotEmpty;
@@ -649,14 +651,12 @@ class _LyricLineItemState extends State<_LyricLineItem>
                       glowColor: widget.glowColor,
                       unlitColor: widget.unlitColor.withValues(alpha: 0.40),
                       lineActiveProgress: 1.0,
-                      blurRadius: currentBlur,
                     )
                   : _PlainLineWidget(
                       text: widget.line.text,
                       glowColor: widget.glowColor,
                       unlitColor: effectiveUnlitColor,
                       lineActiveProgress: progress,
-                      blurRadius: currentBlur,
                     );
             } else if (progress <= 0.001) {
               renderedLine = hasWords
@@ -667,14 +667,12 @@ class _LyricLineItemState extends State<_LyricLineItem>
                       glowColor: widget.glowColor,
                       unlitColor: effectiveUnlitColor,
                       lineActiveProgress: 0.0,
-                      blurRadius: 0.0,
                     )
                   : _PlainLineWidget(
                       text: widget.line.text,
                       glowColor: widget.glowColor,
                       unlitColor: effectiveUnlitColor,
                       lineActiveProgress: 0.0,
-                      blurRadius: 0.0,
                     );
             } else {
               renderedLine = hasWords
@@ -685,15 +683,27 @@ class _LyricLineItemState extends State<_LyricLineItem>
                       glowColor: widget.glowColor,
                       unlitColor: widget.unlitColor.withValues(alpha: 0.40),
                       lineActiveProgress: progress,
-                      blurRadius: currentBlur,
                     )
                   : _PlainLineWidget(
                       text: widget.line.text,
                       glowColor: widget.glowColor,
                       unlitColor: effectiveUnlitColor,
                       lineActiveProgress: progress,
-                      blurRadius: currentBlur,
                     );
+            }
+
+            final Widget contentWithBlur;
+            if (currentBlur > 0.05) {
+              contentWithBlur = ImageFiltered(
+                imageFilter: ImageFilter.blur(
+                  sigmaX: currentBlur,
+                  sigmaY: currentBlur,
+                  tileMode: TileMode.decal,
+                ),
+                child: renderedLine,
+              );
+            } else {
+              contentWithBlur = renderedLine;
             }
 
             final Widget lineWidget = GestureDetector(
@@ -704,7 +714,7 @@ class _LyricLineItemState extends State<_LyricLineItem>
                   horizontal: 28,
                   vertical: 16,
                 ),
-                child: renderedLine,
+                child: contentWithBlur,
               ),
             );
 
@@ -723,7 +733,6 @@ class _KaraokeLineWidget extends StatelessWidget {
   final Color glowColor;
   final Color unlitColor;
   final double lineActiveProgress;
-  final double blurRadius;
 
   const _KaraokeLineWidget({
     required this.line,
@@ -732,7 +741,6 @@ class _KaraokeLineWidget extends StatelessWidget {
     required this.glowColor,
     required this.unlitColor,
     required this.lineActiveProgress,
-    this.blurRadius = 0.0,
   });
 
   @override
@@ -753,7 +761,6 @@ class _KaraokeLineWidget extends StatelessWidget {
               isCurrent: false,
               glowColor: glowColor,
               unlitColor: unlitColor,
-              blurRadius: blurRadius,
               cachedFadeShadows: shadows,
               cachedFadeColor: wordColor,
             );
@@ -771,7 +778,6 @@ class _KaraokeLineWidget extends StatelessWidget {
             isCurrent: false,
             glowColor: glowColor,
             unlitColor: unlitColor,
-            blurRadius: blurRadius,
           );
         }).toList(),
       );
@@ -791,7 +797,6 @@ class _KaraokeLineWidget extends StatelessWidget {
             positionNotifier: positionNotifier,
             glowColor: glowColor,
             unlitColor: unlitColor,
-            blurRadius: blurRadius,
           ),
         );
       }),
@@ -806,7 +811,6 @@ class _DynamicKaraokeWord extends StatefulWidget {
   final ValueNotifier<Duration> positionNotifier;
   final Color glowColor;
   final Color unlitColor;
-  final double blurRadius;
 
   const _DynamicKaraokeWord({
     super.key,
@@ -814,7 +818,6 @@ class _DynamicKaraokeWord extends StatefulWidget {
     required this.positionNotifier,
     required this.glowColor,
     required this.unlitColor,
-    this.blurRadius = 0.0,
   });
 
   @override
@@ -906,7 +909,6 @@ class _DynamicKaraokeWordState extends State<_DynamicKaraokeWord> {
       isCurrent: _state == _WordState.singing,
       glowColor: widget.glowColor,
       unlitColor: widget.unlitColor,
-      blurRadius: widget.blurRadius,
     );
   }
 }
@@ -936,7 +938,6 @@ class _KaraokeWord extends StatelessWidget {
   final bool isCurrent;
   final Color glowColor;
   final Color unlitColor;
-  final double blurRadius;
   final List<Shadow>? cachedFadeShadows;
   final Color? cachedFadeColor;
 
@@ -946,7 +947,6 @@ class _KaraokeWord extends StatelessWidget {
     required this.isCurrent,
     required this.glowColor,
     required this.unlitColor,
-    this.blurRadius = 0.0,
     this.cachedFadeShadows,
     this.cachedFadeColor,
   });
@@ -1036,14 +1036,12 @@ class _PlainLineWidget extends StatelessWidget {
   final Color glowColor;
   final Color unlitColor;
   final double lineActiveProgress;
-  final double blurRadius;
 
   const _PlainLineWidget({
     required this.text,
     required this.glowColor,
     required this.unlitColor,
     required this.lineActiveProgress,
-    this.blurRadius = 0.0,
   });
 
   @override

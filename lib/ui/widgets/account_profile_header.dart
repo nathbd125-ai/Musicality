@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:musicality/core/globals.dart';
-import 'package:musicality/main.dart';
 
 class AccountProfileHeader extends StatelessWidget {
   final List<Color> dynamicGradientColors;
@@ -32,7 +31,7 @@ class AccountProfileHeader extends StatelessWidget {
       children: [
         // --- AVATAR DYNAMIQUE EN TEMPS RÉEL ---
         StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
+          stream: FirebaseAuth.instance.userChanges(),
           builder: (context, authSnapshot) {
             final user = authSnapshot.data;
 
@@ -40,7 +39,8 @@ class AccountProfileHeader extends StatelessWidget {
               valueListenable: userProfileImageNotifier,
               builder: (context, imagePath, child) {
                 // 1. On récupère les infos
-                final hasGoogleImage = user != null && user.photoURL != null;
+                final hasGoogleImage =
+                    user != null && user.photoURL != null && user.photoURL!.isNotEmpty;
                 final hasLocalImage =
                     imagePath != null &&
                     imagePath.isNotEmpty &&
@@ -51,7 +51,7 @@ class AccountProfileHeader extends StatelessWidget {
                 );
                 final hasCachedGoogle = cachedGoogleAvatar.existsSync();
 
-                if (hasGoogleImage) {
+                if (hasGoogleImage && !hasCachedGoogle) {
                   cacheGoogleAvatar(user.photoURL!);
                 }
 
@@ -101,9 +101,55 @@ class AccountProfileHeader extends StatelessWidget {
                     final picker = ImagePicker();
                     final xfile = await picker.pickImage(
                       source: ImageSource.gallery,
+                      maxWidth: 512,
+                      maxHeight: 512,
+                      imageQuality: 85,
                     );
                     if (xfile != null) {
-                      userProfileImageNotifier.value = xfile.path;
+                      final savedImage =
+                          File('$globalDocumentPath/custom_profile_image.jpg');
+                      await savedImage.writeAsBytes(await xfile.readAsBytes());
+                      userProfileImageNotifier.value = savedImage.path;
+                      triggerAutoSync();
+                    }
+                  },
+                  onLongPress: () async {
+                    if (userProfileImageNotifier.value != null) {
+                      if (isHapticFeedbackEnabledNotifier.value) {
+                        HapticFeedback.mediumImpact();
+                      }
+                      final shouldRemove = await showCupertinoDialog<bool>(
+                        context: context,
+                        builder: (ctx) => CupertinoAlertDialog(
+                          title: const Text("Photo de profil"),
+                          content: const Text(
+                            "Voulez-vous supprimer votre photo personnalisée et réutiliser celle de votre compte Google / défaut ?",
+                          ),
+                          actions: [
+                            CupertinoDialogAction(
+                              child: const Text("Annuler"),
+                              onPressed: () => Navigator.pop(ctx, false),
+                            ),
+                            CupertinoDialogAction(
+                              isDestructiveAction: true,
+                              child: const Text("Supprimer"),
+                              onPressed: () => Navigator.pop(ctx, true),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (shouldRemove == true) {
+                        final customFile = File(
+                          '$globalDocumentPath/custom_profile_image.jpg',
+                        );
+                        if (customFile.existsSync()) {
+                          try {
+                            customFile.deleteSync();
+                          } catch (_) {}
+                        }
+                        userProfileImageNotifier.value = null;
+                        triggerAutoSync();
+                      }
                     }
                   },
                   child: Stack(

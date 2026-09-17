@@ -46,6 +46,8 @@ class AllMusicsViewState extends State<AllMusicsView> {
   void initState() {
     super.initState();
     songsVersionNotifier.addListener(_onSongsChanged);
+    ConnectivityService.isOfflineNotifier.addListener(_onSongsChanged);
+    SongDownloadService.downloadedSongsNotifier.addListener(_onSongsChanged);
     _updateFilter();
     _scrollController = ScrollController();
     _scrollController.addListener(() {
@@ -59,6 +61,12 @@ class AllMusicsViewState extends State<AllMusicsView> {
         });
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        precacheSongCovers(context, _filteredPlaylist, count: 12);
+      }
+    });
   }
 
   void _onSongsChanged() {
@@ -66,23 +74,44 @@ class AllMusicsViewState extends State<AllMusicsView> {
       setState(() {
         _updateFilter();
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          precacheSongCovers(context, _filteredPlaylist, count: 12);
+        }
+      });
     }
   }
 
   void _updateFilter() {
     final cleanQuery = _searchQuery.trim();
+    final bool isOffline = ConnectivityService.isOffline;
+    final basePlaylist = isOffline
+        ? getSortedGlobalPlaylist()
+            .where((item) => SongDownloadService.isDownloaded(item.id))
+            .toList()
+        : getSortedGlobalPlaylist();
+
     if (cleanQuery.isEmpty) {
-      // Re-use cached sorted global playlist directly: zero copying, zero sorting
-      _filteredPlaylist = getSortedGlobalPlaylist();
+      _filteredPlaylist = basePlaylist;
     } else {
-      final query = normalizeString(cleanQuery);
-      // Filtering an already sorted list maintains sorted order: eliminates O(N log N) sorting step
-      _filteredPlaylist = getSortedGlobalPlaylist().where((item) {
-        final titleMatch = normalizeString(item.title).contains(query);
-        final artistMatch = normalizeString(item.artist ?? '').contains(query);
-        final albumMatch = normalizeString(item.album ?? '').contains(query);
-        return titleMatch || artistMatch || albumMatch;
-      }).toList();
+      final List<MapEntry<MediaItem, int>> scored = [];
+      for (final item in basePlaylist) {
+        final score = calculateSearchScore(
+          title: item.title,
+          artist: item.artist,
+          album: item.album,
+          query: cleanQuery,
+        );
+        if (score > 0) {
+          scored.add(MapEntry(item, score));
+        }
+      }
+      scored.sort((a, b) {
+        final cmp = b.value.compareTo(a.value);
+        if (cmp != 0) return cmp;
+        return normalizeString(a.key.title).compareTo(normalizeString(b.key.title));
+      });
+      _filteredPlaylist = scored.map((e) => e.key).toList();
     }
   }
 
@@ -90,6 +119,8 @@ class AllMusicsViewState extends State<AllMusicsView> {
   void dispose() {
     _debounceTimer?.cancel();
     songsVersionNotifier.removeListener(_onSongsChanged);
+    ConnectivityService.isOfflineNotifier.removeListener(_onSongsChanged);
+    SongDownloadService.downloadedSongsNotifier.removeListener(_onSongsChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollController.dispose();
@@ -128,10 +159,13 @@ class AllMusicsViewState extends State<AllMusicsView> {
               ? Container(
                   alignment: Alignment.topCenter,
                   padding: const EdgeInsets.only(top: 100),
-                  child: const Text(
-                    "Aucun résultat pour cette recherche",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
+              child: Text(
+                ConnectivityService.isOffline && !isSearching
+                    ? "Aucun titre téléchargé pour l'écoute hors-ligne"
+                    : "Aucun résultat pour cette recherche",
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 16),
+              ),
                 )
               : TweenAnimationBuilder<Color?>(
                   duration: const Duration(milliseconds: 250),
@@ -171,33 +205,40 @@ class AllMusicsViewState extends State<AllMusicsView> {
                     ),
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
-                    itemBuilder: (context, index) {
-                      final item = _filteredPlaylist[index];
-                      final isSelected = widget.currentItem?.id == item.id;
+                      itemBuilder: (context, index) {
+                        final item = _filteredPlaylist[index];
+                        final isSelected = widget.currentItem?.id == item.id;
 
-                      return SongTile(
-                        item: item,
-                        isSelected: isSelected,
-                        activeThemeColors: widget.dynamicGradientColors,
-                        heroTag: 'allmusic_${index}_${item.id}',
-                        onTap: () {
-                          if (widget.currentItem?.id == item.id) return;
-                          if (_searchFocusNode.hasFocus) {
-                            FocusScope.of(context).unfocus();
-                          }
-                          final fullList = getSortedGlobalPlaylist();
-                          final targetIndex =
-                              fullList.indexWhere((m) => m.id == item.id);
-                          (globalAudioHandler as MyAudioHandler).playFromList(
-                            fullList,
-                            targetIndex >= 0 ? targetIndex : 0,
-                            contextTag: 'all_musics',
-                          );
-                        },
-                      );
-                    },
+                        return SongTile(
+                          item: item,
+                          isSelected: isSelected,
+                          activeThemeColors: widget.dynamicGradientColors,
+                          heroTag: 'allmusic_${index}_${item.id}',
+                          onTap: () {
+                            if (widget.currentItem?.id == item.id) return;
+                            if (_searchFocusNode.hasFocus) {
+                              FocusScope.of(context).unfocus();
+                            }
+
+                            final targetList = ConnectivityService.isOffline
+                                ? _filteredPlaylist
+                                : globalPlaylist;
+                            final targetIndex = targetList.indexWhere(
+                              (m) => m.id == item.id,
+                            );
+
+                            (globalAudioHandler as MyAudioHandler).playFromList(
+                              targetList,
+                              targetIndex != -1 ? targetIndex : index,
+                              contextTag: ConnectivityService.isOffline
+                                  ? 'all_musics_offline'
+                                  : 'all_musics',
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
-                ),
         ),
       ],
     );

@@ -118,10 +118,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _dynamicGradientColors = getAlbumGradientColors(item);
           });
         }
+        _precacheUpcomingQueue(item);
       }
     });
 
     LyricsService.onLyricsUpdated.addListener(_onLyricsUpdatedFromService);
+  }
+
+  void _precacheUpcomingQueue(MediaItem current) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final queue = globalAudioHandler.queue.value;
+      if (queue.isEmpty) return;
+      final currentIndex = queue.indexWhere((m) => m.id == current.id);
+      if (currentIndex == -1) return;
+
+      final upcoming = queue.skip(currentIndex + 1).take(8).toList();
+      if (upcoming.isNotEmpty) {
+        precacheSongCovers(context, upcoming, count: 8);
+      }
+    });
   }
 
   void _onLyricsUpdatedFromService() {
@@ -1453,7 +1469,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                               ),
                                             ),
                                           );
-                                          },
+                                        },
+                                      ),
+
+                                        // --- BANDEAU FLOTTANT HORS-LIGNE TEMPORAIRE (4 SECONDES) ---
+                                        _OfflineBannerPill(
+                                          topPadding: topPadding,
+                                          isPlayerExpanded: isPlayerExpanded,
                                         ),
                                       ],
                                     );
@@ -1488,3 +1510,151 @@ class _ColorsListTween extends Tween<List<Color>> {
     });
   }
 }
+
+class _OfflineBannerPill extends StatefulWidget {
+  final double topPadding;
+  final bool isPlayerExpanded;
+
+  const _OfflineBannerPill({
+    required this.topPadding,
+    required this.isPlayerExpanded,
+  });
+
+  @override
+  State<_OfflineBannerPill> createState() => _OfflineBannerPillState();
+}
+
+class _OfflineBannerPillState extends State<_OfflineBannerPill> {
+  bool _visible = false;
+  Timer? _dismissTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (ConnectivityService.isOffline) {
+      _showTemporarily();
+    }
+    ConnectivityService.isOfflineNotifier.addListener(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged() {
+    if (ConnectivityService.isOffline) {
+      _showTemporarily();
+    } else {
+      _dismissTimer?.cancel();
+      if (mounted && _visible) {
+        setState(() => _visible = false);
+      }
+    }
+  }
+
+  void _showTemporarily() {
+    _dismissTimer?.cancel();
+    if (mounted) {
+      setState(() => _visible = true);
+    }
+    _dismissTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() => _visible = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    ConnectivityService.isOfflineNotifier.removeListener(_onConnectivityChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showBanner = _visible && !widget.isPlayerExpanded;
+
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.fastOutSlowIn,
+      top: showBanner ? (widget.topPadding + 8) : -(widget.topPadding + 60),
+      left: 20,
+      right: 20,
+      child: IgnorePointer(
+        ignoring: !showBanner,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 300),
+          opacity: showBanner ? 1.0 : 0.0,
+          child: Center(
+            child: GestureDetector(
+              onTap: () {
+                _dismissTimer?.cancel();
+                if (mounted) setState(() => _visible = false);
+              },
+              onVerticalDragEnd: (details) {
+                if ((details.primaryVelocity ?? 0) < 0) {
+                  _dismissTimer?.cancel();
+                  if (mounted) setState(() => _visible = false);
+                }
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.70),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFF9800),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          CupertinoIcons.wifi_slash,
+                          color: Colors.white70,
+                          size: 15,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          "Mode Hors-Ligne • Titres téléchargés",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

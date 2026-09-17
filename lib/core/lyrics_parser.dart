@@ -39,7 +39,7 @@ class LyricsParser {
   static final RegExp _spanishGerund1Regex = RegExp(r'(' + _letters + r'+)\s*(<\d+:\d+(?:\.\d+)?>)?\s*([áéíóúÁÉÍÓÚ])\s*(<\d+:\d+(?:\.\d+)?>)?\s*(ndo(?:te|me|se|nos|os|les?|los?|las?)?)(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)');
   static final RegExp _spanishGerund2Regex = RegExp(r'(' + _letters + r'+[áéíóúÁÉÍÓÚ])\s*(<\d+:\d+(?:\.\d+)?>)?\s+(ndo(?:te|me|se|nos|os|les?|los?|las?)?)(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)');
   static final RegExp _wordEndingAccentsRegex = RegExp(r'(' + _letters + r'{2,})\s*(<\d+:\d+(?:\.\d+)?>)?\s*(' + _wordEndingAccents + r')(?=[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ]|$)');
-  static final RegExp _internalAccentsRegex = RegExp(r'(' + _letters + r'+)(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|(<\d+:\d+(?:\.\d+)?>)\s*)(' + _internalAccents + r')(?:\\s*(<\d+:\d+(?:\.\d+)?>)?\s+|\s*(<\d+:\d+(?:\.\d+)?>))(' + _letters + r'+)');
+  static final RegExp _internalAccentsRegex = RegExp(r'(' + _letters + r'+)(?:\s+(<\d+:\d+(?:\.\d+)?>)?\s*|(<\d+:\d+(?:\.\d+)?>)\s*)(' + _internalAccents + r')(?:\s*(<\d+:\d+(?:\.\d+)?>)?\s+|\s*(<\d+:\d+(?:\.\d+)?>))(' + _letters + r'+)');
   static final RegExp _unstickPronouns1Regex = RegExp(r'\b(règlerera|règlera|comme|pour|avec|faire|fait|dis|dit|vois|voit)\s*(<\d+:\d+(?:\.\d+)?>)?\s*ça\b', caseSensitive: false);
   static final RegExp _unstickPronouns2Regex = RegExp(r'\b(te-tê|te-te|te-té)\s*(<\d+:\d+(?:\.\d+)?>)?\s*(partout)\b', caseSensitive: false);
   static final RegExp _unstickOuSontRegex = RegExp(r'(^|[^\wáàâäãéèêëíìîïóòôöõúùûüñçÁÀÂÄÃÉÈÊËÍÌÎÏÓÒÔÖÕÚÙÛÜÑÇ])([Oo]ù)\s*(<\d+:\d+(?:\.\d+)?>)?\s*(sont)\b', caseSensitive: false);

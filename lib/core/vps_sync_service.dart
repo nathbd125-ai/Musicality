@@ -1,14 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:dartssh2/dartssh2.dart';
+import 'package:http/http.dart' as http;
 import 'package:musicality/core/models.dart';
 
 class VpsSyncService {
-  static const String _host = '164.132.104.67';
-  static const int _port = 22;
-  static const String _username = 'ubuntu';
-  static const String _password = 'NAthan@1306';
-  static const String _remoteDirectory = '/var/www/html/media/Musicality';
+  static const String _apiUrl = 'https://musicality.duckdns.org/api/upload-lyrics';
+  static const String _apiToken = 'msc_sec_89f3a912e742c091d34e6b12a87c10b7';
 
   /// Convertit une liste de LyricLine en chaîne standardisée au format LRC / Enhanced LRC :
   /// Si des mots synchronisés sont présents : [mm:ss.xx] <mm:ss.xx>Mot1 <mm:ss.xx>Mot2
@@ -67,7 +64,7 @@ class VpsSyncService {
     return '<$mStr:$sStr.$cStr>';
   }
 
-  /// Téléverse directement le contenu LRC sur le VPS via SFTP et remplace le fichier distant
+  /// Téléverse directement le contenu LRC sur le serveur VPS via l'API Web HTTPS sécurisée
   static Future<void> uploadLrc({
     required String baseName,
     required String lrcContent,
@@ -80,45 +77,35 @@ class VpsSyncService {
     final targetFilename = cleanBaseName.endsWith('.lrc')
         ? cleanBaseName
         : '$cleanBaseName.lrc';
-    final remotePath = '$_remoteDirectory/$targetFilename';
 
-    debugPrint('Connexion SFTP au VPS $_host:$_port pour $remotePath...');
+    debugPrint('Téléversement HTTPS des paroles vers $_apiUrl pour $targetFilename...');
 
-    final socket = await SSHSocket.connect(
-      _host,
-      _port,
-      timeout: const Duration(seconds: 12),
+    final response = await http.post(
+      Uri.parse(_apiUrl),
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-Musicality-Token': _apiToken,
+      },
+      body: jsonEncode({
+        'filename': targetFilename,
+        'content': lrcContent,
+      }),
+    ).timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => throw Exception('Délai d\'attente dépassé lors de l\'envoi des paroles'),
     );
 
-    final client = SSHClient(
-      socket,
-      username: _username,
-      onPasswordRequest: () => _password,
-    );
-
-    try {
-      final sftp = await client.sftp();
-      final file = await sftp.open(
-        remotePath,
-        mode: SftpFileOpenMode.create |
-            SftpFileOpenMode.write |
-            SftpFileOpenMode.truncate,
-      );
-
-      final bytes = Uint8List.fromList(utf8.encode(lrcContent));
-      await file.writeBytes(bytes);
-      await file.close();
-
-      // Supprime l'ancien fichier .ttml sur le VPS si existant pour que le nouveau .lrc soit prioritaire
-      final baseNoExt = cleanBaseName.replaceAll(RegExp(r'\.lrc$'), '');
+    if (response.statusCode == 200) {
+      debugPrint('Fichier $targetFilename enregistré avec succès sur le VPS via HTTPS.');
+    } else {
+      String errorMessage = 'Erreur HTTP ${response.statusCode}';
       try {
-        await sftp.remove('$_remoteDirectory/$baseNoExt.ttml');
-        debugPrint('Ancien fichier $baseNoExt.ttml supprimé sur le VPS.');
+        final body = jsonDecode(response.body);
+        if (body is Map && body['error'] != null) {
+          errorMessage = body['error'].toString();
+        }
       } catch (_) {}
-
-      debugPrint('Fichier $remotePath remplacé avec succès sur le VPS.');
-    } finally {
-      client.close();
+      throw Exception('Échec de la synchronisation des paroles : $errorMessage');
     }
   }
 }

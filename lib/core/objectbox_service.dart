@@ -26,7 +26,10 @@ class ObjectBoxService {
   static Future<ObjectBoxService> create() async {
     final docsDir = await getApplicationDocumentsDirectory();
     final storeDir = p.join(docsDir.path, "obx-musicality");
-    final store = await openStore(directory: storeDir);
+    final store = await openStore(
+      directory: storeDir,
+      maxDBSizeInKB: 2 * 1024 * 1024,
+    );
     return ObjectBoxService._create(store);
   }
 

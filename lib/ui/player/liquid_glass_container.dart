@@ -1,4 +1,4 @@
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 class LiquidGlassContainer extends ImplicitlyAnimatedWidget {
@@ -37,14 +37,15 @@ class _LiquidGlassContainerState
   Widget build(BuildContext context) {
     final currentRadius = _borderRadiusTween?.evaluate(animation) ?? 0.0;
 
-    return GlassContainer(
-      useOwnLayer: true,
-      settings: const LiquidGlassSettings(fresnelStrength: 0.0),
-      shape: LiquidRoundedSuperellipse(borderRadius: currentRadius),
-      child: AnimatedContainer(
-        duration: widget.duration,
-        curve: widget.curve,
-        child: widget.child,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(currentRadius),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: AnimatedContainer(
+          duration: widget.duration,
+          curve: widget.curve,
+          child: widget.child,
+        ),
       ),
     );
   }

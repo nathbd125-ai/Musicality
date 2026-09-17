@@ -30,8 +30,15 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
   @override
   void initState() {
     super.initState();
+    songsVersionNotifier.addListener(_onSongsChanged);
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
+  }
+
+  void _onSongsChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _onScroll() {
@@ -56,6 +63,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
 
   @override
   void dispose() {
+    songsVersionNotifier.removeListener(_onSongsChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
@@ -69,7 +77,7 @@ class _ArtistProfileScreenState extends State<ArtistProfileScreen> {
 
     final Map<String, List<MediaItem>> albums = {};
     for (var song in artistSongs) {
-      final albumName = song.album ?? 'Singles';
+      final albumName = normalizeAlbumName(song.id, song.album);
       albums.putIfAbsent(albumName, () => []).add(song);
     }
 

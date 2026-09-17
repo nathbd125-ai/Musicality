@@ -73,16 +73,24 @@ class SearchPageViewState extends State<SearchPageView> {
     if (cleanQuery.isEmpty) {
       _filteredPlaylist = [];
     } else {
-      final query = normalizeString(cleanQuery);
-      _filteredPlaylist = globalPlaylist.where((item) {
-        final titleMatch = normalizeString(item.title).contains(query);
-        final artistMatch = normalizeString(item.artist ?? '').contains(query);
-        final albumMatch = normalizeString(item.album ?? '').contains(query);
-        return titleMatch || artistMatch || albumMatch;
-      }).toList();
-      _filteredPlaylist.sort(
-        (a, b) => normalizeString(a.title).compareTo(normalizeString(b.title)),
-      );
+      final List<MapEntry<MediaItem, int>> scored = [];
+      for (final item in globalPlaylist) {
+        final score = calculateSearchScore(
+          title: item.title,
+          artist: item.artist,
+          album: item.album,
+          query: cleanQuery,
+        );
+        if (score > 0) {
+          scored.add(MapEntry(item, score));
+        }
+      }
+      scored.sort((a, b) {
+        final cmp = b.value.compareTo(a.value);
+        if (cmp != 0) return cmp;
+        return normalizeString(a.key.title).compareTo(normalizeString(b.key.title));
+      });
+      _filteredPlaylist = scored.map((e) => e.key).toList();
     }
   }
 

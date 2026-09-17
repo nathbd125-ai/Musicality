@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,7 +26,25 @@ Future<void> performCloudBackup() async {
     playlistContentsNotifier.value.forEach((key, value) {
       firestoreContents[key] = value.toList();
     });
-    final data = {
+
+    String? customProfileImageBase64;
+    final currentLocalImage = userProfileImageNotifier.value;
+    if (currentLocalImage != null && currentLocalImage.isNotEmpty) {
+      final imgFile = File(currentLocalImage);
+      if (imgFile.existsSync()) {
+        try {
+          final bytes = await imgFile.readAsBytes();
+          // Sauvegarde en Base64 si la vignette fait moins de 350 Ko (Firestore doc max 1 Mo)
+          if (bytes.lengthInBytes <= 350 * 1024) {
+            customProfileImageBase64 = base64Encode(bytes);
+          }
+        } catch (e) {
+          debugPrint("Erreur lecture image profil pour backup: $e");
+        }
+      }
+    }
+
+    final data = <String, dynamic>{
       'likedSongs': likedSongsNotifier.value.toList(),
       'customPlaylists': customPlaylistsNotifier.value,
       'playlistContents': firestoreContents,
@@ -34,6 +53,7 @@ Future<void> performCloudBackup() async {
       'artistScores': artistScoresNotifier.value,
       'artistListeningTime': artistListeningTimeNotifier.value,
       'songPlayCount': songPlayCountNotifier.value,
+      'hasCustomProfileImage': customProfileImageBase64 != null,
       'settings': {
         'isLossless': isLosslessNotifier.value,
         'isHiRes': isHiResNotifier.value,
@@ -44,9 +64,15 @@ Future<void> performCloudBackup() async {
         'isCrossfadeEnabled': isCrossfadeEnabledNotifier.value,
         'crossfadeDuration': crossfadeDurationNotifier.value,
         'isHapticFeedbackEnabled': isHapticFeedbackEnabledNotifier.value,
+        'isLiquidGlassEnabled': isLiquidGlassEnabledNotifier.value,
+        'isBatterySaverEnabled': isBatterySaverEnabledNotifier.value,
       },
       'lastSync': FieldValue.serverTimestamp(),
     };
+
+    if (customProfileImageBase64 != null) {
+      data['customProfileImageBase64'] = customProfileImageBase64;
+    }
     await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
@@ -94,6 +120,30 @@ Future<void> performCloudRestore({bool force = false}) async {
         .get();
     if (doc.exists && doc.data() != null) {
       final data = doc.data()!;
+
+      if (data['customProfileImageBase64'] != null) {
+        try {
+          final base64Str = data['customProfileImageBase64'] as String;
+          final bytes = base64Decode(base64Str);
+          final restoredImage =
+              File('$globalDocumentPath/custom_profile_image.jpg');
+          await restoredImage.writeAsBytes(bytes);
+          userProfileImageNotifier.value = restoredImage.path;
+          mmkv.encodeString('userProfileImage', restoredImage.path);
+          debugPrint("🖼️ Photo de profil personnalisée restaurée depuis le Cloud !");
+        } catch (e) {
+          debugPrint("Erreur restauration image de profil: $e");
+        }
+      } else if (data['hasCustomProfileImage'] == false) {
+        final customFile = File('$globalDocumentPath/custom_profile_image.jpg');
+        if (customFile.existsSync()) {
+          try {
+            customFile.deleteSync();
+          } catch (_) {}
+        }
+        userProfileImageNotifier.value = null;
+        mmkv.removeValue('userProfileImage');
+      }
 
       if (data['likedSongs'] != null) {
         likedSongsNotifier.value = List<String>.from(
@@ -202,6 +252,18 @@ Future<void> performCloudRestore({bool force = false}) async {
           isHapticFeedbackEnabledNotifier.value =
               settings['isHapticFeedbackEnabled'] as bool;
         }
+        if (settings['isLiquidGlassEnabled'] != null) {
+          isLiquidGlassEnabledNotifier.value =
+              settings['isLiquidGlassEnabled'] as bool;
+        }
+        if (settings['isBatterySaverEnabled'] != null) {
+          isBatterySaverEnabledNotifier.value =
+              settings['isBatterySaverEnabled'] as bool;
+        }
+        if (isLiquidGlassEnabledNotifier.value &&
+            isBatterySaverEnabledNotifier.value) {
+          isLiquidGlassEnabledNotifier.value = false;
+        }
       }
 
       // Force la sauvegarde locale immédiate pour que le téléphone soit à jour
@@ -210,6 +272,14 @@ Future<void> performCloudRestore({bool force = false}) async {
       mmkv.encodeBool(
         'isHapticFeedbackEnabled',
         isHapticFeedbackEnabledNotifier.value,
+      );
+      mmkv.encodeBool(
+        'isLiquidGlassEnabled',
+        isLiquidGlassEnabledNotifier.value,
+      );
+      mmkv.encodeBool(
+        'isBatterySaverEnabled',
+        isBatterySaverEnabledNotifier.value,
       );
       mmkv.encodeString(
         'likedSongs',
@@ -263,4 +333,6 @@ void initAutoSyncListeners() {
   isCrossfadeEnabledNotifier.addListener(triggerAutoSync);
   crossfadeDurationNotifier.addListener(triggerAutoSync);
   isHapticFeedbackEnabledNotifier.addListener(triggerAutoSync);
+  isLiquidGlassEnabledNotifier.addListener(triggerAutoSync);
+  isBatterySaverEnabledNotifier.addListener(triggerAutoSync);
 }

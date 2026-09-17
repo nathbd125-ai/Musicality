@@ -187,9 +187,23 @@ Future<void> showAuthDialog({
                               idToken: authClient.idToken,
                             );
 
-                            await FirebaseAuth.instance.signInWithCredential(
+                            final userCredential =
+                                await FirebaseAuth.instance.signInWithCredential(
                               credential,
                             );
+
+                            final googleUser = userCredential.user;
+                            final googlePhoto = googleAccount.photoUrl;
+
+                            if (googleUser != null &&
+                                googlePhoto != null &&
+                                googlePhoto.isNotEmpty) {
+                              if (googleUser.photoURL != googlePhoto) {
+                                await googleUser.updatePhotoURL(googlePhoto);
+                              }
+                              await cacheGoogleAvatar(googlePhoto);
+                            }
+
                             await performCloudRestore();
 
                             showSnackBar("Connexion Google réussie !");

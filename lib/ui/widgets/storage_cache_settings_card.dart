@@ -19,14 +19,35 @@ class StorageCacheSettingsCard extends StatelessWidget {
   });
 
   void _clearCache() {
+    final currentItem = globalAudioHandler.mediaItem.value;
+    final Set<String> protectedNames = {};
+    if (currentItem != null) {
+      protectedNames.add(getSafeFileName(currentItem.id).toLowerCase());
+      protectedNames.add(getBaseId(currentItem.id).toLowerCase());
+      protectedNames.add(
+        currentItem.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '').toLowerCase(),
+      );
+      protectedNames.removeWhere((name) => name.trim().isEmpty);
+    }
+
     final cacheDir = Directory('$globalDocumentPath/cache');
     if (cacheDir.existsSync()) {
       final files = cacheDir.listSync().whereType<File>();
       for (var file in files) {
+        final fileName = file.uri.pathSegments.last.toLowerCase();
+        final bool isProtected = protectedNames.any((p) =>
+            fileName.contains(p) ||
+            p.contains(fileName.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '')));
+
+        if (isProtected) {
+          // Ne jamais supprimer le fichier en cours d'écoute pour éviter le verrouillage OS et la coupure audio
+          continue;
+        }
+
         try {
           file.deleteSync();
-        } catch (e) {
-          debugPrint("Erreur suppression fichier cache : $e");
+        } catch (_) {
+          // Ignorer silencieusement si un fichier temporaire est verrouillé par le système
         }
       }
     }

@@ -4,7 +4,6 @@ import 'package:musicality/core/globals.dart';
 import 'package:musicality/ui/pages/home_screen.dart';
 import 'package:musicality/core/my_audio_handler.dart';
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:mmkv/mmkv.dart';
@@ -87,9 +86,16 @@ Future<void> main() async {
     }
   }
 
+  bool isCronetAvailable = cronetEngine != null;
+
   http.Client createHttpClient() {
-    if (cronetEngine != null) {
-      return CronetClient.fromCronetEngine(cronetEngine, closeEngine: false);
+    if (isCronetAvailable && cronetEngine != null) {
+      return ResilientHttpClient(
+        cronetEngine: cronetEngine,
+        onCronetFailure: () {
+          isCronetAvailable = false;
+        },
+      );
     }
     return http.Client();
   }
@@ -129,6 +135,15 @@ Future<void> main() async {
       }
     } catch (e) {
       debugPrint("Erreur lors de la vérification de la MAJ : $e");
+    }
+
+    try {
+      await ConnectivityService.initialize();
+      ConnectivityService.onReconnected = () {
+        fetchMusiques();
+      };
+    } catch (e, st) {
+      debugPrint("Erreur initialisation ConnectivityService : $e\n$st");
     }
 
     try {
@@ -191,8 +206,7 @@ Future<void> main() async {
       ),
     );
 
-    await LiquidGlassWidgets.initialize();
-    runApp(LiquidGlassWidgets.wrap(child: const MusicalityApp()));
+    runApp(const MusicalityApp());
   }, createHttpClient);
 }
 
@@ -211,20 +225,59 @@ class MusicalityApp extends StatelessWidget {
   }
 }
 
-Future<void> cacheGoogleAvatar(String url) async {
-  try {
-    final mmkv = MMKV.defaultMMKV();
-    final savedUrl = mmkv.decodeString('last_google_avatar_url');
-    final cacheFile = File('$globalDocumentPath/cached_google_avatar.jpg');
+/// Client HTTP résilient assurant une bascule transparente et permanente vers IOClient
+/// si le moteur natif Cronet (Google Play Services) est absent ou rencontre une erreur d'exécution.
+class ResilientHttpClient extends http.BaseClient {
+  final CronetEngine cronetEngine;
+  final VoidCallback onCronetFailure;
+  final http.Client _fallbackClient;
+  http.Client? _cronetClient;
 
-    if (savedUrl != url || !cacheFile.existsSync()) {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        await cacheFile.writeAsBytes(response.bodyBytes);
-        mmkv.encodeString('last_google_avatar_url', url);
+  ResilientHttpClient({
+    required this.cronetEngine,
+    required this.onCronetFailure,
+  })  : _fallbackClient = http.Client() {
+    try {
+      _cronetClient = CronetClient.fromCronetEngine(cronetEngine, closeEngine: false);
+    } catch (e) {
+      debugPrint("[ResilientHttpClient] Échec instanciation CronetClient : $e. Repli standard.");
+      onCronetFailure();
+    }
+  }
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (_cronetClient != null) {
+      List<int>? cachedBody;
+      if (request is http.Request) {
+        cachedBody = request.bodyBytes;
+      }
+
+      try {
+        return await _cronetClient!.send(request);
+      } catch (e) {
+        debugPrint("[ResilientHttpClient] Cronet a échoué ($e). Repli immédiat et permanent sur IOClient.");
+        onCronetFailure();
+        _cronetClient = null;
+
+        if (request is http.Request && cachedBody != null) {
+          final fallbackRequest = http.Request(request.method, request.url)
+            ..headers.addAll(request.headers)
+            ..maxRedirects = request.maxRedirects
+            ..followRedirects = request.followRedirects
+            ..persistentConnection = request.persistentConnection
+            ..bodyBytes = cachedBody;
+          return await _fallbackClient.send(fallbackRequest);
+        }
       }
     }
-  } catch (e) {
-    debugPrint('Failed to cache Google avatar: $e');
+    return await _fallbackClient.send(request);
+  }
+
+  @override
+  void close() {
+    _cronetClient?.close();
+    _fallbackClient.close();
+    super.close();
   }
 }
