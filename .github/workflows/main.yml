@@ -5,16 +5,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      variant:
-        description: 'Version iOS à fabriquer (IPA)'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - standard
-          - studio
 
 jobs:
   build:
@@ -37,7 +27,6 @@ jobs:
 
       # --- BUILD STANDARD ---
       - name: 🍏 Build iOS Standard (IPA)
-        if: ${{ github.event_name == 'push' || inputs.variant == 'all' || inputs.variant == 'standard' }}
         run: |
           flutter build ios --release --no-codesign
           mkdir Payload
@@ -45,32 +34,12 @@ jobs:
           zip -r Musicality_iOS.ipa Payload
           rm -rf Payload
 
-      # --- BUILD STUDIO (Éditeur de paroles & Sync VPS) ---
-      - name: 🍏 Build iOS Studio (IPA Dédiée)
-        if: ${{ github.event_name == 'push' || inputs.variant == 'all' || inputs.variant == 'studio' }}
-        run: |
-          flutter build ios --release --no-codesign --dart-define=STUDIO_MODE=true
-          mkdir Payload
-          mv build/ios/iphoneos/Runner.app Payload/
-          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.example.musicality.studio" Payload/Runner.app/Info.plist || true
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Musicality Studio" Payload/Runner.app/Info.plist || true
-          zip -r Musicality_Studio_iOS.ipa Payload
-          rm -rf Payload
-
       # --- UPLOADS DES ARTIFACTS ---
       - name: 🚀 Upload IPA Standard
-        if: ${{ github.event_name == 'push' || inputs.variant == 'all' || inputs.variant == 'standard' }}
         uses: actions/upload-artifact@v4
         with:
           name: Musicality-iOS-IPA
           path: Musicality_iOS.ipa
-
-      - name: 🚀 Upload IPA Studio
-        if: ${{ github.event_name == 'push' || inputs.variant == 'all' || inputs.variant == 'studio' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: Musicality-Studio-iOS-IPA
-          path: Musicality_Studio_iOS.ipa
 
       - name: 🏷️ Extraction de la version de l'app
         id: extract_version
@@ -91,7 +60,6 @@ jobs:
           name: Musicality ${{ env.APP_VERSION }}
           files: |
             Musicality_iOS.ipa
-            Musicality_Studio_iOS.ipa
           fail_on_unmatched_files: false
           draft: false
           prerelease: false
