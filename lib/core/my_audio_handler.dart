@@ -38,6 +38,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   String? _lastSongId;
   int _lastKnownPositionSecs = 0;
 
+  String? _currentCachingUrl;
+  HttpClient? _cacheHttpClient;
+  IOSink? _currentCacheSink;
+
   final StreamController<LoopMode> _loopModeController =
       StreamController<LoopMode>.broadcast();
   final StreamController<bool> _shuffleModeController =
@@ -171,6 +175,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       final currentItem = mediaItem.value;
 
       if (playing && currentItem != null) {
+        // Sécurité volume : garantit qu'hors fondu le volume ne reste jamais bloqué à 0 en arrière-plan
+        if (!_isCrossfading && _activePlayer.volume < 1.0) {
+          _activePlayer.setVolume(1.0);
+        }
+
         final currentPositionSecs = _activePlayer.position.inSeconds;
         if (_lastKnownPositionSecs > 10 && currentPositionSecs < 5) {
           _flushPendingArtistListeningTime();
@@ -469,6 +478,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         _completeCrossfade();
       }
     });
+
+    // Watchdog de secours : garantit que même si le Timer est retardé par l'OS en arrière-plan (Doze mode),
+    // le volume du morceau actif sera impérativement rétabli à 1.0 et le crossfade finalisé proprement.
+    Timer(Duration(milliseconds: totalFadeMs + 500), () {
+      if (_isCrossfading) {
+        debugPrint("[CROSSFADE] Watchdog fin de fondu déclenché : forçage volume 1.0");
+        _completeCrossfade();
+      }
+    });
   }
 
   void _completeCrossfade() {
@@ -514,6 +532,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
             if (_isCrossfading) {
               _completeCrossfade();
             }
+            _activePlayer.setVolume(1.0);
             manageCacheSize();
             final nextIdx = _getNextIndex();
             if (nextIdx != null) {
@@ -620,7 +639,22 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
         final int limitBytes = cacheLimitNotifier.value * 1024 * 1024;
         final entities = await cacheDir.list().toList();
-        final List<File> cachedFiles = entities.whereType<File>().toList();
+
+        // Nettoyage des fichiers temporaires .part obsolètes (> 30 minutes)
+        for (final entity in entities.whereType<File>()) {
+          if (entity.path.endsWith('.part')) {
+            try {
+              if (now.difference(entity.lastModifiedSync()).inMinutes > 30) {
+                entity.deleteSync();
+              }
+            } catch (_) {}
+          }
+        }
+
+        final List<File> cachedFiles = entities
+            .whereType<File>()
+            .where((f) => !f.path.endsWith('.part'))
+            .toList();
 
         if (cachedFiles.isEmpty) return;
 
@@ -643,15 +677,40 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         });
 
         final currentMediaItem = mediaItem.value;
-        final String currentSafeName = currentMediaItem != null
-            ? currentMediaItem.id.split('/').last.replaceAll('.flac', '')
-            : "";
+        final Set<String> protectedNames = {};
+
+        if (currentMediaItem != null) {
+          protectedNames.add(getSafeFileName(currentMediaItem.id));
+          protectedNames.add(getBaseId(currentMediaItem.id));
+          protectedNames.add(currentMediaItem.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), ''));
+        }
+
+        if (_preloadedIndex != null && _preloadedIndex! < queue.value.length) {
+          final preloadedItem = queue.value[_preloadedIndex!];
+          protectedNames.add(getSafeFileName(preloadedItem.id));
+          protectedNames.add(getBaseId(preloadedItem.id));
+        }
+
+        final nextIdx = _getNextIndex();
+        if (nextIdx != null && nextIdx < queue.value.length) {
+          final nextItem = queue.value[nextIdx];
+          protectedNames.add(getSafeFileName(nextItem.id));
+          protectedNames.add(getBaseId(nextItem.id));
+        }
+
+        protectedNames.removeWhere((name) => name.trim().isEmpty);
 
         for (final file in cachedFiles) {
           if (totalSize <= limitBytes) break;
 
-          // On ne supprime pas le morceau actuellement en cours d'écoute
-          if (currentSafeName.isNotEmpty && file.path.contains(currentSafeName)) {
+          final fileName = file.uri.pathSegments.last.toLowerCase();
+          final bool isProtected = protectedNames.any((name) {
+            final lowerName = name.toLowerCase();
+            return fileName.contains(lowerName) || lowerName.contains(fileName.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), ''));
+          });
+
+          // On ne supprime JAMAIS le morceau en cours d'écoute ni le prochain préchargé
+          if (isProtected) {
             continue;
           }
 
@@ -810,16 +869,117 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       final safeUri = Uri.parse(fileOrUrl.replaceAll('#', '%23'));
       if (targetCacheFile != null && !isCrossfadeToSameSong) {
         manageCacheSize();
-        // ignore: experimental_member_use
-        return LockCachingAudioSource(
-          safeUri,
-          cacheFile: targetCacheFile,
-          tag: newItem,
-        );
-      } else {
-        return AudioSource.uri(safeUri, tag: newItem);
+        // Téléchargement continu et intégral en tâche de fond à pleine vitesse (sans attendre le curseur)
+        _startBackgroundCache(safeUri, targetCacheFile);
       }
+      return AudioSource.uri(safeUri, tag: newItem);
     }
+  }
+
+  void _cancelBackgroundCache() {
+    try {
+      _cacheHttpClient?.close(force: true);
+      _currentCacheSink?.close();
+    } catch (_) {}
+    _cacheHttpClient = null;
+    _currentCacheSink = null;
+    _currentCachingUrl = null;
+  }
+
+  void _startBackgroundCache(Uri url, File targetFile) {
+    if (!isCacheEnabledNotifier.value) return;
+    if (targetFile.existsSync() && targetFile.lengthSync() > 0) return;
+    if (_currentCachingUrl == url.toString()) return;
+
+    _cancelBackgroundCache();
+    _currentCachingUrl = url.toString();
+
+    final partFile = File('${targetFile.path}.part');
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 15);
+    _cacheHttpClient = client;
+
+    Future<void>(() async {
+      try {
+        final request = await client.getUrl(url);
+        final response = await request.close();
+
+        if (response.statusCode != 200 && response.statusCode != 206) {
+          debugPrint("[CACHE] Erreur HTTP ${response.statusCode} lors de la mise en cache de $url");
+          return;
+        }
+
+        if (partFile.existsSync()) {
+          try { partFile.deleteSync(); } catch (_) {}
+        }
+        final sink = partFile.openWrite();
+        _currentCacheSink = sink;
+
+        await response.listen(
+          (chunk) {
+            sink.add(chunk);
+          },
+          cancelOnError: true,
+        ).asFuture();
+
+        await sink.flush();
+        await sink.close();
+        _currentCacheSink = null;
+
+        if (await partFile.exists() && await partFile.length() > 5000) {
+          if (await targetFile.exists()) {
+            try { await targetFile.delete(); } catch (_) {}
+          }
+          await partFile.rename(targetFile.path);
+          debugPrint("[CACHE] Morceau intégralement mis en cache avec succès : ${targetFile.path}");
+          manageCacheSize();
+          _preloadNextSongToCache();
+        }
+      } catch (e) {
+        if (_currentCachingUrl == url.toString()) {
+          debugPrint("[CACHE] Téléchargement continu interrompu : $e");
+        }
+        if (partFile.existsSync()) {
+          try { partFile.deleteSync(); } catch (_) {}
+        }
+      } finally {
+        if (_currentCachingUrl == url.toString()) {
+          _currentCachingUrl = null;
+          _cacheHttpClient = null;
+        }
+      }
+    });
+  }
+
+  void _preloadNextSongToCache() {
+    if (!isCacheEnabledNotifier.value) return;
+    final nextIdx = _getNextIndex();
+    if (nextIdx == null || nextIdx >= queue.value.length) return;
+    final nextItem = queue.value[nextIdx];
+    final safeName = getSafeFileName(nextItem.id);
+
+    final bool wantFlac = isLosslessNotifier.value;
+    final bool wantHiRes = isHiResNotifier.value;
+    final bool hasFlac = nextItem.extras?['hasFlac'] as bool? ?? true;
+    final bool hasHiRes = nextItem.extras?['hasHiRes'] as bool? ?? false;
+
+    File targetFile;
+    String targetUrl;
+    final baseUri = nextItem.id.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
+
+    if (wantHiRes && hasHiRes) {
+      targetFile = File('$globalDocumentPath/cache/$safeName-hires.flac');
+      targetUrl = '$baseUri-hires.flac';
+    } else if ((wantHiRes || wantFlac) && hasFlac) {
+      targetFile = File('$globalDocumentPath/cache/$safeName.flac');
+      targetUrl = '$baseUri.flac';
+    } else {
+      targetFile = File('$globalDocumentPath/cache/$safeName.mp3');
+      targetUrl = '$baseUri.mp3';
+    }
+
+    if (targetFile.existsSync() && targetFile.lengthSync() > 0) return;
+    _startBackgroundCache(Uri.parse(targetUrl.replaceAll('#', '%23')), targetFile);
   }
 
   Future<void> playFromList(
@@ -832,6 +992,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _isPreparing = true;
     _cancelCrossfade();
     _preloadedIndex = null;
+    _activePlayer.setVolume(1.0);
     currentPlaybackContextNotifier.value = contextTag;
 
     final effectiveCtx = contextTag ?? 'all_musics';
@@ -1174,6 +1335,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _playInterrupted = false;
     _skipDebounceTimer?.cancel();
     _cancelCrossfade();
+    _cancelBackgroundCache();
     _loadedSongId = null;
     await _activePlayer.stop();
     await _nextPlayer.stop();
@@ -1197,6 +1359,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       _isPreparing = true;
       _cancelCrossfade();
       _preloadedIndex = null;
+      _activePlayer.setVolume(1.0);
 
       try {
         final item = queue.value[index];
