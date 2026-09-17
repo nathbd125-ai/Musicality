@@ -301,14 +301,21 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
           keyContext,
           alignment: 0.30,
           duration:
-              immediate ? Duration.zero : const Duration(milliseconds: 400),
-          curve: Curves.easeOutCubic,
+              immediate ? Duration.zero : const Duration(milliseconds: 500),
+          curve: Curves.easeInOutCubic,
         );
       } else if (_scrollController.hasClients && widget.lyrics.isNotEmpty) {
-        // Ligne hors viewport : saut direct vers la position estimée
         final maxScroll = _scrollController.position.maxScrollExtent;
         final approxOffset = (targetIndex / widget.lyrics.length) * maxScroll;
-        _scrollController.jumpTo(approxOffset.clamp(0.0, maxScroll));
+        if (immediate) {
+          _scrollController.jumpTo(approxOffset.clamp(0.0, maxScroll));
+        } else {
+          _scrollController.animateTo(
+            approxOffset.clamp(0.0, maxScroll),
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.easeInOutCubic,
+          );
+        }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !widget.isExpanded) return;
           final retryContext = _lyricKeys[targetIndex].currentContext;
@@ -318,7 +325,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
               alignment: 0.30,
               duration:
                   immediate ? Duration.zero : const Duration(milliseconds: 350),
-              curve: Curves.easeOutCubic,
+              curve: Curves.easeInOutCubic,
             );
           }
         });
@@ -476,7 +483,7 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
           },
           child: ListView.builder(
             controller: _scrollController,
-            scrollCacheExtent: const ScrollCacheExtent.pixels(250.0),
+            scrollCacheExtent: const ScrollCacheExtent.pixels(800.0),
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.only(
               top: screenHeight * 0.22,
@@ -512,16 +519,16 @@ class _MusicalityLyricsViewState extends State<MusicalityLyricsView>
 }
 
 List<Shadow> _buildGlowShadows(Color glowColor, double factor) {
-  if (isBatterySaverEnabledNotifier.value || factor <= 0.01) return const [];
+  if (isBatterySaverEnabledNotifier.value || factor <= 0.05) return const [];
   final f = factor.clamp(0.0, 1.0);
   return [
     Shadow(
-      color: Colors.white.withValues(alpha: (f * 0.85).clamp(0.0, 1.0)),
-      blurRadius: 6.0,
+      color: Colors.white.withValues(alpha: (f * 0.7).clamp(0.0, 1.0)),
+      blurRadius: 4.0,
     ),
     Shadow(
-      color: glowColor.withValues(alpha: (f * 0.7).clamp(0.0, 1.0)),
-      blurRadius: 16.0,
+      color: glowColor.withValues(alpha: (f * 0.5).clamp(0.0, 1.0)),
+      blurRadius: 8.0,
     ),
   ];
 }
@@ -628,10 +635,7 @@ class _LyricLineItemState extends State<_LyricLineItem>
         return ValueListenableBuilder<bool>(
           valueListenable: isBatterySaverEnabledNotifier,
           builder: (context, isBatterySaver, _) {
-            const kBlurSigma = 1.2;
-            final currentBlur = isBatterySaver
-                ? 0.0
-                : ((_isActive || progress > 0.001) ? 0.0 : kBlurSigma);
+            const currentBlur = 0.0;
 
             final Widget renderedLine;
             final bool hasWords = widget.line.words.isNotEmpty;
@@ -663,14 +667,14 @@ class _LyricLineItemState extends State<_LyricLineItem>
                       glowColor: widget.glowColor,
                       unlitColor: effectiveUnlitColor,
                       lineActiveProgress: 0.0,
-                      blurRadius: isBatterySaver ? 0.0 : kBlurSigma,
+                      blurRadius: 0.0,
                     )
                   : _PlainLineWidget(
                       text: widget.line.text,
                       glowColor: widget.glowColor,
                       unlitColor: effectiveUnlitColor,
                       lineActiveProgress: 0.0,
-                      blurRadius: isBatterySaver ? 0.0 : kBlurSigma,
+                      blurRadius: 0.0,
                     );
             } else {
               renderedLine = hasWords
@@ -955,18 +959,8 @@ class _KaraokeWord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Mot non encore chanté : couleur unlit propre avec flou esthétique 1.2px
+    // 1. Mot non encore chanté : couleur unlit propre (40% opacité)
     if (lightFactor <= 0.005) {
-      if (blurRadius > 0.08) {
-        return Text(
-          text,
-          style: _baseTextStyle.copyWith(
-            foreground: Paint()
-              ..color = unlitColor
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
-          ),
-        );
-      }
       return Text(
         text,
         style: _baseTextStyle.copyWith(color: unlitColor),
@@ -985,28 +979,14 @@ class _KaraokeWord extends StatelessWidget {
       );
     }
 
-    // 3. Ligne qui se termine (estompage progressif de la lumière et retour du flou)
+    // 3. Ligne qui se termine (estompage progressif de la couleur)
     if (!isCurrent) {
-      final shadows =
-          cachedFadeShadows ?? _buildGlowShadows(glowColor, lightFactor);
       final wordColor = cachedFadeColor ??
           Color.lerp(unlitColor, Colors.white, lightFactor)!;
-      if (blurRadius > 0.08) {
-        return Text(
-          text,
-          style: _baseTextStyle.copyWith(
-            foreground: Paint()
-              ..color = wordColor
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
-            shadows: shadows,
-          ),
-        );
-      }
       return Text(
         text,
         style: _baseTextStyle.copyWith(
           color: wordColor,
-          shadows: shadows,
         ),
       );
     }
@@ -1069,17 +1049,6 @@ class _PlainLineWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (lineActiveProgress <= 0.005) {
-      if (blurRadius > 0.08) {
-        return Text(
-          text,
-          textAlign: TextAlign.left,
-          style: _KaraokeWord._baseTextStyle.copyWith(
-            foreground: Paint()
-              ..color = unlitColor
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
-          ),
-        );
-      }
       return Text(
         text,
         textAlign: TextAlign.left,
@@ -1099,26 +1068,12 @@ class _PlainLineWidget extends StatelessWidget {
       );
     }
 
-    final shadows = _buildGlowShadows(glowColor, lineActiveProgress);
     final color = Color.lerp(unlitColor, Colors.white, lineActiveProgress)!;
-    if (blurRadius > 0.08) {
-      return Text(
-        text,
-        textAlign: TextAlign.left,
-        style: _KaraokeWord._baseTextStyle.copyWith(
-          foreground: Paint()
-            ..color = color
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurRadius),
-          shadows: shadows,
-        ),
-      );
-    }
     return Text(
       text,
       textAlign: TextAlign.left,
       style: _KaraokeWord._baseTextStyle.copyWith(
         color: color,
-        shadows: shadows,
       ),
     );
   }
