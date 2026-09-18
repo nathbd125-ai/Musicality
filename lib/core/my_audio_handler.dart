@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
@@ -225,6 +226,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
         // Vérification de déclenchement du Crossfade
         _checkCrossfadeTrigger();
+
+        // Sauvegarde périodique de la session (debouncée)
+        saveCurrentPlaybackSession();
       } else {
         _stopListeningTimer();
       }
@@ -447,6 +451,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _currentIndex = nextIndex;
     mediaItem.add(nextItem);
     _loadedSongId = nextItem.id;
+    saveCurrentPlaybackSession(forceFlush: true);
     _broadcastState();
 
     final remainingOldMs = (_nextPlayer.duration != null && _nextPlayer.position < _nextPlayer.duration!)
@@ -1053,6 +1058,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
           if (currentReqId == _loadRequestId) {
             _isPreparing = false;
             _isSourceLoaded = true;
+            saveCurrentPlaybackSession(forceFlush: true);
             _broadcastState();
 
             // Préchargement immédiat du prochain morceau 2 secondes après le démarrage
@@ -1169,6 +1175,150 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     } catch (_) {}
   }
 
+  static const String _kLastSongIdKey = 'last_played_song_id';
+  static const String _kLastPositionMsKey = 'last_played_position_ms';
+  static const String _kLastContextTagKey = 'last_played_context_tag';
+  static const String _kLastQueueIdsKey = 'last_played_queue_ids';
+
+  int _lastSavedPositionMs = -1;
+  DateTime _lastSaveTime = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void saveCurrentPlaybackSession({bool forceFlush = false}) {
+    final currentItem = mediaItem.value;
+    if (currentItem == null || currentItem.id.trim().isEmpty) return;
+
+    final now = DateTime.now();
+    final currentPosition = _activePlayer.position;
+    final currentPosMs = currentPosition.inMilliseconds;
+
+    // Éviter d'écrire en boucle si la position n'a pas bougé d'au moins 1 seconde (sauf forceFlush)
+    if (!forceFlush) {
+      if (now.difference(_lastSaveTime).inMilliseconds < 2000) return;
+      if ((_lastSavedPositionMs - currentPosMs).abs() < 1000) {
+        return;
+      }
+    }
+
+    _lastSaveTime = now;
+
+    try {
+      final mmkv = MMKV.defaultMMKV();
+      mmkv.encodeString(_kLastSongIdKey, currentItem.id);
+      mmkv.encodeInt(_kLastPositionMsKey, currentPosMs);
+      _lastSavedPositionMs = currentPosMs;
+
+      final ctx = currentPlaybackContextNotifier.value ?? 'all_musics';
+      mmkv.encodeString(_kLastContextTagKey, ctx);
+
+      // Sauvegarder la file actuelle d'écoute (max 200 IDs pour rester ultra léger)
+      final queueIds = queue.value.map((m) => m.id).take(200).toList();
+      if (queueIds.isNotEmpty) {
+        mmkv.encodeString(_kLastQueueIdsKey, jsonEncode(queueIds));
+      }
+    } catch (e) {
+      debugPrint("Erreur sauvegarde session de lecture : $e");
+    }
+  }
+
+  Future<void> restoreLastSession() async {
+    try {
+      final mmkv = MMKV.defaultMMKV();
+      final lastSongId = mmkv.decodeString(_kLastSongIdKey);
+      if (lastSongId == null || lastSongId.trim().isEmpty) return;
+
+      // Si un média est déjà chargé et actif (ex: reprise rapide), ne pas écraser
+      if (mediaItem.value != null) return;
+      if (globalPlaylist.isEmpty) {
+        loadMusiquesFromCache();
+      }
+      if (globalPlaylist.isEmpty) return;
+
+      // Recherche du MediaItem dans globalPlaylist (par ID exact ou nom de fichier)
+      int songIndex = globalPlaylist.indexWhere((m) => m.id == lastSongId);
+      if (songIndex == -1) {
+        final cleanTarget = lastSongId.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
+        songIndex = globalPlaylist.indexWhere((e) {
+          final eClean = e.id.split('/').last.replaceAll(RegExp(r'(-hires)?\.(flac|mp3)$'), '');
+          return eClean == cleanTarget;
+        });
+      }
+      if (songIndex == -1) return;
+
+      final targetSong = globalPlaylist[songIndex];
+
+      // Restauration de la file d'attente (queue)
+      List<MediaItem> restoredQueue = [];
+      final queueIdsJson = mmkv.decodeString(_kLastQueueIdsKey);
+      if (queueIdsJson != null && queueIdsJson.isNotEmpty) {
+        try {
+          final List<dynamic> decodedIds = jsonDecode(queueIdsJson);
+          final Map<String, MediaItem> songMap = {
+            for (var m in globalPlaylist) m.id: m,
+          };
+          for (final id in decodedIds) {
+            final m = songMap[id.toString()];
+            if (m != null) restoredQueue.add(m);
+          }
+        } catch (e) {
+          debugPrint("Erreur décodage file restaurée : $e");
+        }
+      }
+
+      if (restoredQueue.isEmpty) {
+        restoredQueue = List<MediaItem>.from(globalPlaylist);
+      }
+
+      final savedContextTag = mmkv.decodeString(_kLastContextTagKey);
+      currentPlaybackContextNotifier.value = savedContextTag ?? 'all_musics';
+
+      int targetIndex = restoredQueue.indexWhere((m) => m.id == lastSongId);
+      if (targetIndex == -1) {
+        targetIndex = 0;
+      }
+
+      _currentIndex = targetIndex;
+      queue.add(restoredQueue);
+      mediaItem.add(targetSong);
+
+      if (_shuffleModeEnabled) {
+        _generateShuffleIndices(restoredQueue.length);
+      }
+
+      final savedPositionMs = mmkv.decodeInt(_kLastPositionMsKey, defaultValue: 0);
+      Duration targetPosition = Duration.zero;
+      final songDurationMs = targetSong.duration?.inMilliseconds ?? 0;
+
+      // Si le morceau a été sauvegardé alors qu'il était quasi fini (< 3s de la fin), on repart à 0
+      if (savedPositionMs > 0) {
+        if (songDurationMs > 0 && savedPositionMs >= songDurationMs - 3000) {
+          targetPosition = Duration.zero;
+        } else {
+          targetPosition = Duration(milliseconds: savedPositionMs);
+        }
+      }
+
+      _isPreparing = true;
+      try {
+        final source = _createSource(targetSong);
+        await _activePlayer.setAudioSource(source);
+        _loadedSongId = targetSong.id;
+        if (targetPosition > Duration.zero) {
+          await _activePlayer.seek(targetPosition);
+        }
+      } catch (e) {
+        debugPrint("Erreur pré-chargement session audio : $e");
+      } finally {
+        _isPreparing = false;
+        _isSourceLoaded = true;
+        _broadcastState();
+      }
+
+      debugPrint("🎵 [SessionRestore] Restauration réussie : ${targetSong.title} à ${targetPosition.inSeconds}s (pause)");
+    } catch (e, st) {
+      debugPrint("Erreur lors de la restauration de la session de lecture : $e\n$st");
+    }
+  }
+
   Future<void> toggleLoopMode() async {
     if (_loopMode == LoopMode.all) {
       _loopMode = LoopMode.one;
@@ -1282,6 +1432,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     if (_isCrossfading) {
       await _nextPlayer.pause();
     }
+    saveCurrentPlaybackSession(forceFlush: true);
     _broadcastState();
   }
 
@@ -1292,6 +1443,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
     // On conserve _preloadedIndex pour permettre un crossfade immédiat même après un seek
     await _activePlayer.seek(position);
+    saveCurrentPlaybackSession(forceFlush: true);
     _broadcastState();
   }
 
@@ -1337,6 +1489,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> stop() async {
+    saveCurrentPlaybackSession(forceFlush: true);
     _playInterrupted = false;
     _skipDebounceTimer?.cancel();
     _cancelCrossfade();
@@ -1353,6 +1506,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> onTaskRemoved() async {
+    saveCurrentPlaybackSession(forceFlush: true);
     await stop();
   }
 
@@ -1404,6 +1558,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         if (currentRequestId == _loadRequestId) {
           _isPreparing = false;
           _isSourceLoaded = true;
+          saveCurrentPlaybackSession(forceFlush: true);
           _broadcastState();
 
           // Préchargement immédiat du prochain morceau 2 secondes après le changement

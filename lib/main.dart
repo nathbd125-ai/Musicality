@@ -206,6 +206,13 @@ Future<void> main() async {
       ),
     );
 
+    // Restauration de la dernière session d'écoute (titre, position, queue) en mode pause
+    try {
+      await (globalAudioHandler as MyAudioHandler).restoreLastSession();
+    } catch (e) {
+      debugPrint("Erreur restauration session audio : $e");
+    }
+
     runApp(const MusicalityApp());
   }, createHttpClient);
 }

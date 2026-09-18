@@ -171,6 +171,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      if (globalAudioHandler is MyAudioHandler) {
+        (globalAudioHandler as MyAudioHandler).saveCurrentPlaybackSession(forceFlush: true);
+      }
+    }
     final bool isResumed = (state == AppLifecycleState.resumed);
     if (mounted) {
       setState(() {
